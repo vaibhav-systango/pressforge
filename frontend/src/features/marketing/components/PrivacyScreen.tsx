@@ -25,7 +25,7 @@ export function PrivacyScreen() {
             <p>
               We collect information that you provide directly to us when creating a workspace, setting up client portals,
               or configuring automated messaging workflows. This may include your name, email address, password,
-              company details, and communication metadata processed via WhatsApp or other integration partners.
+              company details, and communication metadata processed via Telegram or other integration partners.
             </p>
           </section>
 
@@ -37,7 +37,7 @@ export function PrivacyScreen() {
             </p>
             <ul className="list-disc list-inside space-y-1.5 pl-4">
               <li>Generating brand-voice aligned content suggestions.</li>
-              <li>Routing content approvals to clients via WhatsApp interfaces.</li>
+              <li>Routing content approvals to clients via Telegram interfaces.</li>
               <li>Publishing to linked social media accounts on your schedule.</li>
               <li>Monitoring brand mentions and feeding health metrics back into the system.</li>
             </ul>

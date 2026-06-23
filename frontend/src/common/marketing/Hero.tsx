@@ -95,7 +95,7 @@ export function Hero() {
         </div>
         {/* Floating badges */}
         <div className="absolute -left-6 top-20 hidden glass rounded-xl px-3 py-2 text-xs md:flex items-center gap-2 animate-float">
-          <Check className="h-3.5 w-3.5 text-emerald-500" /> {MARKETING.HERO.WHATSAPP_BADGE}
+          <Check className="h-3.5 w-3.5 text-sky-500" /> {MARKETING.HERO.TELEGRAM_BADGE}
         </div>
         <div className="absolute -right-6 top-40 hidden glass rounded-xl px-3 py-2 text-xs md:flex items-center gap-2 animate-float" style={{ animationDelay: "-3s" }}>
           <Zap className="h-3.5 w-3.5 text-amber-400" /> {MARKETING.HERO.GENERATED_BADGE}
