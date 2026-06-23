@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth, UserRole } from '@/providers/AuthProvider';
+import { ROUTES } from '@/routes';
 
 interface RoleGuardProps {
   allowedRoles: UserRole[];
@@ -19,7 +20,7 @@ export function RoleGuard({ allowedRoles, children, fallback = null, redirect = 
 
   useEffect(() => {
     if (!isLoading && !isAuthorized && redirect) {
-      router.push('/unauthorized');
+      router.push(ROUTES.UNAUTHORIZED);
     }
   }, [isLoading, isAuthorized, redirect, router]);
 

@@ -14,7 +14,6 @@ The portal is built on a modern, high-performance technology stack, maximizing t
 *   **CSS Styling:** [Tailwind CSS v4](https://tailwindcss.com/) for fluid utility-first layout styling, seamlessly integrated with the Mantine design tokens.
 *   **State Management & Data Fetching:** [TanStack React Query v5](https://tanstack.com/query/latest) for robust caching, refetching, and query mutations.
 *   **Form Orchestration:** [React Hook Form](https://react-hook-form.com/) combined with [Zod](https://zod.dev/) for type-safe validation schemas.
-*   **Testing Suite:** [Jest](https://jestjs.io/) and [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/) with custom render providers pre-configured.
 
 ---
 
@@ -40,12 +39,11 @@ frontend/
 │   │       ├── components/ # Local components (DashboardScreen, etc.)
 │   │       └── api/        # Mock queries, state actions, endpoints
 │   ├── hooks/              # Global custom hooks (responsive viewports, local storage)
-│   ├── lib/                # Technical utility functions (cookies, testing wrappers)
+│   ├── lib/                # Technical utility functions (cookies)
 │   ├── providers/          # Global React Context Wrappers (Auth, Mantine, Query client)
 │   ├── theme/              # Custom design tokens, typography, and Mantine overrides
 │   └── types/              # Core domain TypeScript type/interface files
 ├── tsconfig.json           # Strict TypeScript configuration
-├── jest.config.ts          # Jest testing suite configuration
 ├── eslint.config.mjs       # ESLint rules and style checks
 └── package.json            # Scripts, dependency allocations, configuration metadata
 ```
@@ -78,12 +76,11 @@ import { RoleGuard } from '@/components/auth/RoleGuard';
 
 ## 🛠️ CLI Development Commands
 
-Run these terminal scripts inside the `/frontend` directory to develop, check, and test:
+Run these terminal scripts inside the `/frontend` directory to develop and check:
 
 *   **Start Local Dev Server:** `npm run dev`
 *   **Compile Production Build:** `npm run build`
 *   **Start Production Server:** `npm run start`
-*   **Execute Test Suite:** `npm run test` or `npm run test:watch`
 *   **Check Code Formatting:** `npm run format:check` and auto-format with `npm run format`
 *   **Lint for Syntax & Rules:** `npm run lint`
 *   **Run Strict Type-Checking:** `npm run typecheck`

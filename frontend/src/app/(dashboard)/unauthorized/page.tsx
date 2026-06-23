@@ -4,6 +4,8 @@ import React from 'react';
 import Link from 'next/link';
 import { Container, Card, Title, Text, Button, Group, Stack } from '@mantine/core';
 import { useAuth } from '@/providers/AuthProvider';
+import { AUTH } from '@/constants';
+import { ROUTES } from '@/routes';
 
 export default function UnauthorizedPage() {
   const { logout } = useAuth();
@@ -15,14 +17,13 @@ export default function UnauthorizedPage() {
           <Stack gap="md" align="center">
             <span className="text-5xl">🛑</span>
             <Title order={2} size="h3" className="font-black text-red-600 dark:text-red-400">
-              Access Denied (403)
+              {AUTH.UNAUTHORIZED.TITLE}
             </Title>
             <Text c="dimmed" size="sm">
-              You do not have the required permissions to access this screen. Please contact your system administrator
-              if you believe this is an error.
+              {AUTH.UNAUTHORIZED.DESC}
             </Text>
             <Group justify="center" mt="md">
-              <Button component={Link} href="/dashboard" variant="default">
+              <Button component={Link} href={ROUTES.DASHBOARD} variant="default">
                 Go to Dashboard
               </Button>
               <Button onClick={() => logout()} color="red">

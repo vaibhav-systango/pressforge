@@ -15,10 +15,11 @@ import {
   Select,
   Button,
   Stack,
-  useMantineColorScheme,
-  ActionIcon,
 } from '@mantine/core';
 import { useAuth } from '@/providers/AuthProvider';
+import { ThemeToggle } from '@/common/layout/ThemeToggle';
+import { AUTH } from '@/constants';
+import { ROUTES } from '@/routes';
 
 const signupSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -31,8 +32,6 @@ type SignupSchema = z.infer<typeof signupSchema>;
 
 export default function SignupPage() {
   const { signup } = useAuth();
-  const { colorScheme, setColorScheme } = useMantineColorScheme();
-  const dark = colorScheme === 'dark';
 
   const {
     control,
@@ -40,12 +39,7 @@ export default function SignupPage() {
     formState: { errors, isSubmitting },
   } = useForm<SignupSchema>({
     resolver: zodResolver(signupSchema),
-    defaultValues: {
-      name: '',
-      email: '',
-      password: '',
-      role: 'admin',
-    },
+    defaultValues: AUTH.SIGNUP.DEFAULT_VALUES,
   });
 
   const onSubmit = async (values: SignupSchema) => {
@@ -56,67 +50,22 @@ export default function SignupPage() {
     <div className="min-h-screen flex flex-col justify-center bg-slate-50 dark:bg-zinc-950 transition-colors py-12 px-4 sm:px-6 lg:px-8">
       {/* Corner Theme Toggle */}
       <div className="absolute top-4 right-4">
-        <ActionIcon
-          variant="default"
-          onClick={() => setColorScheme(dark ? 'light' : 'dark')}
-          size="lg"
-          aria-label="Toggle color scheme"
-        >
-          {dark ? (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-yellow-500"
-            >
-              <circle cx="12" cy="12" r="4" />
-              <path d="M12 2v2" />
-              <path d="M12 20v2" />
-              <path d="m4.93 4.93 1.41 1.41" />
-              <path d="m17.66 17.66 1.41 1.41" />
-              <path d="M2 12h2" />
-              <path d="M20 12h2" />
-              <path d="m6.34 17.66-1.41 1.41" />
-              <path d="m19.07 4.93-1.41 1.41" />
-            </svg>
-          ) : (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-indigo-600"
-            >
-              <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
-            </svg>
-          )}
-        </ActionIcon>
+        <ThemeToggle className="border border-border/40" />
       </div>
 
       <Container size="xs" className="w-full">
         <Card withBorder padding="xl" radius="md" className="shadow-md bg-white dark:bg-zinc-900">
           <Stack gap="md" className="text-center mb-4">
             <span className="text-2xl font-black bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
-              PressForge
+              {AUTH.BRAND_NAME}
             </span>
             <Title order={2} size="h3" className="font-bold">
-              Create a new account
+              {AUTH.SIGNUP.CARD_TITLE}
             </Title>
             <Text c="dimmed" size="sm">
-              Already have an account?{' '}
-              <Link href="/login" className="text-violet-600 dark:text-violet-400 font-semibold hover:underline">
-                Log in
+              {AUTH.SIGNUP.ALREADY_ACCOUNT_PROMPT}{' '}
+              <Link href={ROUTES.LOGIN} className="text-violet-600 dark:text-violet-400 font-semibold hover:underline">
+                {AUTH.SIGNUP.LOGIN_LINK}
               </Link>
             </Text>
           </Stack>
@@ -171,11 +120,7 @@ export default function SignupPage() {
                 render={({ field }) => (
                   <Select
                     label="System Role"
-                    data={[
-                      { value: 'admin', label: 'Administrator (Full Edit/Create)' },
-                      { value: 'editor', label: 'Editor (Modify simulation only)' },
-                      { value: 'viewer', label: 'Viewer (Read-only)' },
-                    ]}
+                    data={AUTH.ROLE_OPTIONS}
                     required
                     {...field}
                   />
@@ -183,7 +128,7 @@ export default function SignupPage() {
               />
 
               <Button type="submit" color="violet" fullWidth mt="md" loading={isSubmitting}>
-                Sign Up
+                {AUTH.SIGNUP.SUBMIT_BTN}
               </Button>
             </Stack>
           </form>

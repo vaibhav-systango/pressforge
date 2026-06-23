@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCookie, setCookie, deleteCookie } from '@/lib/cookies';
+import { AUTH } from '@/constants';
+import { ROUTES } from '@/routes';
 
 export type UserRole = 'admin' | 'editor' | 'viewer';
 
@@ -30,14 +32,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const session = getCookie('pressforge-session');
+    const session = getCookie(AUTH.SESSION_COOKIE_KEY);
     if (session) {
       try {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setUser(JSON.parse(session));
       } catch (e) {
         console.error('Failed to parse auth session cookie', e);
-        deleteCookie('pressforge-session');
+        deleteCookie(AUTH.SESSION_COOKIE_KEY);
       }
     }
     setIsLoading(false);
@@ -53,10 +55,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email,
       role,
     };
-    setCookie('pressforge-session', JSON.stringify(mockUser), 7);
+    setCookie(AUTH.SESSION_COOKIE_KEY, JSON.stringify(mockUser), 7);
     setUser(mockUser);
     setIsLoading(false);
-    router.push('/dashboard');
+    router.push(ROUTES.DASHBOARD);
   };
 
   const signup = async (name: string, email: string, role: UserRole) => {
@@ -68,16 +70,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email,
       role,
     };
-    setCookie('pressforge-session', JSON.stringify(mockUser), 7);
+    setCookie(AUTH.SESSION_COOKIE_KEY, JSON.stringify(mockUser), 7);
     setUser(mockUser);
     setIsLoading(false);
-    router.push('/dashboard');
+    router.push(ROUTES.DASHBOARD);
   };
 
   const logout = () => {
-    deleteCookie('pressforge-session');
+    deleteCookie(AUTH.SESSION_COOKIE_KEY);
     setUser(null);
-    router.push('/login');
+    router.push(ROUTES.LOGIN);
   };
 
   const hasRole = (allowedRoles: UserRole[]) => {

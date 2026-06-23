@@ -2,164 +2,133 @@
 
 import React from 'react';
 import Link from 'next/link';
-import {
-  Container,
-  Title,
-  Text,
-  Button,
-  Group,
-  Stack,
-  SimpleGrid,
-  Card,
-  Badge,
-  useMantineColorScheme,
-  ActionIcon,
-} from '@mantine/core';
+import { Button } from '@/common/buttons/Button';
+
+import Header from '@/common/layout/Header';
+import Footer from '@/common/layout/Footer';
+import Hero from '@/common/marketing/Hero';
+import FeatureCard from '@/common/marketing/FeatureCard';
+import PricingCard from '@/common/marketing/PricingCard';
+import StatCard from '@/common/marketing/StatCard';
+import CTA from '@/common/marketing/CTA';
+
+import { MARKETING } from '@/constants';
+import { ROUTES } from '@/routes';
 
 export default function LandingPage() {
-  const { colorScheme, setColorScheme } = useMantineColorScheme();
-  const dark = colorScheme === 'dark';
-
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-50 transition-colors">
-      {/* Navigation Header */}
-      <header className="border-b border-slate-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-md sticky top-0 z-50">
-        <Container size="lg" className="h-16 flex items-center justify-between">
-          <Group gap="xs">
-            <span className="text-2xl font-black bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
-              PressForge
-            </span>
-          </Group>
-          <Group gap="md">
-            <ActionIcon
-              variant="default"
-              onClick={() => setColorScheme(dark ? 'light' : 'dark')}
-              size="lg"
-              aria-label="Toggle color scheme"
-            >
-              {dark ? (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="text-yellow-500"
-                >
-                  <circle cx="12" cy="12" r="4" />
-                  <path d="M12 2v2" />
-                  <path d="M12 20v2" />
-                  <path d="m4.93 4.93 1.41 1.41" />
-                  <path d="m17.66 17.66 1.41 1.41" />
-                  <path d="M2 12h2" />
-                  <path d="M20 12h2" />
-                  <path d="m6.34 17.66-1.41 1.41" />
-                  <path d="m19.07 4.93-1.41 1.41" />
-                </svg>
-              ) : (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="text-indigo-600"
-                >
-                  <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
-                </svg>
-              )}
-            </ActionIcon>
-            <Button component={Link} href="/login" variant="subtle" color="violet">
-              Log In
-            </Button>
-            <Button component={Link} href="/signup" color="violet">
-              Sign Up
-            </Button>
-          </Group>
-        </Container>
-      </header>
+    <div className="relative min-h-screen overflow-hidden text-foreground">
+      {/* Header Navigation */}
+      <Header />
 
       {/* Hero Section */}
-      <Container size="lg" className="py-20 md:py-32">
-        <Stack align="center" gap="xl" className="text-center max-w-3xl mx-auto">
-          <Badge color="violet" size="lg" variant="dot">
-            Next-Gen Brand Operations
-          </Badge>
-          <Title order={1} className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-tight">
-            Deploy, Automate & Monitor{' '}
-            <span className="bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500 bg-clip-text text-transparent">
-              Your Entire Brand Assets
-            </span>
-          </Title>
-          <Text c="dimmed" className="text-lg md:text-xl">
-            PressForge is the centralized workspace orchestration suite tailored for agencies and modern marketing
-            teams. Execute project delivery sprints, audit budgets, and analyze team allocations.
-          </Text>
-          <Group gap="md">
-            <Button component={Link} href="/signup" size="lg" color="violet">
-              Start Free Trial
-            </Button>
-            <Button component={Link} href="/login" size="lg" variant="outline" color="violet">
-              Access Dashboard
-            </Button>
-          </Group>
-        </Stack>
-      </Container>
+      <Hero />
 
-      {/* Features Grid */}
-      <Container size="lg" className="pb-24">
-        <div className="text-center mb-16">
-          <Title order={2} className="text-3xl font-bold">
-            Features Built For Growth
-          </Title>
-          <Text c="dimmed" mt="xs">
-            Centralize your teams, campaigns, and metrics under one dashboard.
-          </Text>
+      {/* Features List Section */}
+      <section id="features" className="mx-auto max-w-7xl px-6 py-24">
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="text-xs uppercase tracking-widest text-gold font-semibold">{MARKETING.LANDING.CAPABILITIES_BADGE}</p>
+          <h2 className="mt-3 font-display text-4xl font-semibold md:text-5xl text-foreground">{MARKETING.LANDING.CAPABILITIES_TITLE}</h2>
+          <p className="mt-4 text-muted-foreground">
+            {MARKETING.LANDING.CAPABILITIES_DESC}
+          </p>
         </div>
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="lg">
-          <Card withBorder padding="xl" radius="md">
-            <Stack gap="md">
-              <span className="text-3xl">🚀</span>
-              <Title order={3} size="h4">
-                Workspace Operations
-              </Title>
-              <Text size="sm" c="dimmed">
-                Create campaigns and organize brand assets seamlessly with zero configuration overhead.
-              </Text>
-            </Stack>
-          </Card>
-          <Card withBorder padding="xl" radius="md">
-            <Stack gap="md">
-              <span className="text-3xl">🛡️</span>
-              <Title order={3} size="h4">
-                Granular RBAC Guard
-              </Title>
-              <Text size="sm" c="dimmed">
-                Control write, edit, and simulation access using roles like Administrators, Editors, and Viewers.
-              </Text>
-            </Stack>
-          </Card>
-          <Card withBorder padding="xl" radius="md">
-            <Stack gap="md">
-              <span className="text-3xl">📊</span>
-              <Title order={3} size="h4">
-                Budget Visualizers
-              </Title>
-              <Text size="sm" c="dimmed">
-                Analyze and audit live campaign budgets, preventing cost overruns automatically.
-              </Text>
-            </Stack>
-          </Card>
-        </SimpleGrid>
-      </Container>
+        <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {MARKETING.LANDING.FEATURES.map((feature, i) => (
+            <FeatureCard
+              key={feature.t}
+              icon={feature.icon}
+              title={feature.t}
+              description={feature.d}
+              gradientClass={feature.grad}
+              index={i}
+            />
+          ))}
+        </div>
+      </section>
+
+      {/* How it works Section */}
+      <section id="how" className="mx-auto max-w-7xl px-6 py-24">
+        <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-gold font-semibold">{MARKETING.LANDING.LOOP_BADGE}</p>
+            <h2 className="mt-3 font-display text-4xl font-semibold md:text-5xl text-foreground">{MARKETING.LANDING.LOOP_TITLE}</h2>
+            <p className="mt-4 text-muted-foreground">
+              {MARKETING.LANDING.LOOP_DESC}
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Button
+                component={Link}
+                href={ROUTES.SIGNUP}
+                gradientBrand={true}
+              >
+                {MARKETING.LANDING.TRY_FLOW_BTN}
+              </Button>
+              <Button
+                component={Link}
+                href={ROUTES.LOGIN}
+                gradientBrand={false}
+                style={{
+                  backgroundColor: 'transparent',
+                  color: 'var(--color-foreground)',
+                  borderColor: 'var(--color-border)',
+                }}
+                className="backdrop-blur hover:bg-foreground/10"
+              >
+                {MARKETING.LANDING.SEE_DASHBOARD_BTN}
+              </Button>
+            </div>
+          </div>
+          <ol className="relative space-y-4 border-l border-border/40 pl-6">
+            {MARKETING.LANDING.STEPS.map((s, i) => (
+              <li key={s.n} className="relative animate-fade-up" style={{ animationDelay: `${i * 100}ms` }}>
+                <span className="absolute -left-[34px] grid h-7 w-7 place-items-center rounded-full bg-gradient-brand text-[11px] font-semibold text-white glow">
+                  {s.n}
+                </span>
+                <div className="glass rounded-xl p-4">
+                  <div className="font-display text-lg font-semibold text-foreground">{s.t}</div>
+                  <div className="text-sm text-muted-foreground">{s.d}</div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* Stats Summary Section */}
+      <section className="mx-auto max-w-7xl px-6 py-20">
+        <div className="grid gap-4 rounded-2xl border border-border/40 bg-aurora p-10 md:grid-cols-4">
+          {MARKETING.LANDING.STATS.map((stat) => (
+            <StatCard key={stat.l} value={stat.v} label={stat.l} />
+          ))}
+        </div>
+      </section>
+
+      {/* Pricing Plans Section */}
+      <section id="pricing" className="mx-auto max-w-7xl px-6 py-24">
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="text-xs uppercase tracking-widest text-gold font-semibold">{MARKETING.LANDING.PRICING_BADGE}</p>
+          <h2 className="mt-3 font-display text-4xl font-semibold md:text-5xl text-foreground">{MARKETING.LANDING.PRICING_TITLE}</h2>
+        </div>
+        <div className="mt-12 grid gap-6 md:grid-cols-3">
+          {MARKETING.LANDING.PRICING_PLANS.map((plan) => (
+            <PricingCard
+              key={plan.name}
+              name={plan.name}
+              price={plan.price}
+              tag={plan.tag}
+              feats={plan.feats}
+              highlight={plan.highlight}
+            />
+          ))}
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <CTA />
+
+      {/* Footer Navigation */}
+      <Footer />
     </div>
   );
 }
