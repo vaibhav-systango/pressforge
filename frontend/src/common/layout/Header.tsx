@@ -11,12 +11,12 @@ import { ROUTES } from '@/routes';
 export function Header() {
   return (
     <header className="sticky top-0 z-40 backdrop-blur-xl bg-background/60 border-b border-border/40">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <Link href={ROUTES.HOME} className="flex items-center gap-2 font-semibold font-display">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
+        <Link href={ROUTES.HOME} className="flex items-center gap-1.5 sm:gap-2 font-semibold font-display">
           <span className="relative grid h-8 w-8 place-items-center rounded-lg bg-gradient-brand glow">
             <Sparkles className="h-4 w-4 text-white" />
           </span>
-          <span className="tracking-tight text-foreground">
+          <span className="tracking-tight text-foreground text-sm sm:text-base">
             {LAYOUT.BRAND_NAME_PART1} <span className="text-gradient">{LAYOUT.BRAND_NAME_PART2}</span>
           </span>
         </Link>
@@ -27,18 +27,20 @@ export function Header() {
             </Link>
           ))}
         </nav>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <ThemeToggle />
-          <Button
-            component={Link}
-            href={ROUTES.LOGIN}
-            gradientBrand={false}
-            variant="subtle"
-            color="gray"
-            className="text-foreground hover:bg-foreground/5 hidden sm:inline-flex"
-          >
-            {LAYOUT.HEADER_LOGIN_TEXT}
-          </Button>
+          <span className="hidden sm:inline-flex">
+            <Button
+              component={Link}
+              href={ROUTES.LOGIN}
+              gradientBrand={false}
+              variant="subtle"
+              color="gray"
+              className="text-foreground hover:bg-foreground/5"
+            >
+              {LAYOUT.HEADER_LOGIN_TEXT}
+            </Button>
+          </span>
           <Button
             component={Link}
             href={ROUTES.SIGNUP}
