@@ -11,6 +11,24 @@ class Settings(BaseSettings):
         description="PostgreSQL Database Connection URI"
     )
 
+    # JWT Configuration
+    JWT_SECRET: str = Field(
+        default="your-super-secret-access-token-key-change-in-production",
+        description="JWT Secret key for Access Token signing"
+    )
+    JWT_REFRESH_SECRET: str = Field(
+        default="your-super-secret-refresh-token-key-change-in-production",
+        description="JWT Secret key for Refresh Token signing"
+    )
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
+        default=60,
+        description="Access Token lifespan in minutes"
+    )
+    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(
+        default=7,
+        description="Refresh Token lifespan in days"
+    )
+
     # Configuration for Pydantic Settings
     model_config = SettingsConfigDict(
         env_file=".env",
