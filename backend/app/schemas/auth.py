@@ -18,6 +18,7 @@ class UserResponse(BaseModel):
     fullName: str
     email: EmailStr
     accountType: str
+    onboardingStatus: str
     isActive: bool
     lastLogin: int | None = None
     createdAt: int
