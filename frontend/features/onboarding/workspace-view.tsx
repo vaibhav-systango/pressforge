@@ -1,0 +1,138 @@
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useAppState } from '@/lib/queries/use-app-state';
+import React, { useState } from 'react';
+import { OnboardingStepper } from '@/components/onboarding/onboarding-stepper';
+import { ArrowRight, Sparkles } from 'lucide-react';
+
+
+
+export function WorkspaceView() {
+  const router = useRouter();
+  const { state, addWorkspace, updateWorkspace, updateState } = useAppState();
+  
+  // Try to pre-load workspace if one was created in the previous step (e.g. for Individual setup)
+  const activeWs = state.workspaces.find((w) => w.id === state.activeWorkspaceId) || state.workspaces[0];
+
+  const [brandName, setBrandName] = useState(activeWs && state.accountType === 'individual' ? activeWs.name : '');
+  const [website, setWebsite] = useState(activeWs && state.accountType === 'individual' ? activeWs.website : '');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!brandName) {
+      alert('Please enter a workspace brand name.');
+      return;
+    }
+
+    if (state.accountType === 'individual' && activeWs) {
+      updateWorkspace({
+        ...activeWs,
+        name: brandName,
+        website: website || 'https://example.com'
+      });
+      updateState({ activeWorkspaceId: activeWs.id, currentStep: 3 });
+    } else {
+      const newId = brandName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      addWorkspace({
+        id: newId,
+        name: brandName,
+        website: website || 'https://example.com',
+        tone: 'casual',
+        keywords: [],
+        rules: []
+      });
+      updateState({ currentStep: 3 });
+    }
+
+    router.push('/onboarding/brand-voice');
+  };
+
+  return (
+    <div className="min-h-screen bg-[#FAFAFA] flex flex-col justify-center py-12 px-6 lg:px-8">
+      {/* Header */}
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-extrabold tracking-tight text-[#262626]">
+          Create a Brand Workspace
+        </h1>
+        <p className="text-slate-500 mt-2">
+          Workspaces house individual clients, custom brand assets, and platform connections.
+        </p>
+      </div>
+
+      <OnboardingStepper currentStep={2} />
+
+      <div className="max-w-md w-full mx-auto bg-white border border-[#EFEFEF] rounded-2xl p-8 shadow-sm">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-[#737373]" htmlFor="brand-name">
+              Brand / Client Name
+            </label>
+            <input
+              id="brand-name"
+              type="text"
+              required
+              placeholder="e.g. Acme Clothing Co"
+              value={brandName}
+              onChange={(e) => setBrandName(e.target.value)}
+              className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-[#E1306C] outline-none transition duration-150"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-[#737373]" htmlFor="website">
+              Website URL
+            </label>
+            <input
+              id="website"
+              type="url"
+              placeholder="https://acmeclothing.com"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-[#E1306C] outline-none transition duration-150"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-[#737373]">
+              Brand Assets (Mock Upload)
+            </label>
+            <div className="border border-dashed border-[#EFEFEF] rounded-xl p-6 text-center hover:bg-slate-50 transition duration-150 cursor-pointer">
+              <p className="text-xs text-[#737373] font-medium">
+                Drag and drop your Brand Book, Logos, or Style Guides here
+              </p>
+              <p className="text-[10px] text-slate-400 mt-1">
+                Supports PDF, JPG, PNG up to 20MB (Simulated)
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3 rounded-full text-sm font-semibold hover:opacity-95 transition shadow-sm mt-2"
+          >
+            <span>Configure Brand Voice</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </form>
+
+        <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-left mt-6">
+          <p className="text-[11px] font-semibold text-slate-600 flex items-center gap-1">
+            <Sparkles className="w-3 h-3 text-instagram-pink" /> Quick Demo Option
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setBrandName('EcoFashion Inc');
+              setWebsite('https://ecofashioninc.com');
+            }}
+            className="text-[10px] text-instagram-pink font-semibold hover:underline mt-1 block"
+          >
+            Prefill with EcoFashion Inc
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
