@@ -1,21 +1,21 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import logging
+import time
 from sqlalchemy import text
 
 from app.core.config import settings
 from app.routers.router import api_router
 from app.database.database import engine
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
-        # Attempt to connect to the database on startup
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         logger.info("Database connected successfully!")
@@ -29,16 +29,30 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Set up CORS middleware (equivalent to NestJS enableCors())
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust in production
+    allow_origins=["*"],  # Restrict to specific origins in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Register routes (e.g., /api/v1/status/health)
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    duration = round((time.time() - start) * 1000)
+    logger.info(f"{request.method} {request.url.path} → {response.status_code} ({duration}ms)")
+    return response
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception on {request.method} {request.url.path}: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An unexpected error occurred."}
+    )
+
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 @app.get("/")
