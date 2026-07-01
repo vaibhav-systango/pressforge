@@ -1,13 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+import logging
 
 from app.database.database import get_db
 from app.models.user import User
 from app.schemas.auth import UserCreate, UserLogin, UserResponse, Token, TokenRefreshRequest
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, permission_guard
 from app.services.auth_service import auth_service
 from app.core.constants.auth_constants import AuthErrorCodes, AuthErrorMessages
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.post(
@@ -32,8 +34,7 @@ async def signup(user_in: UserCreate, db: Session = Depends(get_db)):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=AuthErrorMessages.EMAIL_ALREADY_EXISTS
             )
-        # Log the unexpected error and return 500
-        print(f"Error occurred in signup: {e}")
+        logger.error(f"Unexpected error in signup: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred."
@@ -65,8 +66,7 @@ async def login(credentials: UserLogin, db: Session = Depends(get_db)):
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=AuthErrorMessages.INVALID_CREDENTIALS
             )
-        # Log the unexpected error and return 500
-        print(f"Error occurred in login: {e}")
+        logger.error(f"Unexpected error in login: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred."
@@ -103,8 +103,7 @@ async def refresh_tokens(refresh_data: TokenRefreshRequest, db: Session = Depend
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=AuthErrorMessages.USER_NOT_FOUND
             )
-        # Log the unexpected error and return 500
-        print(f"Error occurred in token refresh: {e}")
+        logger.error(f"Unexpected error in refresh: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred."
@@ -116,5 +115,5 @@ async def refresh_tokens(refresh_data: TokenRefreshRequest, db: Session = Depend
     summary="Retrieve Active User Profile",
     description="Fetch details of the currently logged-in user using bearer token authentication.",
 )
-async def get_me(current_user: User = Depends(get_current_user)):
+async def get_me(current_user: User = Depends(permission_guard)):
     return current_user
