@@ -8,6 +8,7 @@ from app.models.role import Role
 from app.models.permission import Permission
 from app.models.role_permission import RolePermission
 from app.models.route_permission import RoutePermission
+from app.models.user_profile import UserProfile
 
 __all__ = [
     "Base",
@@ -19,4 +20,5 @@ __all__ = [
     "Permission",
     "RolePermission",
     "RoutePermission"
+    "UserProfile"
 ]

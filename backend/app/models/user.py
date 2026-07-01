@@ -13,10 +13,12 @@ def generate_timestamp_ms() -> int:
 class AccountType(str, enum.Enum):
     UNASSIGNED = "UNASSIGNED"
     INDIVIDUAL = "INDIVIDUAL"
-    ORG_OWNER = "ORG_OWNER"
-    ORG_CLIENT = "ORG_CLIENT"
-    ORG_ADMIN = "ORG_ADMIN"
-    ORG_MEMBER = "ORG_MEMBER"
+    ORGANIZATION = "ORGANIZATION"
+
+class OnboardingStatus(str, enum.Enum):
+    NOT_STARTED = "NOT_STARTED"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
 
 class User(Base):
     __tablename__ = "users"
@@ -29,6 +31,12 @@ class User(Base):
         String,
         nullable=False,
         default=AccountType.INDIVIDUAL,
+        index=True
+    )
+    onboardingStatus = Column(
+        String,
+        nullable=False,
+        default=OnboardingStatus.NOT_STARTED.value,
         index=True
     )
     profileImage = Column(Text, nullable=True)

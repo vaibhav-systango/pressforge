@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from app.models.user import User, AccountType, generate_timestamp_ms
+from app.models.user_profile import UserProfile
 
 class UserRepository:
 
@@ -40,6 +41,40 @@ class UserRepository:
         db.add(user)
         db.commit()
         db.refresh(user)
+        return user
+
+    def create_user_profile(
+        self,
+        db: Session,
+        *,
+        userId: str,
+        primaryGoal: str,
+        contentThemes: list[str],
+        website: str | None = None
+    ) -> UserProfile:
+        """Create and persist a user profile."""
+        profile = UserProfile(
+            userId=userId,
+            primaryGoal=primaryGoal,
+            contentThemes=contentThemes,
+            website=website
+        )
+        db.add(profile)
+        db.flush()  # Use flush to participate in transactional operations without premature commit
+        return profile
+
+    def update_onboarding_status(
+        self,
+        db: Session,
+        user: User,
+        onboarding_status: str,
+        account_type: str
+    ) -> User:
+        """Update user's onboarding status and account type."""
+        user.onboardingStatus = onboarding_status
+        user.accountType = account_type
+        db.add(user)
+        db.flush()
         return user
 
 # Export a single repository instance to be imported across routers and services

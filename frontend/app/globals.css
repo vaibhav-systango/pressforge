@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+:root {
+  --color-bg-app: #FAFAFA;
+  --color-bg-card: #FFFFFF;
+  --color-border-primary: #EFEFEF;
+  --color-text-primary: #262626;
+  --color-text-secondary: #737373;
+  --color-bg-hover: #F8FAFC;
+  --color-sidebar-bg: #FFFFFF;
+  --color-header-bg: #FFFFFF;
+  --color-input-bg: #FFFFFF;
+  --color-card-border: #EFEFEF;
+  --color-slate-50: #F8FAFC;
+  --color-slate-100: #F1F5F9;
+  --color-slate-200: #E2E8F0;
+  --color-slate-500: #64748B;
+  --color-slate-700: #334155;
+  --color-slate-800: #1E293B;
+  --color-slate-900: #0F172A;
+}
+
+.dark {
+  --color-bg-app: #080C14;
+  --color-bg-card: #0F1626;
+  --color-border-primary: #1E293B;
+  --color-text-primary: #F3F4F6;
+  --color-text-secondary: #9CA3AF;
+  --color-bg-hover: #1E293B;
+  --color-sidebar-bg: #0B0E17;
+  --color-header-bg: #0B0E17;
+  --color-input-bg: #1A2234;
+  --color-card-border: #1E293B;
+  --color-slate-50: #0B0E17;
+  --color-slate-100: #1E293B;
+  --color-slate-200: #2E3A52;
+  --color-slate-500: #94A3B8;
+  --color-slate-700: #CBD5E1;
+  --color-slate-800: #E2E8F0;
+  --color-slate-900: #F8FAFC;
+}
+
+@theme {
+  --color-bg-app: var(--color-bg-app);
+  --color-bg-card: var(--color-bg-card);
+  --color-border-primary: var(--color-border-primary);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-bg-hover: var(--color-bg-hover);
+  --color-sidebar-bg: var(--color-sidebar-bg);
+  --color-header-bg: var(--color-header-bg);
+  --color-input-bg: var(--color-input-bg);
+  --color-card-border: var(--color-card-border);
+  --color-slate-50: var(--color-slate-50);
+  --color-slate-100: var(--color-slate-100);
+  --color-slate-200: var(--color-slate-200);
+  --color-slate-500: var(--color-slate-500);
+  --color-slate-700: var(--color-slate-700);
+  --color-slate-800: var(--color-slate-800);
+  --color-slate-900: var(--color-slate-900);
+
+  --color-instagram-pink: #E1306C;
+  --color-instagram-blue: #0095F6;
+  --color-border-ig: var(--color-border-primary);
+  --color-bg-ig: var(--color-bg-app);
+  --color-text-ig-primary: var(--color-text-primary);
+  --color-text-ig-secondary: var(--color-text-secondary);
+  --color-whatsapp-green: #25D366;
+  --color-whatsapp-bg: #E5DDD5;
+}
+
+body {
+  background-color: var(--color-bg-app);
+  color: var(--color-text-primary);
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow-x: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #dbdbdb;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a6a6a6;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.gradient-accent {
+  background: linear-gradient(45deg, #F58529, #DD2A7B, #8134AF, #515BD4);
+}

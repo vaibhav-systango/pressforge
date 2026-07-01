@@ -1,0 +1,839 @@
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useAppState } from '@/lib/queries/use-app-state';
+import React, { useState } from 'react';
+import { 
+  Settings, User, Lock, CreditCard, ShieldAlert, 
+  Check, ToggleLeft, ToggleRight, Trash2, RefreshCw, 
+  Building2, Sparkles, ShieldCheck, Users, Plus, Instagram, X, Mail
+} from 'lucide-react';
+
+export function SettingsView() {
+  const { state, updateState, resetState } = useAppState();
+  const router = useRouter();
+  const isClient = state.currentUserType === 'client';
+
+  // Form states
+  const [profileName, setProfileName] = useState(
+    isClient ? 'Client Partner' : 'Jane Doe'
+  );
+  const [profileEmail, setProfileEmail] = useState(
+    isClient ? state.currentUserEmail : 'jane@forgeagency.com'
+  );
+  const [orgName, setOrgName] = useState(state.organizationName || 'Forge Agencies');
+  
+  // Password fields
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  
+  // UI indicators
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [passwordSaved, setPasswordSaved] = useState(false);
+  const [orgSaved, setOrgSaved] = useState(false);
+  const [planSaved, setPlanSaved] = useState(false);
+
+  // Integration toggles
+  const [instagramConnected, setInstagramConnected] = useState(true);
+  const [linkedinConnected, setLinkedinConnected] = useState(false);
+
+  // Selected billing plan (Agency only)
+  const [activePlan, setActivePlan] = useState<string>('growth');
+
+  // Team Management states
+  const [newMemberName, setNewMemberName] = useState('');
+  const [newMemberEmail, setNewMemberEmail] = useState('');
+  const [selectedWorkspaces, setSelectedWorkspaces] = useState<string[]>([]);
+  
+  // Instagram Auth modal states
+  const [showInstaModal, setShowInstaModal] = useState(false);
+  const [instaModalTarget, setInstaModalTarget] = useState<string | null>(null);
+  const [instaUsername, setInstaUsername] = useState('');
+  const [instaPassword, setInstaPassword] = useState('');
+  const [instaStep, setInstaStep] = useState<'login' | 'authorize' | 'loading'>('login');
+
+  const handleAddMember = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMemberName.trim() || !newMemberEmail.trim()) {
+      alert('Please enter Name and Email.');
+      return;
+    }
+    const newMember = {
+      id: 'org-user-' + Date.now(),
+      name: newMemberName.trim(),
+      email: newMemberEmail.trim(),
+      instagramConnected: false,
+      workspaceIds: selectedWorkspaces
+    };
+    updateState((prev) => ({
+      ...prev,
+      orgUsers: [...(prev.orgUsers || []), newMember]
+    }));
+    setNewMemberName('');
+    setNewMemberEmail('');
+    setSelectedWorkspaces([]);
+  };
+
+  const handleRemoveMember = (id: string) => {
+    if (confirm('Are you sure you want to remove this team member?')) {
+      updateState((prev) => ({
+        ...prev,
+        orgUsers: (prev.orgUsers || []).filter((u) => u.id !== id)
+      }));
+    }
+  };
+
+  const handleToggleWorkspace = (userId: string, workspaceId: string) => {
+    updateState((prev) => ({
+      ...prev,
+      orgUsers: (prev.orgUsers || []).map((u) => {
+        if (u.id === userId) {
+          const currentIds = u.workspaceIds || [];
+          const newIds = currentIds.includes(workspaceId)
+            ? currentIds.filter((id) => id !== workspaceId)
+            : [...currentIds, workspaceId];
+          return { ...u, workspaceIds: newIds };
+        }
+        return u;
+      })
+    }));
+  };
+
+  const openInstaModal = (userId: string) => {
+    setInstaModalTarget(userId);
+    setInstaUsername('');
+    setInstaPassword('');
+    setInstaStep('login');
+    setShowInstaModal(true);
+  };
+
+  const handleInstaSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setInstaStep('loading');
+    setTimeout(() => {
+      setInstaStep('authorize');
+    }, 800);
+  };
+
+  const handleInstaAuthorize = () => {
+    setInstaStep('loading');
+    setTimeout(() => {
+      const finalUsername = instaUsername.startsWith('@') ? instaUsername.substring(1) : instaUsername;
+      updateState((prev) => ({
+        ...prev,
+        orgUsers: (prev.orgUsers || []).map((u) => 
+          u.id === instaModalTarget 
+            ? { ...u, instagramConnected: true, instagramUsername: finalUsername } 
+            : u
+        )
+      }));
+      setShowInstaModal(false);
+      setInstaModalTarget(null);
+    }, 1000);
+  };
+
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileSaved(true);
+    setTimeout(() => setProfileSaved(false), 3000);
+  };
+
+  const handleSaveOrg = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateState({ organizationName: orgName });
+    setOrgSaved(true);
+    setTimeout(() => setOrgSaved(false), 3000);
+  };
+
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      alert("New passwords do not match!");
+      return;
+    }
+    setPasswordSaved(true);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setTimeout(() => setPasswordSaved(false), 3000);
+  };
+
+  const handleUpdatePlan = (planId: string) => {
+    setActivePlan(planId);
+    setPlanSaved(true);
+    setTimeout(() => setPlanSaved(false), 3000);
+  };
+
+  const handleResetData = () => {
+    if (confirm("Are you sure you want to reset all data to default mock seeds? This will delete custom workspaces, drafts, and client portals.")) {
+      resetState();
+      alert("Application state reset successfully.");
+      router.push('/app');
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    if (confirm("Are you sure you want to delete your account? This action is irreversible.")) {
+      localStorage.clear();
+      window.location.href = '/';
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-6 animate-fade-in max-w-5xl mx-auto w-full text-text-primary">
+      {/* Header */}
+      <div className="border-b border-border-primary pb-5">
+        <h1 className="text-2xl font-bold tracking-tight text-text-primary flex items-center gap-2">
+          <Settings className="w-6 h-6 text-instagram-pink" />
+          <span>Account Settings</span>
+        </h1>
+        <p className="text-sm text-text-secondary mt-1">
+          Manage your personal profile, organization preferences, billing plans, and security integrations.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Column: Account Profile & Security */}
+        <div className="lg:col-span-8 space-y-6">
+          
+          {/* Profile Form */}
+          <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm">
+            <h3 className="text-sm font-bold text-text-primary border-b border-border-primary pb-2.5 mb-4 flex items-center gap-2">
+              <User className="w-4 h-4 text-text-secondary" />
+              <span>Personal Profile</span>
+            </h3>
+
+            <form onSubmit={handleSaveProfile} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-text-secondary">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-text-secondary">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={profileEmail}
+                    onChange={(e) => setProfileEmail(e.target.value)}
+                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <div className="text-[10px] text-text-secondary">
+                  Role: <span className="font-bold text-instagram-pink uppercase">{state.currentUserType}</span>
+                </div>
+                {profileSaved ? (
+                  <span className="flex items-center gap-1 text-green-600 text-xs font-bold bg-green-50 dark:bg-green-950/20 px-3 py-1.5 rounded-xl border border-green-200 dark:border-green-900">
+                    <Check className="w-3.5 h-3.5" /> Profile Saved
+                  </span>
+                ) : (
+                  <button
+                    type="submit"
+                    className="bg-text-primary text-bg-card hover:opacity-90 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
+                  >
+                    Save Profile
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+
+          {/* Agency Settings (Only for agency users) */}
+          {!isClient && (
+            <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm">
+              <h3 className="text-sm font-bold text-text-primary border-b border-border-primary pb-2.5 mb-4 flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-text-secondary" />
+                <span>Agency Organization Details</span>
+              </h3>
+
+              <form onSubmit={handleSaveOrg} className="space-y-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-text-secondary">Organization / Agency Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={orgName}
+                    onChange={(e) => setOrgName(e.target.value)}
+                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition"
+                  />
+                </div>
+
+                <div className="flex justify-end">
+                  {orgSaved ? (
+                    <span className="flex items-center gap-1 text-green-600 text-xs font-bold bg-green-50 dark:bg-green-950/20 px-3 py-1.5 rounded-xl border border-green-200 dark:border-green-900">
+                      <Check className="w-3.5 h-3.5" /> Organization Details Saved
+                    </span>
+                  ) : (
+                    <button
+                      type="submit"
+                      className="bg-text-primary text-bg-card hover:opacity-90 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
+                    >
+                      Update Organization
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+          )}
+
+          {!isClient && state.accountType === 'organization' && (
+            <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-6">
+              <h3 className="text-sm font-bold text-text-primary border-b border-border-primary pb-2.5 flex items-center gap-2">
+                <Users className="w-4.5 h-4.5 text-instagram-pink" />
+                <span>Team Members & Workspace Access</span>
+              </h3>
+
+              {/* Add Team Member Form */}
+              <form onSubmit={handleAddMember} className="bg-bg-app/40 border border-border-primary p-4 rounded-xl space-y-4">
+                <p className="text-xs font-bold text-text-primary">Invite a New Team Member</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold uppercase text-text-secondary">Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Alex Johnson"
+                      value={newMemberName}
+                      onChange={(e) => setNewMemberName(e.target.value)}
+                      className="border border-border-primary bg-bg-card text-text-primary rounded-lg px-3 py-1.5 text-xs outline-none focus:border-instagram-pink"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold uppercase text-text-secondary">Email Address</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="alex@agency.com"
+                      value={newMemberEmail}
+                      onChange={(e) => setNewMemberEmail(e.target.value)}
+                      className="border border-border-primary bg-bg-card text-text-primary rounded-lg px-3 py-1.5 text-xs outline-none focus:border-instagram-pink"
+                    />
+                  </div>
+                </div>
+
+                {/* Workspace checklist */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold uppercase text-text-secondary">Assign Brand Workspaces</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {state.workspaces.map((ws) => (
+                      <label key={ws.id} className="flex items-center gap-2 bg-bg-card border border-border-primary rounded-lg p-2.5 text-xs text-text-primary cursor-pointer hover:border-slate-300 dark:hover:border-slate-800 transition">
+                        <input
+                          type="checkbox"
+                          checked={selectedWorkspaces.includes(ws.id)}
+                          onChange={() => {
+                            setSelectedWorkspaces((prev) =>
+                              prev.includes(ws.id) ? prev.filter((id) => id !== ws.id) : [...prev, ws.id]
+                            );
+                          }}
+                          className="rounded text-instagram-pink focus:ring-instagram-pink h-3.5 w-3.5 border-border-primary"
+                        />
+                        <span className="truncate">{ws.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="bg-instagram-pink text-white hover:opacity-90 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer self-start"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Team User
+                </button>
+              </form>
+
+              {/* Members List Table */}
+              <div className="border border-border-primary rounded-xl overflow-hidden bg-bg-card">
+                <table className="w-full text-left border-collapse text-xs text-text-primary">
+                  <thead>
+                    <tr className="bg-bg-app border-b border-border-primary text-text-secondary font-bold">
+                      <th className="p-3">User Details</th>
+                      <th className="p-3">Instagram Channel</th>
+                      <th className="p-3">Assigned Workspaces</th>
+                      <th className="p-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-primary">
+                    {(state.orgUsers || []).map((user) => (
+                      <tr key={user.id} className="hover:bg-bg-app/20">
+                        <td className="p-3">
+                          <p className="font-bold text-text-primary">{user.name}</p>
+                          <p className="text-[10px] text-text-secondary font-mono mt-0.5">{user.email}</p>
+                        </td>
+                        <td className="p-3">
+                          {user.instagramConnected ? (
+                            <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-400 border border-green-200 dark:border-green-900 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                              <Instagram className="w-3 h-3 text-green-600" />
+                              <span>@{user.instagramUsername}</span>
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => openInstaModal(user.id)}
+                              className="text-[10px] text-instagram-pink hover:underline font-semibold flex items-center gap-0.5"
+                            >
+                              <Instagram className="w-3.5 h-3.5" />
+                              <span>Connect Instagram</span>
+                            </button>
+                          )}
+                        </td>
+                        <td className="p-3">
+                          <div className="flex flex-wrap gap-1">
+                            {state.workspaces.map((ws) => {
+                              const isAssigned = (user.workspaceIds || []).includes(ws.id);
+                              return (
+                                <button
+                                  key={ws.id}
+                                  type="button"
+                                  onClick={() => handleToggleWorkspace(user.id, ws.id)}
+                                  className={`text-[9px] px-2 py-0.5 rounded-full font-bold border transition ${
+                                    isAssigned
+                                      ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950/20 dark:border-blue-900 dark:text-blue-400'
+                                      : 'bg-transparent border-border-primary text-text-secondary hover:text-text-primary hover:border-slate-300 dark:hover:border-slate-800'
+                                  }`}
+                                >
+                                  {ws.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </td>
+                        <td className="p-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMember(user.id)}
+                            className="text-red-500 hover:text-red-600 p-1"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {(state.orgUsers || []).length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="text-center p-6 text-text-secondary italic">
+                          No team members added yet. Invite users above to configure access.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Security & Password */}
+          <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm">
+            <h3 className="text-sm font-bold text-text-primary border-b border-border-primary pb-2.5 mb-4 flex items-center gap-2">
+              <Lock className="w-4 h-4 text-text-secondary" />
+              <span>Change Account Password</span>
+            </h3>
+
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-text-secondary">Current Password</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-text-secondary">New Password</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-text-secondary">Confirm New Password</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                {passwordSaved ? (
+                  <span className="flex items-center gap-1 text-green-600 text-xs font-bold bg-green-50 dark:bg-green-950/20 px-3 py-1.5 rounded-xl border border-green-200 dark:border-green-900">
+                    <Check className="w-3.5 h-3.5" /> Password Updated
+                  </span>
+                ) : (
+                  <button
+                    type="submit"
+                    className="bg-text-primary text-bg-card hover:opacity-90 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
+                  >
+                    Update Password
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+
+          {/* Pricing Plans & Billing (Only for agency users) */}
+          {!isClient && (
+            <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-border-primary pb-2.5">
+                <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-text-secondary" />
+                  <span>Subscription Plan & Billing</span>
+                </h3>
+                {planSaved && (
+                  <span className="text-[10px] text-green-600 font-bold bg-green-50 dark:bg-green-950/20 px-2 py-0.5 rounded-md border border-green-200 dark:border-green-900">
+                    Plan Updated Successfully
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Plan 1 */}
+                <div className={`border rounded-xl p-4 flex flex-col justify-between gap-3 text-xs transition ${
+                  activePlan === 'starter' 
+                    ? 'border-instagram-pink bg-pink-50/10' 
+                    : 'border-border-primary hover:bg-bg-hover'
+                }`}>
+                  <div className="space-y-1">
+                    <p className="font-bold text-text-primary">Agency Starter</p>
+                    <p className="text-2xl font-black text-text-primary">$49<span className="text-[10px] font-normal">/mo</span></p>
+                    <p className="text-[10px] text-text-secondary leading-relaxed">
+                      Up to 3 workspaces, 5 clients, and standard AI completions.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleUpdatePlan('starter')}
+                    className={`w-full py-1.5 rounded-lg font-bold text-[10px] transition cursor-pointer ${
+                      activePlan === 'starter'
+                        ? 'bg-instagram-pink text-white'
+                        : 'bg-bg-app border border-border-primary text-text-primary hover:bg-bg-hover'
+                    }`}
+                  >
+                    {activePlan === 'starter' ? 'Active Plan' : 'Select Plan'}
+                  </button>
+                </div>
+
+                {/* Plan 2 */}
+                <div className={`border rounded-xl p-4 flex flex-col justify-between gap-3 text-xs transition relative ${
+                  activePlan === 'growth' 
+                    ? 'border-instagram-pink bg-pink-50/10' 
+                    : 'border-border-primary hover:bg-bg-hover'
+                }`}>
+                  <span className="absolute -top-2.5 right-3 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white text-[8px] font-extrabold uppercase px-2 py-0.5 rounded-full shadow">
+                    Popular
+                  </span>
+                  <div className="space-y-1">
+                    <p className="font-bold text-text-primary">Agency Growth</p>
+                    <p className="text-2xl font-black text-text-primary">$99<span className="text-[10px] font-normal">/mo</span></p>
+                    <p className="text-[10px] text-text-secondary leading-relaxed">
+                      Up to 10 workspaces, 20 clients, and premium custom AI rules.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleUpdatePlan('growth')}
+                    className={`w-full py-1.5 rounded-lg font-bold text-[10px] transition cursor-pointer ${
+                      activePlan === 'growth'
+                        ? 'bg-instagram-pink text-white'
+                        : 'bg-bg-app border border-border-primary text-text-primary hover:bg-bg-hover'
+                    }`}
+                  >
+                    {activePlan === 'growth' ? 'Active Plan' : 'Select Plan'}
+                  </button>
+                </div>
+
+                {/* Plan 3 */}
+                <div className={`border rounded-xl p-4 flex flex-col justify-between gap-3 text-xs transition ${
+                  activePlan === 'enterprise' 
+                    ? 'border-instagram-pink bg-pink-50/10' 
+                    : 'border-border-primary hover:bg-bg-hover'
+                }`}>
+                  <div className="space-y-1">
+                    <p className="font-bold text-text-primary">Enterprise</p>
+                    <p className="text-2xl font-black text-text-primary">$249<span className="text-[10px] font-normal">/mo</span></p>
+                    <p className="text-[10px] text-text-secondary leading-relaxed">
+                      Unlimited workspaces & clients, fine-tuned custom agent models.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleUpdatePlan('enterprise')}
+                    className={`w-full py-1.5 rounded-lg font-bold text-[10px] transition cursor-pointer ${
+                      activePlan === 'enterprise'
+                        ? 'bg-instagram-pink text-white'
+                        : 'bg-bg-app border border-border-primary text-text-primary hover:bg-bg-hover'
+                    }`}
+                  >
+                    {activePlan === 'enterprise' ? 'Active Plan' : 'Select Plan'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        {/* Right Column: Integrations & Danger Actions */}
+        <div className="lg:col-span-4 space-y-6">
+          
+          {/* Integrations Panel */}
+          <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
+            <h3 className="text-sm font-bold text-text-primary border-b border-border-primary pb-2 flex items-center gap-1.5">
+              <Sparkles className="w-4.5 h-4.5 text-instagram-pink" />
+              <span>Social Integrations</span>
+            </h3>
+            <p className="text-xs text-text-secondary">
+              Connect platform APIs to publish approved content automatically.
+            </p>
+
+            <div className="space-y-3.5 pt-1">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-pink-500/10 text-pink-600 flex items-center justify-center font-bold">
+                    IG
+                  </div>
+                  <div>
+                    <p className="font-bold text-text-primary">Instagram API</p>
+                    <p className="text-[9px] text-green-600 font-bold">Connected</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setInstagramConnected(!instagramConnected)}
+                  className="text-text-secondary hover:text-text-primary transition"
+                >
+                  {instagramConnected ? (
+                    <ToggleRight className="w-7 h-7 text-instagram-pink" />
+                  ) : (
+                    <ToggleLeft className="w-7 h-7" />
+                  )}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-blue-600/10 text-blue-600 flex items-center justify-center font-bold">
+                    IN
+                  </div>
+                  <div>
+                    <p className="font-bold text-text-primary">LinkedIn API</p>
+                    <p className="text-[9px] text-text-secondary">Disconnected</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setLinkedinConnected(!linkedinConnected)}
+                  className="text-text-secondary hover:text-text-primary transition"
+                >
+                  {linkedinConnected ? (
+                    <ToggleRight className="w-7 h-7 text-instagram-pink" />
+                  ) : (
+                    <ToggleLeft className="w-7 h-7" />
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Danger Zone */}
+          <div className="bg-bg-card border border-red-200 dark:border-red-950/40 rounded-2xl p-6 shadow-sm space-y-4">
+            <h3 className="text-sm font-bold text-red-600 border-b border-red-100 dark:border-red-950/40 pb-2 flex items-center gap-1.5">
+              <ShieldAlert className="w-4.5 h-4.5 text-red-500" />
+              <span>Danger Zone</span>
+            </h3>
+            
+            <div className="flex flex-col gap-3">
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-text-primary">Reset Demo Data</p>
+                <p className="text-[10px] text-text-secondary">
+                  Restores default settings, clear all custom workspaces and client invitations.
+                </p>
+                <button
+                  onClick={handleResetData}
+                  className="w-full mt-1.5 border border-border-primary bg-bg-app hover:bg-red-50 dark:hover:bg-red-950/20 text-text-primary hover:text-red-500 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Reset Demo State</span>
+                </button>
+              </div>
+
+              <div className="space-y-1 pt-3 border-t border-border-primary">
+                <p className="text-xs font-bold text-text-primary">Delete Account</p>
+                <p className="text-[10px] text-text-secondary">
+                  Permanently delete this account and all linked organization records.
+                </p>
+                <button
+                  onClick={handleDeleteAccount}
+                  className="w-full mt-1.5 bg-red-600 hover:opacity-90 text-white py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Account</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Instagram Authentication modal */}
+      {showInstaModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 animate-fade-in p-4">
+          <div className="bg-white border border-[#EFEFEF] rounded-3xl w-full max-w-sm p-6 shadow-xl animate-scale-up space-y-4 text-slate-800">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-[#EFEFEF] pb-3">
+              <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <Instagram className="w-4 h-4 text-instagram-pink" />
+                <span>Instagram Auth Bridge</span>
+              </span>
+              <button
+                onClick={() => {
+                  setShowInstaModal(false);
+                  setInstaModalTarget(null);
+                }}
+                className="p-1 text-slate-400 hover:bg-slate-100 rounded-lg hover:text-slate-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Loading State */}
+            {instaStep === 'loading' && (
+              <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
+                <div className="w-10 h-10 border-2 border-instagram-pink border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-xs text-slate-500 font-medium">Communicating with Meta API...</p>
+              </div>
+            )}
+
+            {/* Login State */}
+            {instaStep === 'login' && (
+              <form onSubmit={handleInstaSubmit} className="space-y-4">
+                <p className="text-[11px] text-slate-500 leading-normal">
+                  Connect your team member's Instagram Creator or Business profile to PressForge.
+                </p>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold uppercase text-slate-500">Instagram Username</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="@username"
+                    value={instaUsername}
+                    onChange={(e) => setInstaUsername(e.target.value)}
+                    className="border border-[#EFEFEF] bg-white text-slate-800 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-instagram-pink"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold uppercase text-slate-500">Password</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={instaPassword}
+                    onChange={(e) => setInstaPassword(e.target.value)}
+                    className="border border-[#EFEFEF] bg-white text-slate-800 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-instagram-pink"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-[#262626] text-white py-2 rounded-lg text-xs font-bold hover:bg-slate-800 transition"
+                >
+                  Log In & Connect
+                </button>
+
+                <div className="bg-slate-50 border border-slate-100 rounded-lg p-2 mt-2">
+                  <span className="text-[9px] font-bold text-slate-500 block">Quick Autofill:</span>
+                  <button
+                    type="button"
+                    onClick={() => setInstaUsername('travel_guru_2026')}
+                    className="text-[9px] text-[#0095F6] font-semibold hover:underline block mt-0.5"
+                  >
+                    Autofill: @travel_guru_2026
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Authorize State */}
+            {instaStep === 'authorize' && (
+              <div className="flex flex-col gap-4 text-center">
+                <div className="flex items-center justify-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-[#262626]">
+                    <Instagram className="w-5 h-5" />
+                  </div>
+                  <span className="text-slate-400 text-xs">↔</span>
+                  <div className="w-10 h-10 rounded-full bg-pink-50 text-instagram-pink flex items-center justify-center font-bold text-xs">
+                    PF
+                  </div>
+                </div>
+
+                <h3 className="font-extrabold text-sm text-[#262626] mt-2">
+                  Authorize PressForge Integration
+                </h3>
+
+                <div className="bg-slate-50/50 border border-slate-100 p-4 rounded-xl text-left space-y-2.5">
+                  <p className="text-[10px] text-slate-500 leading-normal">
+                    PressForge AI is requesting permission to access the following info for <span className="font-bold text-slate-700">@{instaUsername}</span>:
+                  </p>
+                  <ul className="text-[9px] text-slate-600 space-y-1.5 pl-1">
+                    <li className="flex items-start gap-1.5">
+                      <Check className="w-3 h-3 text-green-600 mt-0.5 shrink-0" />
+                      <span>Profile info and media files</span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <Check className="w-3 h-3 text-green-600 mt-0.5 shrink-0" />
+                      <span>Publish scheduled posts, reels, and stories</span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <Check className="w-3 h-3 text-green-600 mt-0.5 shrink-0" />
+                      <span>Read audience comments and insights</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="flex gap-2.5 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowInstaModal(false);
+                      setInstaModalTarget(null);
+                    }}
+                    className="flex-1 border border-[#EFEFEF] hover:bg-slate-50 text-slate-600 font-bold py-2 rounded-md text-xs transition"
+                  >
+                    Decline
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleInstaAuthorize}
+                    className="flex-1 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white font-bold py-2 rounded-md text-xs transition shadow-xs"
+                  >
+                    Allow Access
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
