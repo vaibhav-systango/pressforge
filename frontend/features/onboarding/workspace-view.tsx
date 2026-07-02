@@ -42,7 +42,7 @@ export function WorkspaceView() {
         keywords: [],
         rules: []
       });
-      updateState({ currentStep: 3 });
+      updateState({ activeWorkspaceId: newId, currentStep: 3 });
     }
 
     router.push('/onboarding/brand-voice');

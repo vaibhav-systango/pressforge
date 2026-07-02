@@ -19,7 +19,7 @@ interface OrgUser {
 
 export function OrganizationView() {
   const router = useRouter();
-  const { state, updateState } = useAppState();
+  const { state, addWorkspace, updateState } = useAppState();
 
   // Onboarding local states
   const [accountType, setAccountType] = useState<'individual' | 'organization'>(
@@ -135,14 +135,19 @@ export function OrganizationView() {
         return;
       }
 
-      // Save to App State
-      updateState((prev) => {
-        return {
-          ...prev,
-          accountType: 'organization',
-          organizationName: orgName,
-          currentStep: 2
-        };
+      const newId = orgName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      addWorkspace({
+        id: newId,
+        name: orgName,
+        website: 'https://example.com',
+        tone: 'professional',
+        keywords: [],
+        rules: [],
+      });
+      updateState({
+        accountType: 'organization',
+        organizationName: orgName,
+        currentStep: 2,
       });
 
       router.push('/onboarding/kyc');

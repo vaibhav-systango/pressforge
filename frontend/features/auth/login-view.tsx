@@ -1,72 +1,68 @@
 "use client";
 
+import { useForm } from "@mantine/form";
+import { notifications } from "@mantine/notifications";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { ArrowRight, Sparkles } from "lucide-react";
 
-import { useAppState } from "@/lib/queries/use-app-state";
-import { INITIAL_STATE } from "@/lib/data/mock-data";
+import { ErrorMessage } from "@/components/common/error-message";
+import { getPostAuthRedirect } from "@/lib/auth/redirect";
+import { useLoginMutation } from "@/lib/hooks/mutations/use-auth";
+import { ApiError } from "@/lib/utils/api-errors";
 
 export function LoginView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { loginAsClient } = useAppState({ enabled: false });
+  const loginMutation = useLoginMutation();
+  const [formError, setFormError] = useState("");
 
-  const invitedClient =
-    INITIAL_STATE.clients && INITIAL_STATE.clients.length > 0
-      ? INITIAL_STATE.clients[0]
-      : null;
-
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
+  const form = useForm({
+    initialValues: {
+      email: "",
+      password: "",
+    },
+    validate: {
+      email: (value) => {
+        if (!value.trim()) return "Email is required";
+        return /^\S+@\S+\.\S+$/.test(value) ? null : "Enter a valid email address";
+      },
+      password: (value) => (!value ? "Password is required" : null),
+    },
   });
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const emailParam = searchParams.get("email");
     const passParam = searchParams.get("password");
-    const acceptParam = searchParams.get("acceptClientInvite");
 
     if (emailParam && passParam) {
-      setFormData({
-        email: decodeURIComponent(emailParam),
-        password: decodeURIComponent(passParam),
+      form.setValues({
+        email: emailParam,
+        password: passParam,
       });
-
-      if (acceptParam === "true") {
-        void (async () => {
-          const success = await loginAsClient(
-            decodeURIComponent(emailParam),
-            decodeURIComponent(passParam),
-          );
-          if (success) {
-            alert("Invitation Accepted! Welcome to your Client Portal.");
-            router.replace("/app");
-          }
-        })();
-      }
     }
-  }, [searchParams, loginAsClient, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.email || !formData.password) {
-      alert("Please fill out all required fields.");
-      return;
+  const handleSubmit = form.onSubmit(async (values) => {
+    setFormError("");
+    try {
+      const result = await loginMutation.mutateAsync({
+        email: values.email,
+        password: values.password,
+      });
+      router.replace(getPostAuthRedirect(result.user));
+    } catch (error) {
+      const apiError = error instanceof ApiError ? error : new ApiError("Invalid email or password.", 401, "UNAUTHORIZED");
+      setFormError(apiError.message);
+      notifications.show({
+        title: "Login failed",
+        message: apiError.message,
+        color: "red",
+      });
     }
-
-    setSubmitting(true);
-    const success = await loginAsClient(formData.email, formData.password);
-    setSubmitting(false);
-
-    if (success) {
-      router.replace("/app");
-    } else {
-      alert("Invalid email or password.");
-    }
-  };
+  });
 
   return (
     <div className="min-h-screen bg-bg-app flex items-center justify-center p-4 transition-colors duration-200">
@@ -82,6 +78,8 @@ export function LoginView() {
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <ErrorMessage message={formError} />
+
           <div className="flex flex-col gap-1.5">
             <label
               className="text-xs font-semibold text-text-secondary"
@@ -92,14 +90,13 @@ export function LoginView() {
             <input
               id="email"
               type="email"
-              required
               placeholder="jane@example.com"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
+              {...form.getInputProps("email")}
               className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
             />
+            {form.errors.email ? (
+              <p className="text-[11px] text-red-500 font-medium">{form.errors.email}</p>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -112,22 +109,21 @@ export function LoginView() {
             <input
               id="password"
               type="password"
-              required
               placeholder="••••••••"
-              value={formData.password}
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
+              {...form.getInputProps("password")}
               className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
             />
+            {form.errors.password ? (
+              <p className="text-[11px] text-red-500 font-medium">{form.errors.password}</p>
+            ) : null}
           </div>
 
           <button
             type="submit"
-            disabled={submitting}
+            disabled={loginMutation.isPending}
             className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3 rounded-full text-sm font-semibold hover:opacity-95 transition shadow-sm mt-3 cursor-pointer disabled:opacity-60"
           >
-            <span>{submitting ? "Logging in..." : "Log In"}</span>
+            <span>{loginMutation.isPending ? "Logging in..." : "Log In"}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
@@ -153,7 +149,7 @@ export function LoginView() {
             <button
               type="button"
               onClick={() =>
-                setFormData({
+                form.setValues({
                   email: "alex@pressforge.ai",
                   password: "password123",
                 })
@@ -165,7 +161,7 @@ export function LoginView() {
             <button
               type="button"
               onClick={() =>
-                setFormData({
+                form.setValues({
                   email: "jane@pressforge.ai",
                   password: "password123",
                 })
@@ -174,25 +170,6 @@ export function LoginView() {
             >
               • Fill Individual Account (Alex)
             </button>
-            {invitedClient ? (
-              <button
-                type="button"
-                onClick={() =>
-                  setFormData({
-                    email: invitedClient.email,
-                    password: invitedClient.password,
-                  })
-                }
-                className="text-[10px] text-instagram-pink font-semibold hover:underline text-left"
-              >
-                • Fill Client Portal Account ({invitedClient.name})
-              </button>
-            ) : (
-              <p className="text-[9px] text-text-secondary italic">
-                (No client invited yet. Invite a client in Settings to see
-                client login options.)
-              </p>
-            )}
           </div>
         </div>
       </div>

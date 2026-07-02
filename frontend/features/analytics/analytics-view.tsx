@@ -347,7 +347,7 @@ export function AnalyticsView() {
               })}
 
               {/* Static Seed items to populate tables if no dynamic published items are in memory */}
-              {seedItems.map((item) => (
+              {publishedPosts.length === 0 && seedItems.map((item) => (
                 <tr key={item.id} className="hover:bg-bg-hover transition">
                   {selectedWorkspaceFilter === 'all' && (
                     <td className="p-3 font-bold text-instagram-pink">{item.workspaceName}</td>

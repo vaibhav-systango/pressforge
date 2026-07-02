@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { withAuth } from '@/lib/server/auth/with-auth';
 import { addCampaign, getSessionState, updateCampaign } from '@/lib/server/mock-store';
-import type { Campaign } from '@/lib/types';
+import { isCampaign, parseJsonBody } from '@/lib/server/validate-payload';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -21,8 +21,12 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const campaign = await parseJsonBody(request);
+  if (!campaign || !isCampaign(campaign)) {
+    return NextResponse.json({ error: 'Invalid campaign payload', code: 'BAD_REQUEST' }, { status: 400 });
+  }
+
   const result = await withAuth(async (auth) => {
-    const campaign = (await request.json()) as Campaign;
     const created = addCampaign(auth.sessionId, campaign);
     return { campaign: created };
   });

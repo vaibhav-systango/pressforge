@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { withAuth } from '@/lib/server/auth/with-auth';
 import { addDraft, getSessionState, updateDraft } from '@/lib/server/mock-store';
-import type { Draft } from '@/lib/types';
+import { isDraft, parseJsonBody } from '@/lib/server/validate-payload';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -21,8 +21,12 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const draft = await parseJsonBody(request);
+  if (!draft || !isDraft(draft)) {
+    return NextResponse.json({ error: 'Invalid draft payload', code: 'BAD_REQUEST' }, { status: 400 });
+  }
+
   const result = await withAuth(async (auth) => {
-    const draft = (await request.json()) as Draft;
     const created = addDraft(auth.sessionId, draft);
     return { draft: created };
   });

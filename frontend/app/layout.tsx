@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 
 import { AppProviders } from '@/providers/app-providers';
 
+import '@mantine/core/styles.css';
+import '@mantine/notifications/styles.css';
 import './globals.css';
 
 export const metadata: Metadata = {

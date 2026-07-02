@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { withAuth } from '@/lib/server/auth/with-auth';
 import { getDraft, updateDraft } from '@/lib/server/mock-store';
-import type { Draft } from '@/lib/types';
+import { isDraft, parseJsonBody } from '@/lib/server/validate-payload';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -22,11 +22,17 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params;
+  const draft = await parseJsonBody(request);
+
+  if (!draft || !isDraft(draft)) {
+    return NextResponse.json({ error: 'Invalid draft payload', code: 'BAD_REQUEST' }, { status: 400 });
+  }
+
+  if (draft.id !== id) {
+    return NextResponse.json({ error: 'ID mismatch', code: 'BAD_REQUEST' }, { status: 400 });
+  }
+
   const result = await withAuth(async (auth) => {
-    const draft = (await request.json()) as Draft;
-    if (draft.id !== id) {
-      return NextResponse.json({ error: 'ID mismatch', code: 'BAD_REQUEST' }, { status: 400 });
-    }
     const updated = updateDraft(auth.sessionId, draft);
     return { draft: updated };
   });

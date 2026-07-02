@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 export function ClientsView() {
-  const { state, inviteClient, acceptInvite, addClient, updateClient, deleteClient } = useAppState();
+  const { state, updateState, inviteClient, acceptInvite, addClient, updateClient, deleteClient } = useAppState();
   const router = useRouter();
 
   const isClient = state.currentUserType === 'client';
@@ -122,8 +122,7 @@ export function ClientsView() {
       inviteLink: `/auth/accept-invite?email=${encodeURIComponent(createEmail.trim())}&password=${encodeURIComponent(password)}&workspaceId=${encodeURIComponent(createWorkspaceId)}`
     };
 
-    // Push into mockInbox in appState
-    state.mockInbox.unshift(newEmail);
+    updateState({ mockInbox: [newEmail, ...(state.mockInbox || [])] });
 
     setCreateName('');
     setCreateEmail('');

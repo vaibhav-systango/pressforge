@@ -140,6 +140,10 @@ export function WorkspacesView() {
   };
 
   const handleDeleteWorkspace = (id: string) => {
+    const remaining = state.workspaces.filter((w) => w.id !== id);
+    if (selectedWorkspaceId === id) {
+      setSelectedWorkspaceId(remaining[0]?.id ?? '');
+    }
     deleteWorkspace(id);
     setDeleteConfirmId(null);
   };
@@ -297,41 +301,9 @@ export function WorkspacesView() {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-[11px] text-text-secondary">{s.recurrence || 'one-time'}</div>
-                      <button onClick={() => handleRemoveSchedule(s.id)} className="text-red-500 text-xs font-bold">Remove</button>
                     </div>
                   </div>
                 ))}
-              </div>
-
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-2 items-end">
-                <div className="md:col-span-2">
-                  <label className="text-[10px] text-text-secondary">Label</label>
-                  <input value={newScheduleLabel} onChange={(e) => setNewScheduleLabel(e.target.value)} placeholder="e.g. Monday Post" className="w-full border border-border-primary bg-bg-app text-text-primary rounded-xl px-3 py-2 text-xs outline-none" />
-                </div>
-
-                <div>
-                  <label className="text-[10px] text-text-secondary">When</label>
-                  <input type="datetime-local" value={newScheduleDatetime} onChange={(e) => setNewScheduleDatetime(e.target.value)} className="w-full border border-border-primary bg-bg-app text-text-primary rounded-xl px-3 py-2 text-xs outline-none" />
-                </div>
-
-                <div>
-                  <label className="text-[10px] text-text-secondary">Recurrence</label>
-                  <select value={newScheduleRecurrence} onChange={(e) => setNewScheduleRecurrence(e.target.value as any)} className="w-full border border-border-primary bg-bg-app text-text-primary rounded-xl px-3 py-2 text-xs outline-none">
-                    <option value="none">None (one-time)</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                  </select>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <label className="text-[10px] text-text-secondary">Publish Mode</label>
-                  <div className="flex items-center gap-2">
-                    <label className="text-[11px] text-text-secondary">Draft</label>
-                    <input type="checkbox" checked={newSchedulePublishDraft} onChange={(e) => setNewSchedulePublishDraft(e.target.checked)} />
-                  </div>
-                  <button onClick={handleAddSchedule} className="ml-auto bg-instagram-pink text-white px-3 py-1.5 rounded-xl text-xs font-bold">Add Schedule</button>
-                </div>
               </div>
             </div>
 
