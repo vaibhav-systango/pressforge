@@ -7,6 +7,7 @@ class OrganizationRole(str, enum.Enum):
     OWNER = "OWNER"
     ADMIN = "ADMIN"
     MEMBER = "MEMBER"
+    CLIENT = "CLIENT"
 
 class OrganizationMember(Base):
     __tablename__ = "organization_members"
