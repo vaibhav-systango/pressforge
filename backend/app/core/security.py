@@ -2,6 +2,8 @@ from datetime import datetime, timedelta, timezone
 import bcrypt
 import jwt
 from app.core.config import settings
+from app.core.constants.invitation_constants import INVITATION_EXPIRY_DAYS
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain text password against a bcrypt hash."""
@@ -51,7 +53,7 @@ def decode_refresh_token(token: str) -> dict | None:
 
 def create_invite_token(invitation_id: str) -> str:
     """Create a signed JWT invite token."""
-    expire = datetime.now(timezone.utc) + timedelta(days=settings.INVITE_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now(timezone.utc) + timedelta(days=INVITATION_EXPIRY_DAYS)
     return jwt.encode(
         {"sub": invitation_id, "exp": expire},
         settings.INVITE_TOKEN_SECRET,

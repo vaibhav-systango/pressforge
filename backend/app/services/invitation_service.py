@@ -1,5 +1,6 @@
 import logging
 import time
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.security import (
@@ -57,24 +58,29 @@ class InvitationService:
         if target_role not in INVITATION_PERMISSION_MATRIX.get(inviter_role, []):
             raise ValueError(InvitationErrorCodes.INSUFFICIENT_ROLE)
 
-        existing = invitation_repository.get_pending_by_email_and_org(db, email, organization_id)
+        normalized_email = email.lower().strip()
+        existing = invitation_repository.get_pending_by_email_and_org(db, normalized_email, organization_id)
         if existing:
             raise ValueError(InvitationErrorCodes.PENDING_INVITATION_EXISTS)
 
-        if user_repository.get_by_email(db, email):
+        if user_repository.get_by_email(db, normalized_email):
             raise ValueError(InvitationErrorCodes.USER_ALREADY_EXISTS)
 
         expires_at = int((time.time() + INVITATION_EXPIRY_DAYS * 86400) * 1000)
 
-        invitation = invitation_repository.create(
-            db,
-            email=email,
-            fullName=full_name,
-            organizationId=organization_id,
-            role=role,
-            invitedBy=inviter.id,
-            expiresAt=expires_at
-        )
+        try:
+            invitation = invitation_repository.create(
+                db,
+                email=normalized_email,
+                fullName=full_name,
+                organizationId=organization_id,
+                role=role,
+                invitedBy=inviter.id,
+                expiresAt=expires_at
+            )
+        except IntegrityError as exc:
+            db.rollback()
+            raise ValueError(InvitationErrorCodes.PENDING_INVITATION_EXISTS) from exc
 
         accept_link = f"{settings.FRONTEND_URL}/auth/accept-invite?token={create_invite_token(invitation.id)}"
         template = invitation_email(

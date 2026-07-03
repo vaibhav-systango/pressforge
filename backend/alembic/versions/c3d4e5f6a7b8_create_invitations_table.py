@@ -37,9 +37,17 @@ def upgrade() -> None:
     op.create_index(op.f('ix_invitations_email'), 'invitations', ['email'], unique=False)
     op.create_index(op.f('ix_invitations_organizationId'), 'invitations', ['organizationId'], unique=False)
     op.create_index(op.f('ix_invitations_status'), 'invitations', ['status'], unique=False)
+    op.create_index(
+        'uq_invitations_pending_email_org',
+        'invitations',
+        [sa.text('LOWER(email)'), 'organizationId'],
+        unique=True,
+        postgresql_where=sa.text("status = 'PENDING'"),
+    )
 
 
 def downgrade() -> None:
+    op.drop_index('uq_invitations_pending_email_org', table_name='invitations')
     op.drop_index(op.f('ix_invitations_status'), table_name='invitations')
     op.drop_index(op.f('ix_invitations_organizationId'), table_name='invitations')
     op.drop_index(op.f('ix_invitations_email'), table_name='invitations')
