@@ -39,13 +39,15 @@ class OrganizationRepository:
         *,
         organizationId: str,
         userId: str,
-        role: str
+        role: str,
+        invitedBy: str | None = None
     ) -> OrganizationMember:
         """Link a user to an organization with a specific role."""
         member = OrganizationMember(
             organizationId=organizationId,
             userId=userId,
-            role=role
+            role=role,
+            invitedBy=invitedBy
         )
         db.add(member)
         db.flush()

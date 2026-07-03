@@ -9,6 +9,7 @@ from app.models.permission import Permission
 from app.models.role_permission import RolePermission
 from app.models.route_permission import RoutePermission
 from app.models.user_profile import UserProfile
+from app.models.invitation import Invitation
 
 __all__ = [
     "Base",
@@ -19,6 +20,7 @@ __all__ = [
     "Role",
     "Permission",
     "RolePermission",
-    "RoutePermission"
-    "UserProfile"
+    "RoutePermission",
+    "UserProfile",
+    "Invitation"
 ]

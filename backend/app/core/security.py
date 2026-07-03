@@ -48,3 +48,20 @@ def decode_refresh_token(token: str) -> dict | None:
         return jwt.decode(token, settings.JWT_REFRESH_SECRET, algorithms=["HS256"])
     except jwt.PyJWTError:
         return None
+
+def create_invite_token(invitation_id: str) -> str:
+    """Create a signed JWT invite token."""
+    expire = datetime.now(timezone.utc) + timedelta(days=settings.INVITE_TOKEN_EXPIRE_DAYS)
+    return jwt.encode(
+        {"sub": invitation_id, "exp": expire},
+        settings.INVITE_TOKEN_SECRET,
+        algorithm="HS256",
+    )
+
+def decode_invite_token(token: str) -> str | None:
+    """Decode and validate a JWT invite token, returning the invitation_id."""
+    try:
+        payload = jwt.decode(token, settings.INVITE_TOKEN_SECRET, algorithms=["HS256"])
+        return payload.get("sub")
+    except jwt.PyJWTError:
+        return None

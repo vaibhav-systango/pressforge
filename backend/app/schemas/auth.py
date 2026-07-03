@@ -37,3 +37,7 @@ class Token(BaseModel):
 class TokenRefreshRequest(BaseModel):
     """Schema to request a new access token using a refresh token."""
     refreshToken: str
+
+class SetPasswordRequest(BaseModel):
+    """Schema for setting a permanent password."""
+    newPassword: str = Field(..., min_length=8, max_length=30)

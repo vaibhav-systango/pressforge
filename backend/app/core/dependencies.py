@@ -4,10 +4,14 @@ from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.models.user import User
-from app.models.role import Role
-from app.models.permission import Permission
-from app.models.role_permission import RolePermission
-from app.models.route_permission import RoutePermission
+from app.core.constants.permission_constants import PermissionErrorCodes
+from app.core.permission_guard import (
+    extract_org_id_from_path,
+    get_required_permissions,
+    resolve_rbac_role,
+    get_role_permission_names,
+    permission_http_exception,
+)
 from app.core.security import decode_access_token
 from app.repositories.user_repository import user_repository
 
@@ -72,10 +76,7 @@ def check_account_types(allowed_types: list[str]):
     """
     async def checker(current_user: User = Depends(get_current_user)) -> User:
         if current_user.accountType not in allowed_types:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not have permission to perform this action"
-            )
+            raise permission_http_exception(PermissionErrorCodes.INSUFFICIENT_PERMISSION)
         return current_user
     return checker
 
@@ -88,40 +89,27 @@ async def permission_guard(
     """
     Looks up required permissions for the current route from the
     route_permissions table and verifies the user's role has them.
-
-    Usage:
-    @router.get("/me", dependencies=[Depends(permission_guard)])
     """
-    route_permissions = (
-        db.query(Permission.name)
-        .join(RoutePermission, RoutePermission.permissionId == Permission.id)
-        .filter(
-            RoutePermission.method == request.method,
-            RoutePermission.path == request.url.path
-        )
-        .all()
+    required_permissions = get_required_permissions(
+        db,
+        request.method,
+        request.url.path,
     )
-    required_permissions = [p.name for p in route_permissions]
-
     if not required_permissions:
         return current_user
 
-    role = db.query(Role).filter(Role.name == current_user.accountType).first()
-    if not role:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found for this user")
+    org_id = request.path_params.get("org_id") or extract_org_id_from_path(request.url.path)
 
-    assigned_permissions = (
-        db.query(Permission.name)
-        .join(RolePermission, RolePermission.permissionId == Permission.id)
-        .filter(RolePermission.roleId == role.id)
-        .all()
+    role_resolution = resolve_rbac_role(
+        db,
+        current_user,
+        org_id,
     )
-    assigned_names = {p.name for p in assigned_permissions}
+    if role_resolution.error_code:
+        raise permission_http_exception(role_resolution.error_code)
 
-    missing = [p for p in required_permissions if p not in assigned_names]
-    if missing:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to perform this action"
-        )
+    assigned_permissions = get_role_permission_names(db, role_resolution.role_name)
+    if any(permission not in assigned_permissions for permission in required_permissions):
+        raise permission_http_exception(PermissionErrorCodes.INSUFFICIENT_PERMISSION)
+
     return current_user

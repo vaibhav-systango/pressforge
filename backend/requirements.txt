@@ -9,3 +9,4 @@ python-ulid
 pyjwt
 bcrypt
 email-validator
+sendgrid
