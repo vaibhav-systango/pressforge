@@ -33,10 +33,8 @@ class EmailProvider:
             )
             raise
         logger.info(
-            "SendGrid accepted email: status=%s message_id=%s to=%s subject=%s",
+            "SendGrid accepted email: status=%s subject=%s",
             response.status_code,
-            response.headers.get("X-Message-Id") or response.headers.get("X-Message-ID"),
-            to,
             subject,
         )
 

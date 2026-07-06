@@ -1,4 +1,5 @@
 from app.models.organization_member import OrganizationRole
+from app.core.config import settings
 
 INVITATION_PERMISSION_MATRIX = {
     OrganizationRole.OWNER: [OrganizationRole.ADMIN, OrganizationRole.MEMBER, OrganizationRole.CLIENT],
@@ -6,7 +7,7 @@ INVITATION_PERMISSION_MATRIX = {
     OrganizationRole.MEMBER: [OrganizationRole.CLIENT],
 }
 
-INVITATION_EXPIRY_DAYS = 7
+INVITATION_EXPIRY_DAYS = settings.INVITE_TOKEN_EXPIRE_DAYS
 
 
 def organization_role_to_account_type(organization_role: str) -> str:
