@@ -1,36 +1,71 @@
 'use client';
 
+import { useForm } from '@mantine/form';
+import { notifications } from '@mantine/notifications';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import React, { useState } from 'react';
 import { ArrowRight, Sparkles } from 'lucide-react';
 
-import { useSignupMutation } from '@/lib/queries/use-app-state';
+import { ErrorMessage } from '@/components/common/error-message';
+import { getPostAuthRedirect } from '@/lib/auth/redirect';
+import { useSignupMutation } from '@/lib/hooks/mutations/use-auth';
+import { ApiError } from '@/lib/utils/api-errors';
 
 export function SignupView() {
   const router = useRouter();
   const signupMutation = useSignupMutation();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    terms: false,
+  const [formError, setFormError] = useState('');
+
+  const form = useForm({
+    initialValues: {
+      fullName: '',
+      email: '',
+      password: '',
+      terms: false,
+    },
+    validate: {
+      fullName: (value) => {
+        if (!value.trim()) return 'Full name is required';
+        if (value.length > 100) return 'Full name must be 100 characters or less';
+        return null;
+      },
+      email: (value) => {
+        if (!value.trim()) return 'Email is required';
+        return /^\S+@\S+\.\S+$/.test(value) ? null : 'Enter a valid email address';
+      },
+      password: (value) => {
+        if (!value) return 'Password is required';
+        if (value.length < 8) return 'Password must be at least 8 characters';
+        if (value.length > 30) return 'Password must be 30 characters or less';
+        return null;
+      },
+      terms: (value) => (value ? null : 'You must agree to the terms'),
+    },
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name || !formData.email || !formData.password) {
-      alert('Please fill out all required fields.');
-      return;
+  const handleSubmit = form.onSubmit(async (values) => {
+    setFormError('');
+    try {
+      const result = await signupMutation.mutateAsync({
+        fullName: values.fullName,
+        email: values.email,
+        password: values.password,
+      });
+      router.replace(getPostAuthRedirect(result.user));
+    } catch (error) {
+      const apiError =
+        error instanceof ApiError
+          ? error
+          : new ApiError('Unable to create account. Please try again.', 500, 'UNKNOWN');
+      setFormError(apiError.message);
+      notifications.show({
+        title: 'Signup failed',
+        message: apiError.message,
+        color: 'red',
+      });
     }
-
-    await signupMutation.mutateAsync({
-      email: formData.email,
-      password: formData.password,
-      name: formData.name,
-    });
-    router.replace('/onboarding/organization');
-  };
+  });
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-4">
@@ -45,6 +80,8 @@ export function SignupView() {
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <ErrorMessage message={formError} />
+
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-[#737373]" htmlFor="name">
               Full Name
@@ -52,12 +89,13 @@ export function SignupView() {
             <input
               id="name"
               type="text"
-              required
               placeholder="Jane Doe"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              {...form.getInputProps('fullName')}
               className="border border-[#EFEFEF] bg-[#FAFAFA] text-[#262626] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
             />
+            {form.errors.fullName ? (
+              <p className="text-[11px] text-red-500 font-medium">{form.errors.fullName}</p>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -67,12 +105,13 @@ export function SignupView() {
             <input
               id="email"
               type="email"
-              required
               placeholder="jane@example.com"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              {...form.getInputProps('email')}
               className="border border-[#EFEFEF] bg-[#FAFAFA] text-[#262626] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
             />
+            {form.errors.email ? (
+              <p className="text-[11px] text-red-500 font-medium">{form.errors.email}</p>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -82,24 +121,26 @@ export function SignupView() {
             <input
               id="password"
               type="password"
-              required
               placeholder="••••••••"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              {...form.getInputProps('password')}
               className="border border-[#EFEFEF] bg-[#FAFAFA] text-[#262626] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
             />
+            {form.errors.password ? (
+              <p className="text-[11px] text-red-500 font-medium">{form.errors.password}</p>
+            ) : null}
           </div>
 
           <label className="flex items-start gap-2 text-xs text-[#737373] cursor-pointer">
             <input
               type="checkbox"
-              checked={formData.terms}
-              onChange={(e) => setFormData({ ...formData, terms: e.target.checked })}
+              {...form.getInputProps('terms', { type: 'checkbox' })}
               className="mt-0.5"
-              required
             />
             <span>I agree to the Terms of Service and Privacy Policy.</span>
           </label>
+          {form.errors.terms ? (
+            <p className="text-[11px] text-red-500 font-medium -mt-2">{form.errors.terms}</p>
+          ) : null}
 
           <button
             type="submit"
@@ -125,7 +166,7 @@ export function SignupView() {
             <Sparkles className="w-3 h-3 text-instagram-pink" /> Demo Mode
           </p>
           <p className="text-[10px] text-[#737373] mt-1">
-            Signup issues a session cookie and starts the onboarding flow via API.
+            Signup creates your account on the live API and starts the onboarding flow.
           </p>
         </div>
       </div>

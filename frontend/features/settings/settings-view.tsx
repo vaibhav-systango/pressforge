@@ -135,6 +135,10 @@ export function SettingsView() {
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
+    updateState({
+      currentUserName: profileName,
+      currentUserEmail: profileEmail,
+    });
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 3000);
   };
@@ -175,7 +179,6 @@ export function SettingsView() {
 
   const handleDeleteAccount = () => {
     if (confirm("Are you sure you want to delete your account? This action is irreversible.")) {
-      localStorage.clear();
       window.location.href = '/';
     }
   };

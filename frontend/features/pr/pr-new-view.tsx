@@ -80,9 +80,9 @@ export function PrNewView() {
       status: 'sent',
       sentAt: new Date().toISOString(),
       stats: {
-        opens: 75,
-        clicks: 42,
-        replies: 2
+        opens: 0,
+        clicks: 0,
+        replies: 0,
       },
       journalists: selectedJournalists
     });

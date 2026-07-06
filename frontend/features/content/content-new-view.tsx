@@ -569,6 +569,32 @@ export function ContentNewView() {
       finalPlatform = 'linkedin';
     }
 
+    const latestHistory = history[0];
+    const hasUnsavedChanges =
+      !latestHistory ||
+      latestHistory.caption !== caption ||
+      latestHistory.hashtags.join(',') !== hashtags.join(',') ||
+      latestHistory.imageBrief !== imageBrief ||
+      latestHistory.liCaption !== liCaption ||
+      latestHistory.liHashtags.join(',') !== liHashtags.join(',') ||
+      latestHistory.liImageBrief !== liImageBrief ||
+      latestHistory.imageUrl !== generatedImageUrl;
+
+    const finalHistory = hasUnsavedChanges
+      ? [{
+          version: (latestHistory?.version ?? 0) + 1,
+          timestamp: new Date().toISOString(),
+          action: 'Saved changes manually',
+          caption,
+          hashtags,
+          imageBrief,
+          liCaption,
+          liHashtags,
+          liImageBrief,
+          imageUrl: generatedImageUrl,
+        }, ...history]
+      : history;
+
     addDraft({
       id,
       workspaceId: state.activeWorkspaceId,
@@ -578,8 +604,8 @@ export function ContentNewView() {
       imageBrief,
       status,
       scheduledAt: status === 'pending_approval' ? undefined : new Date().toISOString(),
-      version: history.length > 0 ? history[0].version : 1,
-      history: history.map(h => ({
+      version: finalHistory.length > 0 ? finalHistory[0].version : 1,
+      history: finalHistory.map(h => ({
         version: h.version,
         timestamp: h.timestamp,
         action: h.action,

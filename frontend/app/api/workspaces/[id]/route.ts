@@ -42,12 +42,12 @@ export async function POST(request: Request, context: RouteContext) {
   const { id } = await context.params;
   const result = await withAuth(async (auth) => {
     const body = (await request.json()) as { schedule?: Schedule; action?: string; scheduleId?: string };
-    if (body.schedule) {
-      const schedule = addWorkspaceSchedule(auth.sessionId, id, body.schedule);
-      return { schedule };
-    }
     if (body.action === 'update-schedule' && body.schedule) {
       const schedule = updateWorkspaceSchedule(auth.sessionId, id, body.schedule);
+      return { schedule };
+    }
+    if (body.schedule) {
+      const schedule = addWorkspaceSchedule(auth.sessionId, id, body.schedule);
       return { schedule };
     }
     if (body.action === 'delete-schedule' && body.scheduleId) {

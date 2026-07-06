@@ -247,10 +247,13 @@ export function ContentDetailView() {
 
   const handleSave = (statusToUpdate?: 'draft' | 'pending_approval') => {
     const updatedStatus = statusToUpdate || draft.status;
-    const nextVersion = history.length > 0 ? history[0].version : draft.version + 1;
     const actionDesc = statusToUpdate === 'pending_approval'
       ? 'Resubmitted for WhatsApp approval'
       : 'Saved changes manually';
+
+    const originalLiCaption = draft.liCaption ?? draft.caption;
+    const originalLiHashtags = draft.liHashtags ?? draft.hashtags;
+    const originalLiImageBrief = draft.liImageBrief ?? draft.imageBrief;
 
     let finalPlatform: 'instagram' | 'linkedin' | 'both' = 'instagram';
     if (targetPlatforms.includes('instagram') && targetPlatforms.includes('linkedin')) {
@@ -261,13 +264,16 @@ export function ContentDetailView() {
 
     // Build latest history log if we have changes not logged yet
     let finalHistory = [...history];
-    const hasChanges = 
-      caption !== draft.caption || 
-      hashtags.join(',') !== draft.hashtags.join(',') || 
+    const hasChanges =
+      caption !== draft.caption ||
+      hashtags.join(',') !== draft.hashtags.join(',') ||
       imageBrief !== draft.imageBrief ||
-      liCaption !== draft.liCaption ||
-      liHashtags.join(',') !== (draft.liHashtags || []).join(',') ||
-      liImageBrief !== draft.liImageBrief;
+      liCaption !== originalLiCaption ||
+      liHashtags.join(',') !== originalLiHashtags.join(',') ||
+      liImageBrief !== originalLiImageBrief;
+
+    const latestVersion = Math.max(draft.version, history[0]?.version ?? draft.version);
+    const nextVersion = hasChanges ? latestVersion + 1 : latestVersion;
 
     if (hasChanges) {
       finalHistory = [

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { withAuth } from '@/lib/server/auth/with-auth';
 import { getSessionState, updateCampaign } from '@/lib/server/mock-store';
-import type { Campaign } from '@/lib/types';
+import { isCampaign, parseJsonBody } from '@/lib/server/validate-payload';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -22,11 +22,17 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params;
+  const campaign = await parseJsonBody(request);
+
+  if (!campaign || !isCampaign(campaign)) {
+    return NextResponse.json({ error: 'Invalid campaign payload', code: 'BAD_REQUEST' }, { status: 400 });
+  }
+
+  if (campaign.id !== id) {
+    return NextResponse.json({ error: 'ID mismatch', code: 'BAD_REQUEST' }, { status: 400 });
+  }
+
   const result = await withAuth(async (auth) => {
-    const campaign = (await request.json()) as Campaign;
-    if (campaign.id !== id) {
-      return NextResponse.json({ error: 'ID mismatch', code: 'BAD_REQUEST' }, { status: 400 });
-    }
     const updated = updateCampaign(auth.sessionId, campaign);
     return { campaign: updated };
   });

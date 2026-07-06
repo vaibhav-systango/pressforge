@@ -26,9 +26,8 @@ export function MonitoringView() {
   const neutralPercent = Math.round((neutralCount / total) * 100);
   const negativePercent = Math.round((negativeCount / total) * 100);
 
-  // Proposed rule state
-  const [ruleInjected, setRuleInjected] = useState(false);
   const proposedRule = 'Always acknowledge delivery inquiries with warm shipping timelines.';
+  const ruleInjected = activeWorkspace?.rules.includes(proposedRule) ?? false;
 
   // Response drafter modal/box state
   const [draftingMentionId, setDraftingMentionId] = useState<string | null>(null);
@@ -43,7 +42,6 @@ export function MonitoringView() {
           rules: [...activeWorkspace.rules, proposedRule]
         });
       }
-      setRuleInjected(true);
       alert('AI Rule injected successfully into Brand Voice rules!');
     }
   };

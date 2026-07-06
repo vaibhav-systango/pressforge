@@ -7,22 +7,30 @@ import { verifyRefreshToken } from '@/lib/server/auth/tokens';
 import { withAuth } from '@/lib/server/auth/with-auth';
 import { clearRefreshToken, logoutUser } from '@/lib/server/mock-store';
 
-export async function POST() {
-  const result = await withAuth(async (auth) => {
-    logoutUser(auth.sessionId);
-    clearRefreshToken(auth.sessionId);
-    return { success: true };
-  });
-
-  if (result instanceof NextResponse) {
-    return result;
-  }
-
-  const response = NextResponse.json(result);
+function buildLogoutResponse() {
+  const response = NextResponse.json({ success: true });
   clearAuthCookieHeaders().forEach((cookie) => {
     response.headers.append('Set-Cookie', cookie);
   });
   return response;
+}
+
+async function revokeSession(sessionId: string) {
+  logoutUser(sessionId);
+  clearRefreshToken(sessionId);
+}
+
+export async function POST() {
+  const result = await withAuth(async (auth) => {
+    await revokeSession(auth.sessionId);
+    return { success: true };
+  });
+
+  if (result instanceof NextResponse) {
+    return buildLogoutResponse();
+  }
+
+  return buildLogoutResponse();
 }
 
 export async function GET() {
@@ -31,15 +39,11 @@ export async function GET() {
   if (refreshToken) {
     try {
       const payload = await verifyRefreshToken(refreshToken);
-      clearRefreshToken(payload.sessionId);
+      await revokeSession(payload.sessionId);
     } catch {
-      // ignore
+      // ignore invalid refresh tokens
     }
   }
 
-  const response = NextResponse.json({ success: true });
-  clearAuthCookieHeaders().forEach((cookie) => {
-    response.headers.append('Set-Cookie', cookie);
-  });
-  return response;
+  return buildLogoutResponse();
 }

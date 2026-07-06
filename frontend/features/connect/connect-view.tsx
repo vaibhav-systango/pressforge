@@ -10,7 +10,7 @@ export function ConnectView() {
   const { state, updateState } = useAppState();
   const isClient = state.currentUserType === 'client';
 
-  const [channels, setChannels] = useState(() => state.connectedChannels || []);
+  const channels = state.connectedChannels || [];
   const [newName, setNewName] = useState('');
   const [newPlatform, setNewPlatform] = useState('instagram');
 
@@ -18,14 +18,12 @@ export function ConnectView() {
     if (!newName) return;
     const ch = { id: 'chan-' + Date.now(), name: newName, platform: newPlatform };
     const next = [...channels, ch];
-    setChannels(next);
     updateState({ connectedChannels: next });
     setNewName('');
   };
 
   const removeChannel = (id: string) => {
-    const next = channels.filter((c: any) => c.id !== id);
-    setChannels(next);
+    const next = channels.filter((c: { id: string }) => c.id !== id);
     updateState({ connectedChannels: next });
   };
 

@@ -28,13 +28,31 @@ export function PrDetailView() {
 
   // Load journalists targeted
   const journalists = allJournalists.filter((j) => campaign.journalists.includes(j.id));
+  const sortedJournalists = [...journalists].sort((a, b) => a.id.localeCompare(b.id));
 
-  // Mock reply messages
-  const mockReplies: Record<string, string> = {
-    'sarah-jenkins': 'Hi Jane, this sustainability initiative looks very interesting! Can we set up a short 10-minute call with your lead designer next Tuesday at 2 PM EST for a potential feature in Vogue?',
-    'marcus-lee': 'Thanks for the pitch. I\'ve passed this along to our editorial fashion desk. If they are interested, they will reach out.',
-    'elena-rodriguez': 'Hi! I cover sustainable retail models for TechCrunch. Does this launch include any new e-commerce infrastructure or unique direct-to-consumer logistics features? Let me know.'
+  const repliedCount = Math.min(campaign.stats.replies, sortedJournalists.length);
+  const clickedCount = Math.max(
+    repliedCount,
+    Math.min(Math.round(sortedJournalists.length * (campaign.stats.clicks / 100)), sortedJournalists.length),
+  );
+  const openedCount = Math.max(
+    clickedCount,
+    Math.min(Math.round(sortedJournalists.length * (campaign.stats.opens / 100)), sortedJournalists.length),
+  );
+
+  const getEngagementStatus = (index: number): 'replied' | 'clicked' | 'opened' | 'delivered' => {
+    if (index < repliedCount) return 'replied';
+    if (index < clickedCount) return 'clicked';
+    if (index < openedCount) return 'opened';
+    return 'delivered';
   };
+
+  const getReplyText = (journalistName: string) =>
+    `Hi! Thank you for your pitch regarding "${campaign.title}". ${journalistName}, I'd like to learn more about this story and explore a potential feature.`;
+
+  const repliedJournalists = sortedJournalists
+    .slice(0, repliedCount)
+    .map((j) => ({ ...j, replyText: getReplyText(j.name) }));
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in max-w-5xl mx-auto w-full">
@@ -106,11 +124,8 @@ export function PrDetailView() {
           <h3 className="text-base font-bold text-[#262626] border-b border-[#F5F5F5] pb-2">Targeted Journalists</h3>
 
           <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto pr-1">
-            {journalists.map((j) => {
-              // Mock status determination
-              const hasReplied = !!mockReplies[j.id];
-              const hasClicked = hasReplied || j.id === 'sarah-jenkins' || j.id === 'elena-rodriguez';
-              const hasOpened = hasClicked || j.id === 'marcus-lee';
+            {sortedJournalists.map((j, index) => {
+              const status = getEngagementStatus(index);
 
               return (
                 <div key={j.id} className="border border-[#EFEFEF] p-3 rounded-xl flex items-center justify-between gap-3 text-xs bg-slate-50/20">
@@ -120,15 +135,15 @@ export function PrDetailView() {
                   </div>
 
                   <div className="flex items-center gap-1.5 font-bold">
-                    {hasReplied ? (
+                    {status === 'replied' ? (
                       <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full border border-purple-200 text-[9px] flex items-center gap-1">
                         <MessageSquare className="w-2.5 h-2.5" /> Replied
                       </span>
-                    ) : hasClicked ? (
+                    ) : status === 'clicked' ? (
                       <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200 text-[9px] flex items-center gap-1">
                         <MousePointerClick className="w-2.5 h-2.5" /> Clicked
                       </span>
-                    ) : hasOpened ? (
+                    ) : status === 'opened' ? (
                       <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded-full border border-green-200 text-[9px] flex items-center gap-1">
                         <MailOpen className="w-2.5 h-2.5" /> Opened
                       </span>
@@ -152,9 +167,7 @@ export function PrDetailView() {
           </h3>
 
           <div className="flex flex-col gap-4 max-h-[400px] overflow-y-auto pr-1">
-            {journalists
-              .filter((j) => !!mockReplies[j.id])
-              .map((j) => (
+            {repliedJournalists.map((j) => (
                 <div key={j.id} className="border border-[#EFEFEF] p-4 rounded-xl space-y-2 bg-slate-50/10">
                   <div className="flex items-center justify-between text-xs border-b border-[#F5F5F5] pb-1.5">
                     <div>
@@ -166,7 +179,7 @@ export function PrDetailView() {
                     </span>
                   </div>
                   <p className="text-xs text-slate-700 leading-relaxed italic">
-                    "{mockReplies[j.id]}"
+                    &quot;{j.replyText}&quot;
                   </p>
                   <div className="pt-2 text-right">
                     <button
@@ -179,7 +192,7 @@ export function PrDetailView() {
                 </div>
               ))}
 
-            {journalists.filter((j) => !!mockReplies[j.id]).length === 0 && (
+            {repliedJournalists.length === 0 && (
               <p className="text-sm text-slate-400 italic py-6 text-center">No replies received yet.</p>
             )}
           </div>

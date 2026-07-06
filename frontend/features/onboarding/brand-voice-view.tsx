@@ -117,6 +117,7 @@ export function BrandVoiceView() {
               <button
                 type="button"
                 onClick={handleAddKeyword}
+                aria-label="Add keyword"
                 className="bg-slate-100 hover:bg-slate-200 border border-[#EFEFEF] p-2.5 rounded-xl text-[#262626] transition"
               >
                 <Plus className="w-4 h-4" />
@@ -130,7 +131,7 @@ export function BrandVoiceView() {
                   className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1 text-xs font-semibold text-[#262626]"
                 >
                   <span>{kw}</span>
-                  <button type="button" onClick={() => handleRemoveKeyword(kw)}>
+                  <button type="button" onClick={() => handleRemoveKeyword(kw)} aria-label={`Remove keyword ${kw}`}>
                     <X className="w-3 h-3 text-[#737373] hover:text-[#262626]" />
                   </button>
                 </span>
@@ -161,6 +162,7 @@ export function BrandVoiceView() {
               <button
                 type="button"
                 onClick={handleAddRule}
+                aria-label="Add writing rule"
                 className="bg-slate-100 hover:bg-slate-200 border border-[#EFEFEF] p-2.5 rounded-xl text-[#262626] transition"
               >
                 <Plus className="w-4 h-4" />
@@ -174,7 +176,7 @@ export function BrandVoiceView() {
                   className="flex items-center justify-between bg-slate-50 border border-slate-100 rounded-xl px-3 py-1.5 text-xs text-[#262626]"
                 >
                   <span className="truncate pr-2">{rule}</span>
-                  <button type="button" onClick={() => handleRemoveRule(rule)} className="shrink-0">
+                  <button type="button" onClick={() => handleRemoveRule(rule)} aria-label={`Remove rule: ${rule}`} className="shrink-0">
                     <X className="w-3 h-3 text-[#737373] hover:text-[#262626]" />
                   </button>
                 </li>

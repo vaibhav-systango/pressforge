@@ -64,12 +64,11 @@ export function KycView() {
       setProgress(stepProgress);
       if (stepProgress >= 100) {
         clearInterval(interval);
-        // Complete the onboarding steps
         updateState((prev) => ({
           ...prev,
-          currentStep: 5
+          currentStep: 4,
         }));
-        router.push('/app');
+        router.push('/onboarding/connect');
       }
     }, 100);
   };
