@@ -23,6 +23,7 @@ class UserResponse(BaseModel):
     lastLogin: int | None = None
     createdAt: int
     updatedAt: int
+    organizationId: str | None = None
 
     class Config:
         from_attributes = True
@@ -33,6 +34,7 @@ class Token(BaseModel):
     refreshToken: str
     tokenType: str = "bearer"
     user: UserResponse
+    organizationId: str | None = None
 
 class TokenRefreshRequest(BaseModel):
     """Schema to request a new access token using a refresh token."""

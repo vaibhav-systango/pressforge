@@ -6,6 +6,7 @@ from app.core.dependencies import get_current_user
 from app.schemas.auth import UserResponse
 from app.schemas.onboarding import OnboardingRequest
 from app.services.onboarding_service import onboarding_service
+from app.repositories.organization_repository import organization_repository
 from app.core.constants.onboarding_constants import OnboardingErrorCodes, OnboardingErrorMessages
 
 router = APIRouter()
@@ -24,7 +25,19 @@ async def onboard_user(
 ):
     try:
         updated_user = onboarding_service.onboard_user(db, current_user, request_data)
-        return updated_user
+        organization_id = organization_repository.get_organization_id_for_user(db, updated_user.id)
+        return {
+            "id": updated_user.id,
+            "fullName": updated_user.fullName,
+            "email": updated_user.email,
+            "accountType": updated_user.accountType,
+            "onboardingStatus": updated_user.onboardingStatus,
+            "isActive": updated_user.isActive,
+            "lastLogin": updated_user.lastLogin,
+            "createdAt": updated_user.createdAt,
+            "updatedAt": updated_user.updatedAt,
+            "organizationId": organization_id,
+        }
     except Exception as e:
         code = str(e)
         if code == OnboardingErrorCodes.USER_ALREADY_ONBOARDED:
