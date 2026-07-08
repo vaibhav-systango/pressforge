@@ -7,10 +7,33 @@ from app.models.user import User
 from app.schemas.auth import UserCreate, UserLogin, UserResponse, Token, TokenRefreshRequest
 from app.core.dependencies import get_current_user, permission_guard
 from app.services.auth_service import auth_service
+from app.repositories.organization_repository import organization_repository
 from app.core.constants.auth_constants import AuthErrorCodes, AuthErrorMessages
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _build_auth_response(db: Session, access_token: str, refresh_token: str, user: User) -> dict:
+    organization_id = organization_repository.get_organization_id_for_user(db, user.id)
+    return {
+        "accessToken": access_token,
+        "refreshToken": refresh_token,
+        "user": {
+            "id": user.id,
+            "fullName": user.fullName,
+            "email": user.email,
+            "accountType": user.accountType,
+            "onboardingStatus": user.onboardingStatus,
+            "isActive": user.isActive,
+            "lastLogin": user.lastLogin,
+            "createdAt": user.createdAt,
+            "updatedAt": user.updatedAt,
+            "organizationId": organization_id,
+        },
+        "organizationId": organization_id,
+    }
+
 
 @router.post(
     "/signup",
@@ -49,11 +72,7 @@ async def signup(user_in: UserCreate, db: Session = Depends(get_db)):
 async def login(credentials: UserLogin, db: Session = Depends(get_db)):
     try:
         access_token, refresh_token, user = auth_service.authenticate_user(db, credentials)
-        return {
-            "accessToken": access_token,
-            "refreshToken": refresh_token,
-            "user": user
-        }
+        return _build_auth_response(db, access_token, refresh_token, user)
     except Exception as e:
         code = str(e)
         if code == AuthErrorCodes.INACTIVE_USER:
@@ -81,11 +100,7 @@ async def login(credentials: UserLogin, db: Session = Depends(get_db)):
 async def refresh_tokens(refresh_data: TokenRefreshRequest, db: Session = Depends(get_db)):
     try:
         access_token, refresh_token, user = auth_service.refresh_auth_tokens(db, refresh_data.refreshToken)
-        return {
-            "accessToken": access_token,
-            "refreshToken": refresh_token,
-            "user": user
-        }
+        return _build_auth_response(db, access_token, refresh_token, user)
     except Exception as e:
         code = str(e)
         if code == AuthErrorCodes.INVALID_REFRESH_TOKEN:

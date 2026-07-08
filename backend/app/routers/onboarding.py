@@ -23,8 +23,19 @@ async def onboard_user(
     db: Session = Depends(get_db)
 ):
     try:
-        updated_user = onboarding_service.onboard_user(db, current_user, request_data)
-        return updated_user
+        updated_user, organization_id = onboarding_service.onboard_user(db, current_user, request_data)
+        return {
+            "id": updated_user.id,
+            "fullName": updated_user.fullName,
+            "email": updated_user.email,
+            "accountType": updated_user.accountType,
+            "onboardingStatus": updated_user.onboardingStatus,
+            "isActive": updated_user.isActive,
+            "lastLogin": updated_user.lastLogin,
+            "createdAt": updated_user.createdAt,
+            "updatedAt": updated_user.updatedAt,
+            "organizationId": organization_id,
+        }
     except Exception as e:
         code = str(e)
         if code == OnboardingErrorCodes.USER_ALREADY_ONBOARDED:

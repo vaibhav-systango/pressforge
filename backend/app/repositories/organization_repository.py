@@ -53,6 +53,15 @@ class OrganizationRepository:
         db.flush()
         return member
 
+    def get_organization_id_for_user(self, db: Session, user_id: str) -> str | None:
+        """Fetch the first organization ID linked to a user, if any."""
+        membership = (
+            db.query(OrganizationMember)
+            .filter(OrganizationMember.userId == user_id)
+            .first()
+        )
+        return membership.organizationId if membership else None
+
     def create_kyc(
         self,
         db: Session,
