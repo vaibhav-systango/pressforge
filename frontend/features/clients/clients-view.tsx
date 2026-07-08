@@ -1,20 +1,32 @@
 'use client';
 
+import { notifications } from '@mantine/notifications';
 import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
-import React, { useState, useEffect } from 'react';
-import type { ClientUser, MockEmail } from '@/lib/data/mock-data';
+import { useAuth } from '@/lib/hooks/queries/use-auth';
+import { useInviteMemberMutation } from '@/lib/hooks/mutations/use-invitation';
+import { formatOrganizationRole, getInvitableRoles, resolveOrganizationRole, type InvitableRole } from '@/lib/invitations/role-hierarchy';
+import { ApiError } from '@/lib/utils/api-errors';
+import React, { useState } from 'react';
+import type { ClientUser, MockEmail } from '@/lib/types';
 import { 
   Users, Mail, ArrowRight, ShieldAlert, Building, X, Plus, 
-  Trash2, Edit3, Calendar, ShieldCheck, UserCheck, AlertTriangle, 
-  Filter, Search, RefreshCw, Key
+  Edit3, Calendar, ShieldCheck, UserCheck, AlertTriangle, 
+  Filter, Search, Key
 } from 'lucide-react';
 
 export function ClientsView() {
-  const { state, updateState, inviteClient, acceptInvite, addClient, updateClient, deleteClient } = useAppState();
+  const { state, updateState, acceptInvite, addClient, updateClient } = useAppState();
+  const { user } = useAuth();
+  const organizationId = user?.organizationId ?? null;
+  const invitableRoles = getInvitableRoles(
+    resolveOrganizationRole(user?.organizationRole, user?.accountType),
+  );
+  const inviteMutation = useInviteMemberMutation(organizationId ?? '');
   const router = useRouter();
 
   const isClient = state.currentUserType === 'client';
+  const canInvite = Boolean(organizationId) && invitableRoles.length > 0;
   
   // Search and Filter States
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,15 +54,87 @@ export function ClientsView() {
   const [createPlan, setCreatePlan] = useState<'Basic' | 'Pro' | 'Enterprise'>('Pro');
   const [createExpiresAt, setCreateExpiresAt] = useState('');
 
+  // Backend invitation form
+  const [isInviting, setIsInviting] = useState(false);
+  const [inviteName, setInviteName] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<InvitableRole>('CLIENT');
+  const [inviteError, setInviteError] = useState('');
+
+  const selectedInviteRole: InvitableRole = invitableRoles.includes(inviteRole)
+    ? inviteRole
+    : (invitableRoles[0] ?? 'CLIENT');
+
+  const handleSendInvitation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInviteError('');
+
+    if (!inviteName.trim() || !inviteEmail.trim()) {
+      setInviteError('Please enter name and email.');
+      return;
+    }
+
+    if (!organizationId) {
+      setInviteError('Organization not found. Complete onboarding before inviting users.');
+      return;
+    }
+
+    try {
+      const invitation = await inviteMutation.mutateAsync({
+        email: inviteEmail.trim(),
+        fullName: inviteName.trim(),
+        role: selectedInviteRole,
+      });
+
+      updateState((prev) => ({
+        ...prev,
+        clients: [
+          ...(prev.clients || []),
+          {
+            id: invitation.id,
+            name: invitation.fullName,
+            email: invitation.email,
+            workspaceId: prev.workspaces[0]?.id || '',
+            password: '—',
+            status: 'pending' as const,
+            plan: 'Pro' as const,
+          },
+        ],
+      }));
+
+      setInviteName('');
+      setInviteEmail('');
+      setInviteRole(invitableRoles[0] ?? 'CLIENT');
+      setIsInviting(false);
+
+      notifications.show({
+        title: 'Invitation sent',
+        message: `An invite email was sent to ${invitation.email}.`,
+        color: 'green',
+      });
+    } catch (error) {
+      const apiError =
+        error instanceof ApiError
+          ? error
+          : new ApiError('Failed to send invitation. Please try again.', 500, 'UNKNOWN');
+      setInviteError(apiError.message);
+      notifications.show({
+        title: 'Invite failed',
+        message: apiError.message,
+        color: 'red',
+      });
+    }
+  };
+
   // Handle Edit Action
   const startEdit = (client: ClientUser) => {
     setCurrentClientId(client.id);
     setFormName(client.name);
     setFormEmail(client.email);
-    setFormPassword(client.password);
+    setFormPassword(client.password ?? '');
     setFormWorkspaceId(client.workspaceId);
-    setFormPlan(client.plan || 'Pro');
-    setFormStatus(client.status);
+    setFormPlan((client.plan as 'Basic' | 'Pro' | 'Enterprise') || 'Pro');
+    setFormStatus(client.status === 'inactive' ? 'expired' : client.status);
     
     if (client.expiresAt) {
       setFormExpiresAt(client.expiresAt.substring(0, 10)); // Format YYYY-MM-DD
@@ -115,8 +199,12 @@ export function ClientsView() {
     // Create invite mock email
     const newEmail: MockEmail = {
       id: 'email-' + Date.now(),
+      from: 'noreply@pressforge.ai',
       to: createEmail.trim(),
       subject: `Invite: Join client portal for ${workspaceName}`,
+      preview: `Invitation to join ${workspaceName} on PressForge`,
+      time: 'Just now',
+      read: false,
       body: `Hi ${createName.trim()},\n\nYou have been invited to review content briefs and approvals for ${workspaceName} on PressForge.\n\nYour login details are:\nEmail/Username: ${createEmail.trim()}\nPassword: ${password}\n\nPlease accept the invitation and log in.`,
       timestamp: new Date().toISOString(),
       inviteLink: `/auth/accept-invite?email=${encodeURIComponent(createEmail.trim())}&password=${encodeURIComponent(password)}&workspaceId=${encodeURIComponent(createWorkspaceId)}`
@@ -131,14 +219,6 @@ export function ClientsView() {
     alert(`Client portal created and invitation email queued in Mock Inbox!`);
   };
 
-  // Delete Action
-  const handleDelete = (clientId: string, clientName: string) => {
-    if (window.confirm(`Are you sure you want to delete the client portal for ${clientName}? This action cannot be undone.`)) {
-      deleteClient(clientId);
-      alert(`${clientName}'s client portal access has been revoked.`);
-    }
-  };
-
   const handleAcceptInviteSimulated = (email: string, password: string, inviteLinkId: string) => {
     const client = state.clients.find(c => c.email.toLowerCase() === email.toLowerCase());
     if (client) {
@@ -147,7 +227,7 @@ export function ClientsView() {
       if (mockEmail?.inviteLink) {
         router.push(mockEmail.inviteLink);
       } else {
-        router.push(`/auth/accept-invite?email=${encodeURIComponent(client.email)}&password=${encodeURIComponent(client.password)}&workspaceId=${encodeURIComponent(client.workspaceId)}`);
+        router.push(`/auth/accept-invite?email=${encodeURIComponent(client.email)}&password=${encodeURIComponent(client.password ?? '')}&workspaceId=${encodeURIComponent(client.workspaceId)}`);
       }
     }
   };
@@ -211,11 +291,12 @@ export function ClientsView() {
         </div>
 
         <button
-          onClick={() => setIsCreating(true)}
-          className="flex items-center gap-1.5 bg-instagram-pink text-white px-4 py-2 rounded-xl text-xs font-bold hover:opacity-90 transition cursor-pointer self-start"
+          onClick={() => (canInvite ? setIsInviting(true) : setIsCreating(true))}
+          disabled={canInvite && inviteMutation.isPending}
+          className="flex items-center gap-1.5 bg-instagram-pink text-white px-4 py-2 rounded-xl text-xs font-bold hover:opacity-90 transition cursor-pointer self-start disabled:opacity-60"
         >
           <Plus className="w-4 h-4" />
-          <span>New Client Portal</span>
+          <span>{canInvite ? 'Invite User' : 'New Client Portal'}</span>
         </button>
       </div>
 
@@ -344,7 +425,7 @@ export function ClientsView() {
                         </p>
                       </div>
 
-                      {/* Right: CRUD buttons */}
+                      {/* Right: edit only for demo mock clients */}
                       <div className="flex items-center gap-2 self-end sm:self-start">
                         <button
                           onClick={() => startEdit(client)}
@@ -352,13 +433,6 @@ export function ClientsView() {
                           className="p-2 border border-border-primary bg-bg-card rounded-lg hover:border-instagram-pink hover:text-instagram-pink transition"
                         >
                           <Edit3 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(client.id, client.name)}
-                          title="Revoke Portal Access"
-                          className="p-2 border border-border-primary bg-bg-card rounded-lg hover:border-red-500 hover:text-red-500 transition"
-                        >
-                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -404,6 +478,76 @@ export function ClientsView() {
 
         {/* Right Panel: Side Forms / Inbox */}
         <div className="lg:col-span-4 space-y-6">
+
+          {/* Backend invitation panel */}
+          {isInviting && (
+            <div className="bg-bg-card border border-instagram-pink rounded-2xl p-6 shadow-md space-y-4 animate-scale-up">
+              <div className="flex items-center justify-between border-b border-border-primary pb-2.5">
+                <h3 className="text-sm font-bold text-text-primary flex items-center gap-1.5">
+                  <UserCheck className="w-4 h-4 text-instagram-pink" />
+                  <span>Invite User to Organization</span>
+                </h3>
+                <button
+                  onClick={() => setIsInviting(false)}
+                  className="p-1 hover:bg-bg-hover rounded-lg text-text-secondary hover:text-text-primary"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSendInvitation} className="space-y-4">
+                {inviteError ? (
+                  <p className="text-[11px] text-red-500 font-medium">{inviteError}</p>
+                ) : null}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold uppercase text-text-secondary">Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Alex Johnson"
+                    value={inviteName}
+                    onChange={(e) => setInviteName(e.target.value)}
+                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2 text-xs focus:border-instagram-pink outline-none"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold uppercase text-text-secondary">Email Address *</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="alex@agency.com"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2 text-xs focus:border-instagram-pink outline-none"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold uppercase text-text-secondary">Role</label>
+                  <select
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value as InvitableRole)}
+                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3 py-2 text-xs focus:border-instagram-pink outline-none"
+                  >
+                    {invitableRoles.map((role) => (
+                      <option key={role} value={role}>
+                        {formatOrganizationRole(role)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={inviteMutation.isPending}
+                  className="w-full bg-instagram-pink text-white py-2 rounded-xl text-xs font-bold hover:opacity-90 transition cursor-pointer mt-2 disabled:opacity-60"
+                >
+                  {inviteMutation.isPending ? 'Sending Invite...' : 'Send Invitation'}
+                </button>
+              </form>
+            </div>
+          )}
           
           {/* Create Modal Panel (Render inline for clean wireframe experience) */}
           {isCreating && (
@@ -619,7 +763,9 @@ export function ClientsView() {
 
             <div className="flex flex-col gap-3 max-h-[350px] overflow-y-auto pr-1">
               {(state.mockInbox || []).map((email) => {
-                const clientObj = state.clients.find(c => c.email.toLowerCase() === email.to.toLowerCase());
+                const clientObj = email.to
+                  ? state.clients.find((c) => c.email.toLowerCase() === email.to!.toLowerCase())
+                  : undefined;
                 const isClientExpired = clientObj ? getComputedStatus(clientObj) === 'expired' : false;
                 
                 return (
@@ -641,7 +787,7 @@ export function ClientsView() {
                     ) : (
                       <button
                         type="button"
-                        onClick={() => handleAcceptInviteSimulated(email.to, '', email.id)}
+                        onClick={() => email.to && handleAcceptInviteSimulated(email.to, '', email.id)}
                         className="w-full flex items-center justify-center gap-1 bg-green-500 text-white font-bold py-1.5 rounded-lg text-[10px] hover:bg-green-600 transition cursor-pointer mt-1"
                       >
                         <span>Accept Invite & Simulate Login</span>

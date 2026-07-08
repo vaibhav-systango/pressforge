@@ -9,9 +9,10 @@ import {
   Users, ArrowRight, ShieldCheck, HelpCircle, 
   Layers, ExternalLink, Globe, FileText, Calendar, Clock, Repeat
 } from 'lucide-react';
-import type { Workspace, ClientUser, Schedule } from '@/lib/data/mock-data';
+import type { Workspace, ClientUser, Schedule } from '@/lib/types';
 
-const TONES = ['professional', 'friendly', 'witty', 'bold', 'empathetic'];
+const TONES = ['professional', 'friendly', 'witty', 'bold', 'empathetic'] as const;
+type ToneOption = (typeof TONES)[number];
 
 export function WorkspacesView() {
   const { 
@@ -58,7 +59,9 @@ export function WorkspacesView() {
   // Edit state
   const [brandName, setBrandName] = useState(currentWorkspace?.name || '');
   const [website, setWebsite] = useState(currentWorkspace?.website || '');
-  const [tone, setTone] = useState(currentWorkspace?.tone || 'professional');
+  const [tone, setTone] = useState<ToneOption>(
+    (currentWorkspace?.tone as ToneOption) || 'professional',
+  );
   const [keywords, setKeywords] = useState<string[]>(currentWorkspace?.keywords || []);
   const [rules, setRules] = useState<string[]>(currentWorkspace?.rules || []);
   
@@ -82,8 +85,8 @@ export function WorkspacesView() {
   React.useEffect(() => {
     if (currentWorkspace) {
       setBrandName(currentWorkspace.name);
-      setWebsite(currentWorkspace.website);
-      setTone(currentWorkspace.tone);
+      setWebsite(currentWorkspace.website ?? '');
+      setTone((currentWorkspace.tone as ToneOption) ?? 'professional');
       setKeywords(currentWorkspace.keywords || []);
       setRules(currentWorkspace.rules || []);
       setSaveSuccess(false);

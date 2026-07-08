@@ -1,5 +1,7 @@
 'use client';
 
+import type { Workspace } from '@/lib/types';
+
 import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
 import React, { useState } from 'react';
@@ -17,7 +19,7 @@ export function BrandVoiceView() {
   // Load the active workspace
   const activeWs = state.workspaces.find((w) => w.id === state.activeWorkspaceId) || state.workspaces[0];
 
-  const [tone, setTone] = useState(activeWs?.tone || 'casual');
+  const [tone, setTone] = useState<Workspace['tone']>(activeWs?.tone || 'casual');
   const [keywordInput, setKeywordInput] = useState('');
   const [keywords, setKeywords] = useState<string[]>(activeWs?.keywords || []);
   const [ruleInput, setRuleInput] = useState('');
@@ -50,7 +52,7 @@ export function BrandVoiceView() {
     if (activeWs) {
       updateWorkspace({
         ...activeWs,
-        tone,
+        tone: tone as Workspace['tone'],
         keywords,
         rules
       });
@@ -84,7 +86,7 @@ export function BrandVoiceView() {
                 <button
                   key={t}
                   type="button"
-                  onClick={() => setTone(t)}
+                  onClick={() => setTone(t as Workspace['tone'])}
                   className={`border py-2 px-1 rounded-xl text-xs font-bold capitalize transition duration-150 ${
                     tone === t
                       ? 'border-instagram-pink text-instagram-pink bg-pink-50'

@@ -27,17 +27,17 @@ export function PrDetailView() {
   }
 
   // Load journalists targeted
-  const journalists = allJournalists.filter((j) => campaign.journalists.includes(j.id));
+  const journalists = allJournalists.filter((j) => campaign.journalists?.includes(j.id) ?? false);
   const sortedJournalists = [...journalists].sort((a, b) => a.id.localeCompare(b.id));
 
-  const repliedCount = Math.min(campaign.stats.replies, sortedJournalists.length);
+  const repliedCount = Math.min(campaign.stats?.replies ?? 0, sortedJournalists.length);
   const clickedCount = Math.max(
     repliedCount,
-    Math.min(Math.round(sortedJournalists.length * (campaign.stats.clicks / 100)), sortedJournalists.length),
+    Math.min(Math.round(sortedJournalists.length * ((campaign.stats?.clicks ?? 0) / 100)), sortedJournalists.length),
   );
   const openedCount = Math.max(
     clickedCount,
-    Math.min(Math.round(sortedJournalists.length * (campaign.stats.opens / 100)), sortedJournalists.length),
+    Math.min(Math.round(sortedJournalists.length * ((campaign.stats?.opens ?? 0) / 100)), sortedJournalists.length),
   );
 
   const getEngagementStatus = (index: number): 'replied' | 'clicked' | 'opened' | 'delivered' => {
@@ -86,8 +86,8 @@ export function PrDetailView() {
             <span className="text-xs font-bold uppercase tracking-wider">Open Rate</span>
             <MailOpen className="w-4 h-4 text-green-500" />
           </div>
-          <p className="text-2xl font-extrabold text-[#262626]">{campaign.stats.opens}%</p>
-          <p className="text-[10px] text-slate-400 font-semibold">{Math.round(journalists.length * (campaign.stats.opens / 100))} of {journalists.length} Opened</p>
+          <p className="text-2xl font-extrabold text-[#262626]">{campaign.stats?.opens ?? 0}%</p>
+          <p className="text-[10px] text-slate-400 font-semibold">{Math.round(journalists.length * ((campaign.stats?.opens ?? 0) / 100))} of {journalists.length} Opened</p>
         </div>
 
         <div className="bg-white border border-[#EFEFEF] rounded-2xl p-5 shadow-sm space-y-2">
@@ -95,8 +95,8 @@ export function PrDetailView() {
             <span className="text-xs font-bold uppercase tracking-wider">Click Rate</span>
             <MousePointerClick className="w-4 h-4 text-blue-500" />
           </div>
-          <p className="text-2xl font-extrabold text-[#262626]">{campaign.stats.clicks}%</p>
-          <p className="text-[10px] text-slate-400 font-semibold">{Math.round(journalists.length * (campaign.stats.clicks / 100))} clicked links</p>
+          <p className="text-2xl font-extrabold text-[#262626]">{campaign.stats?.clicks ?? 0}%</p>
+          <p className="text-[10px] text-slate-400 font-semibold">{Math.round(journalists.length * ((campaign.stats?.clicks ?? 0) / 100))} clicked links</p>
         </div>
 
         <div className="bg-white border border-[#EFEFEF] rounded-2xl p-5 shadow-sm space-y-2">
@@ -104,7 +104,7 @@ export function PrDetailView() {
             <span className="text-xs font-bold uppercase tracking-wider">Replies</span>
             <MessageSquare className="w-4 h-4 text-purple-500" />
           </div>
-          <p className="text-2xl font-extrabold text-[#262626]">{campaign.stats.replies}</p>
+          <p className="text-2xl font-extrabold text-[#262626]">{campaign.stats?.replies ?? 0}</p>
           <p className="text-[10px] text-slate-400 font-semibold">Direct editorial replies</p>
         </div>
 

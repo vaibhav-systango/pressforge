@@ -32,7 +32,7 @@ export function ApprovalDetailView() {
   }
 
   const handleApprove = () => {
-    const nextVersion = draft.version + 1;
+    const nextVersion = (draft.version ?? 1) + 1;
     updateDraft({
       ...draft,
       status: 'approved',
@@ -45,7 +45,7 @@ export function ApprovalDetailView() {
           action: 'Post Approved & Scheduled',
           caption: draft.caption
         },
-        ...draft.history
+        ...(draft.history ?? [])
       ]
     });
     alert('Post Approved & Scheduled successfully!');
@@ -58,7 +58,7 @@ export function ApprovalDetailView() {
       return;
     }
 
-    const nextVersion = draft.version + 1;
+    const nextVersion = (draft.version ?? 1) + 1;
     updateDraft({
       ...draft,
       status: 'rejected',
@@ -71,7 +71,7 @@ export function ApprovalDetailView() {
           caption: draft.caption,
           feedback: feedback
         },
-        ...draft.history
+        ...(draft.history ?? [])
       ]
     });
     alert('Feedback submitted. Draft returned to creator for revisions.');
@@ -79,7 +79,7 @@ export function ApprovalDetailView() {
   };
 
   const handleRejectOnly = () => {
-    const nextVersion = draft.version + 1;
+    const nextVersion = (draft.version ?? 1) + 1;
     updateDraft({
       ...draft,
       status: 'rejected',
@@ -92,7 +92,7 @@ export function ApprovalDetailView() {
           caption: draft.caption,
           feedback: 'Rejected by client'
         },
-        ...draft.history
+        ...(draft.history ?? [])
       ]
     });
     alert('Post rejected.');
@@ -244,8 +244,8 @@ export function ApprovalDetailView() {
                   </p>
                   <p className="text-[#075E54] font-semibold">
                     {activeTab === 'instagram' 
-                      ? draft.hashtags.map((h) => `#${h}`).join(' ') 
-                      : (draft.liHashtags || draft.hashtags).map((h) => `#${h}`).join(' ')}
+                      ? (draft.hashtags ?? []).map((h) => `#${h}`).join(' ') 
+                      : (draft.liHashtags ?? draft.hashtags ?? []).map((h) => `#${h}`).join(' ')}
                   </p>
                 </div>
               </div>

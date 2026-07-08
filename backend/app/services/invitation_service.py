@@ -21,7 +21,7 @@ from app.core.constants.email_templates import invitation_email
 from app.models.organization_member import OrganizationMember, OrganizationRole
 from app.models.organization import Organization
 from app.models.invitation import Invitation, InvitationStatus
-from app.models.user import User
+from app.models.user import User, OnboardingStatus
 from app.repositories.invitation_repository import invitation_repository
 from app.repositories.user_repository import user_repository
 from app.repositories.organization_repository import organization_repository
@@ -106,7 +106,7 @@ class InvitationService:
         *,
         token: str,
         password: str
-    ) -> tuple[str, str, User]:
+    ) -> tuple[str, str, User, str]:
         invitation_id = decode_invite_token(token)
         if not invitation_id:
             raise ValueError(InvitationErrorCodes.INVITATION_NOT_FOUND)
@@ -148,6 +148,12 @@ class InvitationService:
             invitedBy=invitation.invitedBy
         )
 
+        organization_id = invitation.organizationId
+
+        user.onboardingStatus = OnboardingStatus.COMPLETED.value
+        db.add(user)
+        db.flush()
+
         invitation_repository.delete(db, invitation)
         db.commit()
         db.refresh(user)
@@ -157,7 +163,7 @@ class InvitationService:
         access_token = create_access_token(data=payload)
         refresh_token = create_refresh_token(data=payload)
 
-        return access_token, refresh_token, user
+        return access_token, refresh_token, user, organization_id
 
 
 invitation_service = InvitationService()

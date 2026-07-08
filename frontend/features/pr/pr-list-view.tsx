@@ -85,11 +85,11 @@ export function PrListView() {
                     </span>
                   </td>
                   <td className="p-4 text-xs font-semibold text-slate-700">
-                    {camp.journalists.length} Journalists
+                    {camp.journalists?.length ?? 0} Journalists
                   </td>
-                  <td className="p-4 text-xs font-medium text-slate-600">{camp.stats.opens}%</td>
-                  <td className="p-4 text-xs font-medium text-slate-600">{camp.stats.clicks}%</td>
-                  <td className="p-4 text-xs font-medium text-slate-600">{camp.stats.replies} Replies</td>
+                  <td className="p-4 text-xs font-medium text-slate-600">{camp.stats?.opens ?? 0}%</td>
+                  <td className="p-4 text-xs font-medium text-slate-600">{camp.stats?.clicks ?? 0}%</td>
+                  <td className="p-4 text-xs font-medium text-slate-600">{camp.stats?.replies ?? 0} Replies</td>
                   <td className="p-4 text-right">
                     <Link
                       href={`/app/pr/${camp.id }`}

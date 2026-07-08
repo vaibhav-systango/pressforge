@@ -9,15 +9,18 @@ const PUBLIC_API_PREFIXES = [
   '/api/auth/refresh',
   '/api/auth/logout',
   '/api/session/init',
+  '/api/invitations/accept',
 ];
 
-const SESSION_COOKIE = 'pf_session';
+const ACCESS_TOKEN_COOKIE = 'access_token';
+
+function hasValidSession(request: NextRequest): boolean {
+  return !!request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
+}
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const hasSession =
-    request.cookies.get(SESSION_COOKIE)?.value === '1' ||
-    !!request.cookies.get('access_token')?.value;
+  const hasSession = hasValidSession(request);
 
   if (pathname.startsWith('/api/')) {
     const isPublicApi =
@@ -33,7 +36,13 @@ export function middleware(request: NextRequest) {
   }
 
   if (GUEST_ONLY_AUTH_PATHS.includes(pathname) && hasSession) {
-    return NextResponse.redirect(new URL('/app', request.url));
+    // Invited users must set a password even if this browser has another session.
+    const isAcceptInviteWithToken =
+      pathname === '/auth/accept-invite' && request.nextUrl.searchParams.has('token');
+
+    if (!isAcceptInviteWithToken) {
+      return NextResponse.redirect(new URL('/app', request.url));
+    }
   }
 
   if (pathname.startsWith('/app') || pathname.startsWith('/onboarding')) {

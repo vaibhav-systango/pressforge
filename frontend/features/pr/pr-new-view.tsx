@@ -74,7 +74,7 @@ export function PrNewView() {
 
     addCampaign({
       id: 'campaign-' + Date.now(),
-      workspaceId: state.activeWorkspaceId,
+      workspaceId: state.activeWorkspaceId ?? '',
       title,
       brief,
       status: 'sent',

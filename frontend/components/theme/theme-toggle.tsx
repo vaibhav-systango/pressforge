@@ -39,12 +39,12 @@ interface ThemeToggleProps {
 }
 
 export function ThemeToggle({ hidden }: ThemeToggleProps) {
-  const [mode, setMode] = useState<ThemeMode>('auto');
+  const [mode, setMode] = useState<ThemeMode>(() =>
+    typeof window === 'undefined' ? 'auto' : getInitialMode(),
+  );
 
   useEffect(() => {
-    const initialMode = getInitialMode();
-    setMode(initialMode);
-    applyThemeMode(initialMode);
+    applyThemeMode(mode);
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = () => {
@@ -55,7 +55,7 @@ export function ThemeToggle({ hidden }: ThemeToggleProps) {
 
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
+  }, [mode]);
 
   const cycleMode = () => {
     const next: ThemeMode = mode === 'light' ? 'dark' : mode === 'dark' ? 'auto' : 'light';

@@ -34,7 +34,7 @@ export async function POST() {
     const [accessToken, newRefreshToken] = await Promise.all([
       signAccessToken({
         sessionId: payload.sessionId,
-        userId: user.id,
+        userId: user.userId,
         userType: user.userType,
         email: user.email,
       }),

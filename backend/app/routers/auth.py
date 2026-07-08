@@ -130,5 +130,26 @@ async def refresh_tokens(refresh_data: TokenRefreshRequest, db: Session = Depend
     summary="Retrieve Active User Profile",
     description="Fetch details of the currently logged-in user using bearer token authentication.",
 )
-async def get_me(current_user: User = Depends(permission_guard)):
-    return current_user
+async def get_me(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    organization_id = organization_repository.get_organization_id_for_user(db, current_user.id)
+    organization_role = (
+        organization_repository.get_role_for_user(db, current_user.id, organization_id)
+        if organization_id
+        else None
+    )
+    return {
+        "id": current_user.id,
+        "fullName": current_user.fullName,
+        "email": current_user.email,
+        "accountType": current_user.accountType,
+        "onboardingStatus": current_user.onboardingStatus,
+        "isActive": current_user.isActive,
+        "lastLogin": current_user.lastLogin,
+        "createdAt": current_user.createdAt,
+        "updatedAt": current_user.updatedAt,
+        "organizationId": organization_id,
+        "organizationRole": organization_role,
+    }

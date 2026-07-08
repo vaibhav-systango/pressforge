@@ -63,6 +63,13 @@ class OrganizationRepository:
         )
         return membership.organizationId if membership else None
 
+    def get_role_for_user(self, db: Session, user_id: str, organization_id: str | None = None) -> str | None:
+        query = db.query(OrganizationMember).filter(OrganizationMember.userId == user_id)
+        if organization_id:
+            query = query.filter(OrganizationMember.organizationId == organization_id)
+        membership = query.order_by(OrganizationMember.joinedAt.asc()).first()
+        return membership.role if membership else None
+
     def create_kyc(
         self,
         db: Session,

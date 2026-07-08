@@ -1,5 +1,7 @@
 'use client';
 
+import type { DraftHistoryEntry } from '@/lib/types';
+
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
@@ -18,20 +20,6 @@ export function ContentDetailView() {
   const { state, updateDraft } = useAppState();
 
   const draft = state.drafts.find((d) => d.id === id);
-
-  if (!draft) {
-    return (
-      <div className="text-center py-12">
-        <h2 className="text-xl font-bold text-text-primary">Draft Not Found</h2>
-        <p className="text-sm text-text-secondary mt-2">The requested draft could not be located.</p>
-        <Link href="/app/content" className="text-xs text-instagram-pink font-semibold mt-4 hover:underline inline-block">
-          Return to Content Planner
-        </Link>
-      </div>
-    );
-  }
-
-  const activeWorkspace = state.workspaces.find((w) => w.id === draft.workspaceId) || state.workspaces[0];
 
   // Simulated image fallback
   const getSimulatedImage = (promptText: string) => {
@@ -55,9 +43,12 @@ export function ContentDetailView() {
   };
 
   // Determine platform array
-  const initialPlatforms: ('instagram' | 'linkedin')[] = 
-    draft.platform === 'both' ? ['instagram', 'linkedin'] : 
-    draft.platform === 'linkedin' ? ['linkedin'] : ['instagram'];
+  const initialPlatforms: ('instagram' | 'linkedin')[] =
+    draft?.platform === 'both'
+      ? ['instagram', 'linkedin']
+      : draft?.platform === 'linkedin'
+        ? ['linkedin']
+        : ['instagram'];
 
   const [targetPlatforms, setTargetPlatforms] = useState<('instagram' | 'linkedin')[]>(initialPlatforms);
   const [activePlatformTab, setActivePlatformTab] = useState<'instagram' | 'linkedin'>(
@@ -65,25 +56,25 @@ export function ContentDetailView() {
   );
 
   // Instagram states
-  const [caption, setCaption] = useState(draft.caption);
-  const [hashtags, setHashtags] = useState<string[]>(draft.hashtags);
-  const [imageBrief, setImageBrief] = useState(draft.imageBrief);
+  const [caption, setCaption] = useState(draft?.caption);
+  const [hashtags, setHashtags] = useState<string[]>(draft?.hashtags ?? []);
+  const [imageBrief, setImageBrief] = useState(draft?.imageBrief);
   const [newHashtag, setNewHashtag] = useState('');
-  const [imageUrl, setImageUrl] = useState(draft.imageUrl || getSimulatedImage(draft.prompt));
+  const [imageUrl, setImageUrl] = useState(draft?.imageUrl || getSimulatedImage(draft?.prompt ?? ''));
 
   // LinkedIn states
-  const [liCaption, setLinkedinCaption] = useState(draft.liCaption || draft.caption);
-  const [liHashtags, setLinkedinHashtags] = useState<string[]>(draft.liHashtags || draft.hashtags);
-  const [liImageBrief, setLinkedinImageBrief] = useState(draft.liImageBrief || draft.imageBrief);
+  const [liCaption, setLinkedinCaption] = useState(draft?.liCaption || draft?.caption);
+  const [liHashtags, setLinkedinHashtags] = useState<string[]>(draft?.liHashtags ?? draft?.hashtags ?? []);
+  const [liImageBrief, setLinkedinImageBrief] = useState(draft?.liImageBrief || draft?.imageBrief);
   const [newLiHashtag, setNewLinkedinHashtag] = useState('');
 
   // Reference States
-  const [referenceUrls, setReferenceUrls] = useState<string[]>(draft.referenceUrls || []);
+  const [referenceUrls, setReferenceUrls] = useState<string[]>(draft?.referenceUrls || []);
   const [urlInput, setUrlInput] = useState('');
-  const [referenceText, setReferenceText] = useState(draft.referenceText || '');
-  const [goal, setGoal] = useState(draft.goal || 'Product Spotlight');
-  const [cta, setCta] = useState(draft.cta || 'Link in Bio');
-  const [visualStyle, setVisualStyle] = useState(draft.visualStyle || 'Warm & Organic');
+  const [referenceText, setReferenceText] = useState(draft?.referenceText || '');
+  const [goal, setGoal] = useState(draft?.goal || 'Product Spotlight');
+  const [cta, setCta] = useState(draft?.cta || 'Link in Bio');
+  const [visualStyle, setVisualStyle] = useState(draft?.visualStyle || 'Warm & Organic');
 
   // AI Tweaks
   const [tweakInstruction, setTweakInstruction] = useState('');
@@ -91,7 +82,21 @@ export function ContentDetailView() {
   const [tweakScope, setTweakScope] = useState<'active' | 'both'>('active');
 
   // History state locally synced with draft history
-  const [history, setHistory] = useState<any[]>(draft.history || []);
+  const [history, setHistory] = useState<DraftHistoryEntry[]>(draft?.history || []);
+
+  if (!draft) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-xl font-bold text-text-primary">Draft Not Found</h2>
+        <p className="text-sm text-text-secondary mt-2">The requested draft could not be located.</p>
+        <Link href="/app/content" className="text-xs text-instagram-pink font-semibold mt-4 hover:underline inline-block">
+          Return to Content Planner
+        </Link>
+      </div>
+    );
+  }
+
+  const activeWorkspace = state.workspaces.find((w) => w.id === draft.workspaceId) || state.workspaces[0];
 
   const handleTogglePlatform = (platform: 'instagram' | 'linkedin') => {
     if (targetPlatforms.includes(platform)) {
@@ -152,12 +157,12 @@ export function ContentDetailView() {
 
     setTimeout(() => {
       let tweakedCaption = caption;
-      let tweakedHashtags = [...hashtags];
-      let tweakedBrief = imageBrief;
+      const tweakedHashtags = [...hashtags];
+      const tweakedBrief = imageBrief;
 
       let tweakedLiCaption = liCaption;
-      let tweakedLiHashtags = [...liHashtags];
-      let tweakedLiBrief = liImageBrief;
+      const tweakedLiHashtags = [...liHashtags];
+      const tweakedLiBrief = liImageBrief;
 
       let actionLabel = `AI Tweak: ${instructionText}`;
       const lowerText = instructionText.toLowerCase();
@@ -166,19 +171,19 @@ export function ContentDetailView() {
       const applyToLi = tweakScope === 'both' || activePlatformTab === 'linkedin';
 
       if (lowerText.includes('shorter') || lowerText.includes('summarize') || lowerText.includes('brief')) {
-        if (applyToInst) tweakedCaption = tweakedCaption.split('.').slice(0, 2).join('.') + '.';
-        if (applyToLi) tweakedLiCaption = tweakedLiCaption.split('.').slice(0, 2).join('.') + '.';
+        if (applyToInst) tweakedCaption = (tweakedCaption ?? '').split('.').slice(0, 2).join('.') + '.';
+        if (applyToLi) tweakedLiCaption = (tweakedLiCaption ?? '').split('.').slice(0, 2).join('.') + '.';
         actionLabel = 'AI Tweak: Shortened caption';
       } else if (lowerText.includes('emoji')) {
-        if (applyToInst) tweakedCaption = '✨ ' + tweakedCaption.replace(/!/g, '! 🚀') + ' 💖';
-        if (applyToLi) tweakedLiCaption = '🌟 ' + tweakedLiCaption.replace(/!/g, '! 🚀') + ' ✨';
+        if (applyToInst) tweakedCaption = '✨ ' + (tweakedCaption ?? '').replace(/!/g, '! 🚀') + ' 💖';
+        if (applyToLi) tweakedLiCaption = '🌟 ' + (tweakedLiCaption ?? '').replace(/!/g, '! 🚀') + ' ✨';
         actionLabel = 'AI Tweak: Added emojis';
       } else if (lowerText.includes('cta') || lowerText.includes('call to action') || lowerText.includes('action')) {
         if (applyToInst) tweakedCaption += ' 👇 Tap the link in bio right now!';
         if (applyToLi) tweakedLiCaption += '\n\n👇 Click the link in comments to read more!';
         actionLabel = 'AI Tweak: Emphasized CTA';
       } else if (lowerText.includes('bold') || lowerText.includes('exciting') || lowerText.includes('hype')) {
-        if (applyToInst) tweakedCaption = '🔥 SPECIAL ANNOUNCEMENT! ' + tweakedCaption.toUpperCase();
+        if (applyToInst) tweakedCaption = '🔥 SPECIAL ANNOUNCEMENT! ' + (tweakedCaption ?? '').toUpperCase();
         if (applyToLi) tweakedLiCaption = '📢 IMPORTANT LOGISTICS UPDATE: ' + tweakedLiCaption;
         actionLabel = 'AI Tweak: Changed tone to Bold';
       } else {
@@ -266,13 +271,16 @@ export function ContentDetailView() {
     let finalHistory = [...history];
     const hasChanges =
       caption !== draft.caption ||
-      hashtags.join(',') !== draft.hashtags.join(',') ||
+      hashtags.join(',') !== (draft.hashtags ?? []).join(',') ||
       imageBrief !== draft.imageBrief ||
       liCaption !== originalLiCaption ||
-      liHashtags.join(',') !== originalLiHashtags.join(',') ||
+      liHashtags.join(',') !== (originalLiHashtags ?? []).join(',') ||
       liImageBrief !== originalLiImageBrief;
 
-    const latestVersion = Math.max(draft.version, history[0]?.version ?? draft.version);
+    const latestVersion = Math.max(
+      draft.version ?? 1,
+      history[0]?.version ?? draft.version ?? 1,
+    );
     const nextVersion = hasChanges ? latestVersion + 1 : latestVersion;
 
     if (hasChanges) {

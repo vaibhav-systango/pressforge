@@ -1,9 +1,27 @@
 import { NextResponse } from 'next/server';
 
 import { ApiError, withAuth } from '@/lib/server/auth/with-auth';
-import { resetSession, updateSession } from '@/lib/server/mock-store';
+import { ensureSession, resetSession, updateSession } from '@/lib/server/mock-store';
 import { parseJsonBody } from '@/lib/server/validate-payload';
 import type { AppState } from '@/lib/types';
+
+export async function GET() {
+  const result = await withAuth(async (auth) => {
+    const state = ensureSession(auth.sessionId, {
+      userId: auth.userId,
+      userType: auth.userType,
+      email: auth.email,
+      name: auth.email,
+    });
+    return { state };
+  });
+
+  if (result instanceof NextResponse) {
+    return result;
+  }
+
+  return NextResponse.json(result);
+}
 
 export async function PATCH(request: Request) {
   const body = await parseJsonBody<{ merge?: Partial<AppState> }>(request);
@@ -12,6 +30,12 @@ export async function PATCH(request: Request) {
   }
 
   const result = await withAuth(async (auth) => {
+    ensureSession(auth.sessionId, {
+      userId: auth.userId,
+      userType: auth.userType,
+      email: auth.email,
+      name: auth.email,
+    });
     if (!body.merge) {
       return NextResponse.json({ error: 'merge required', code: 'BAD_REQUEST' }, { status: 400 });
     }
