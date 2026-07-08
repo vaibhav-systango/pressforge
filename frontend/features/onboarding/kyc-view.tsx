@@ -1,17 +1,22 @@
 'use client';
 
+import { notifications } from '@mantine/notifications';
 import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
 import React, { useState } from 'react';
 import { OnboardingStepper } from '@/components/onboarding/onboarding-stepper';
-import { 
-  ShieldCheck, UploadCloud, Check, ArrowRight, Sparkles, 
+import { useCompleteOnboardingMutation } from '@/lib/hooks/mutations/use-onboarding';
+import { buildOnboardingPayload } from '@/lib/onboarding/map-payload';
+import { ApiError } from '@/lib/utils/api-errors';
+import {
+  ShieldCheck, UploadCloud, Check, ArrowRight, Sparkles,
   Building, User, FileText, Phone, Calendar, MapPin
 } from 'lucide-react';
 
 export function KycView() {
   const router = useRouter();
   const { state, updateState } = useAppState();
+  const completeOnboardingMutation = useCompleteOnboardingMutation();
   const isIndividual = state.accountType === 'individual';
   const isOrg = state.accountType === 'organization';
 
@@ -32,6 +37,7 @@ export function KycView() {
   const [isUploading, setIsUploading] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [submitError, setSubmitError] = useState('');
 
   const handleSimulatedUpload = () => {
     setIsUploading(true);
@@ -46,8 +52,10 @@ export function KycView() {
     }, 150);
   };
 
-  const handleFinish = (e: React.FormEvent) => {
+  const handleFinish = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError('');
+
     if (isIndividual && (!fullName || !phoneNumber || !dob || !uploadedFile)) {
       alert('Please fill in all details and upload your identity document.');
       return;
@@ -58,19 +66,62 @@ export function KycView() {
     }
 
     setVerifying(true);
-    let stepProgress = 0;
-    const interval = setInterval(() => {
-      stepProgress += 10;
-      setProgress(stepProgress);
-      if (stepProgress >= 100) {
-        clearInterval(interval);
-        updateState((prev) => ({
-          ...prev,
-          currentStep: 4,
-        }));
-        router.push('/onboarding/connect');
-      }
-    }, 100);
+    setProgress(10);
+
+    const progressInterval = setInterval(() => {
+      setProgress((prev) => (prev >= 90 ? prev : prev + 10));
+    }, 150);
+
+    try {
+      const payload = buildOnboardingPayload(
+        state,
+        isOrg
+          ? {
+              companyName,
+              businessType,
+              taxId,
+              businessAddress,
+              contactPerson,
+            }
+          : undefined,
+      );
+
+      await completeOnboardingMutation.mutateAsync(payload);
+
+      clearInterval(progressInterval);
+      setProgress(100);
+
+      updateState((prev) => ({
+        ...prev,
+        currentStep: 5,
+      }));
+
+      notifications.show({
+        title: 'Onboarding complete',
+        message: 'Your account is ready. Welcome to PressForge!',
+        color: 'green',
+      });
+
+      router.push('/app');
+    } catch (error) {
+      clearInterval(progressInterval);
+      setVerifying(false);
+      setProgress(0);
+
+      const apiError =
+        error instanceof ApiError
+          ? error
+          : error instanceof Error
+            ? new ApiError(error.message, 500, 'UNKNOWN')
+            : new ApiError('Unable to complete onboarding. Please try again.', 500, 'UNKNOWN');
+
+      setSubmitError(apiError.message);
+      notifications.show({
+        title: 'Onboarding failed',
+        message: apiError.message,
+        color: 'red',
+      });
+    }
   };
 
   const autofillDemo = () => {
@@ -134,6 +185,11 @@ export function KycView() {
             </div>
           ) : (
             <form onSubmit={handleFinish} className="space-y-6">
+              {submitError && (
+                <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                  {submitError}
+                </p>
+              )}
               {isIndividual ? (
                 /* INDIVIDUAL KYC FORM */
                 <div className="space-y-4">
@@ -333,7 +389,8 @@ export function KycView() {
               {/* Action Button */}
               <button
                 type="submit"
-                className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3.5 rounded-xl text-xs font-bold hover:opacity-95 transition shadow-sm mt-6 cursor-pointer"
+                disabled={completeOnboardingMutation.isPending}
+                className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3.5 rounded-xl text-xs font-bold hover:opacity-95 transition shadow-sm mt-6 cursor-pointer disabled:opacity-60"
               >
                 <span>Verify Identity & Complete Setup</span>
                 <ArrowRight className="w-4 h-4" />
