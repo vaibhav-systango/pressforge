@@ -6,6 +6,7 @@ from app.core.dependencies import get_current_user
 from app.schemas.auth import UserResponse
 from app.schemas.onboarding import OnboardingRequest
 from app.services.onboarding_service import onboarding_service
+from app.repositories.organization_repository import organization_repository
 from app.core.constants.onboarding_constants import OnboardingErrorCodes, OnboardingErrorMessages
 
 router = APIRouter()
@@ -23,7 +24,8 @@ async def onboard_user(
     db: Session = Depends(get_db)
 ):
     try:
-        updated_user, organization_id = onboarding_service.onboard_user(db, current_user, request_data)
+        updated_user = onboarding_service.onboard_user(db, current_user, request_data)
+        organization_id = organization_repository.get_organization_id_for_user(db, updated_user.id)
         return {
             "id": updated_user.id,
             "fullName": updated_user.fullName,
