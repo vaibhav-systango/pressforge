@@ -526,7 +526,7 @@ export function ClientsView() {
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold uppercase text-text-secondary">Role</label>
                   <select
-                    value={inviteRole}
+                    value={selectedInviteRole}
                     onChange={(e) => setInviteRole(e.target.value as InvitableRole)}
                     className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3 py-2 text-xs focus:border-instagram-pink outline-none"
                   >
