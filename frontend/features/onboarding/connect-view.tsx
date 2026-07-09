@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
 import React, { useState, useEffect } from 'react';
 import { OnboardingStepper } from '@/components/onboarding/onboarding-stepper';
-import { Check, ArrowRight, Instagram, Linkedin, RefreshCw, Sparkles, Users } from 'lucide-react';
+import { Check, ArrowRight, Instagram, Linkedin, RefreshCw, Users } from 'lucide-react';
 
 export function OnboardingConnectView() {
   const router = useRouter();
@@ -230,23 +230,7 @@ export function OnboardingConnectView() {
             </button>
           </div>
 
-          <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-left mt-6">
-            <p className="text-[11px] font-semibold text-slate-600 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-instagram-pink" /> Quick Demo Option
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                updateState((prev) => ({
-                  ...prev,
-                  connectedAccounts: { instagram: true, linkedin: true }
-                }));
-              }}
-              className="text-[10px] text-instagram-pink font-semibold hover:underline mt-1 block"
-            >
-              Instantly connect LinkedIn channel (mock oauth)
-            </button>
-          </div>
+
         </div>
       </div>
     </div>

@@ -425,7 +425,7 @@ export function ClientsView() {
                         </p>
                       </div>
 
-                      {/* Right: edit only for demo mock clients */}
+                      {/* Actions */}
                       <div className="flex items-center gap-2 self-end sm:self-start">
                         <button
                           onClick={() => startEdit(client)}
@@ -446,7 +446,7 @@ export function ClientsView() {
                         </span>
                       </div>
                       <div>
-                        <span className="block text-[9px] uppercase font-bold text-text-secondary mb-0.5">Demo Password</span>
+                        <span className="block text-[9px] uppercase font-bold text-text-secondary mb-0.5">Portal Password</span>
                         <span className="font-mono bg-bg-card px-2 py-0.5 rounded border border-border-primary text-instagram-pink font-semibold flex items-center gap-1 w-max">
                           <Key className="w-3 h-3" />
                           {client.password}

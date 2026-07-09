@@ -7,7 +7,6 @@ import React, { useState } from 'react';
 import { OnboardingStepper } from '@/components/onboarding/onboarding-stepper';
 import {
   ArrowRight,
-  Sparkles,
   Instagram,
   X,
   Check,
@@ -759,38 +758,7 @@ export function OrganizationView() {
             </button>
           </form>
 
-          <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 text-left mt-6">
-            <p className="text-[11px] font-semibold text-slate-600 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-instagram-pink" /> Wireframe Demo Helper
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                if (accountType === 'individual') {
-                  setIndividualBrandName('EcoFashion Inc');
-                  setIndividualNiche('Fashion stories, product styling, and sustainability tips');
-                  setIndividualGoal('grow audience');
-                  setIndividualThemes(['Lifestyle', 'Storytelling', 'Tips & Advice']);
-                  setIndividualWebsite('https://ecofashioninc.com');
-                  setIndividualInstaConnected(false);
-                  setIndividualInstaUser('');
-                } else {
-                  setOrgName('Vibrant Agencies');
-                  setTeamSize('6-20');
-                  setOrgWebsite('https://vibrantagencies.com');
-                  setOrgIndustries(['Marketing', 'SaaS']);
-                  setOrgObjective('acquire clients');
-                  setOrgObjectiveCustom('');
-                  setOrgDesc(
-                    'A full-service agency helping brands grow through social-first campaigns.',
-                  );
-                }
-              }}
-              className="text-[10px] text-instagram-pink font-semibold hover:underline mt-1.5 block"
-            >
-              Instant Autofill Demo Settings
-            </button>
-          </div>
+
         </div>
       </div>
 

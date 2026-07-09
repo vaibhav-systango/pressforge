@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
 import React, { useState } from 'react';
 import { OnboardingStepper } from '@/components/onboarding/onboarding-stepper';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 
 
@@ -117,21 +117,7 @@ export function WorkspaceView() {
           </button>
         </form>
 
-        <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-left mt-6">
-          <p className="text-[11px] font-semibold text-slate-600 flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-instagram-pink" /> Quick Demo Option
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              setBrandName('EcoFashion Inc');
-              setWebsite('https://ecofashioninc.com');
-            }}
-            className="text-[10px] text-instagram-pink font-semibold hover:underline mt-1 block"
-          >
-            Prefill with EcoFashion Inc
-          </button>
-        </div>
+
       </div>
     </div>
   );

@@ -9,7 +9,7 @@ import { useCompleteOnboardingMutation } from '@/lib/hooks/mutations/use-onboard
 import { buildOnboardingPayload } from '@/lib/onboarding/map-payload';
 import { ApiError } from '@/lib/utils/api-errors';
 import {
-  ShieldCheck, UploadCloud, Check, ArrowRight, Sparkles,
+  ShieldCheck, UploadCloud, Check, ArrowRight,
   Building, User, FileText, Phone, Calendar, MapPin
 } from 'lucide-react';
 
@@ -124,20 +124,7 @@ export function KycView() {
     }
   };
 
-  const autofillDemo = () => {
-    if (isIndividual) {
-      setFullName('Jane Doe');
-      setPhoneNumber('+1 (555) 019-2834');
-      setDob('1994-08-12');
-      setUploadedFile('passport_jane_doe.jpg');
-    } else {
-      setCompanyName(state.organizationName || 'Forge Agencies Inc.');
-      setTaxId('EIN-98-7654321');
-      setBusinessAddress('100 Pine Street, San Francisco, CA 94111');
-      setContactPerson('Jane Doe (Managing Director)');
-      setUploadedFile('business_license_forge.pdf');
-    }
-  };
+
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col justify-center py-12 px-6 lg:px-8 relative overflow-hidden">
@@ -398,25 +385,7 @@ export function KycView() {
             </form>
           )}
 
-          {/* Quick Demo Autofill Option */}
-          {!verifying && (
-            <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-left mt-6 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-semibold text-slate-600 flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-instagram-pink" /> 
-                  <span>Quick Demo Helper</span>
-                </p>
-                <p className="text-[9px] text-slate-400 mt-0.5">Autofill valid KYC information instantly.</p>
-              </div>
-              <button
-                type="button"
-                onClick={autofillDemo}
-                className="text-[10px] bg-white border border-slate-200 hover:border-instagram-pink text-instagram-pink font-bold px-3 py-1.5 rounded-lg shadow-2xs"
-              >
-                Autofill Form
-              </button>
-            </div>
-          )}
+
         </div>
       </div>
     </div>

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAppState, useJournalistsQuery } from '@/lib/queries/use-app-state';
 import React, { useState } from 'react';
-import { ChevronLeft, Send, Sparkles, Filter, Search, UserCheck } from 'lucide-react';
+import { ChevronLeft, Send, Filter, Search, UserCheck } from 'lucide-react';
 
 
 
@@ -164,20 +164,7 @@ export function PrNewView() {
             </button>
           </form>
 
-          {/* Preset Demo */}
-          <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-left">
-            <button
-              type="button"
-              onClick={() => {
-                setTitle('EcoLife Co launches clean organic hemp line for global shipping');
-                setBrief('FOR IMMEDIATE RELEASE\n\nEcoLife Co is proud to announce its custom 100% biodegradable hemp shirts, launching June 24, 2026. The new product line resolves previous logistics challenges by deploying direct-to-consumer partnerships across Europe and USA.');
-                setSelectedJournalists(['sarah-jenkins', 'marcus-lee', 'elena-rodriguez']);
-              }}
-              className="text-[10px] text-instagram-pink font-semibold hover:underline flex items-center gap-1"
-            >
-              <Sparkles className="w-3 h-3" /> Populate mock PR release & target 3 editors
-            </button>
-          </div>
+
         </div>
 
         {/* Right Panel: Journalist Target Table */}

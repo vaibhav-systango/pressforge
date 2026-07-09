@@ -5,7 +5,7 @@ import { notifications } from '@mantine/notifications';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import React, { useState } from 'react';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 import { ErrorMessage } from '@/components/common/error-message';
 import { getPostAuthRedirect } from '@/lib/auth/redirect';
@@ -161,14 +161,7 @@ export function SignupView() {
           </p>
         </div>
 
-        <div className="bg-[#FAFAFA] border border-[#EFEFEF] rounded-xl p-3.5 text-left">
-          <p className="text-[11px] font-semibold text-[#737373] flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-instagram-pink" /> Demo Mode
-          </p>
-          <p className="text-[10px] text-[#737373] mt-1">
-            Signup creates your account on the live API and starts the onboarding flow.
-          </p>
-        </div>
+
       </div>
     </div>
   );

@@ -140,7 +140,7 @@ export function SettingsView() {
   };
 
   const handleResetData = () => {
-    if (confirm("Are you sure you want to reset all data to default mock seeds? This will delete custom workspaces, drafts, and client portals.")) {
+    if (confirm("Are you sure you want to reset all data to default settings? This will delete custom workspaces, drafts, and client portals.")) {
       resetState();
       alert("Application state reset successfully.");
       router.push('/app');
@@ -610,7 +610,7 @@ export function SettingsView() {
             
             <div className="flex flex-col gap-3">
               <div className="space-y-1">
-                <p className="text-xs font-bold text-text-primary">Reset Demo Data</p>
+                <p className="text-xs font-bold text-text-primary">Reset App Data</p>
                 <p className="text-[10px] text-text-secondary">
                   Restores default settings, clear all custom workspaces and client invitations.
                 </p>
@@ -619,7 +619,7 @@ export function SettingsView() {
                   className="w-full mt-1.5 border border-border-primary bg-bg-app hover:bg-red-50 dark:hover:bg-red-950/20 text-text-primary hover:text-red-500 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Reset Demo State</span>
+                  <span>Reset App State</span>
                 </button>
               </div>
 
@@ -709,16 +709,7 @@ export function SettingsView() {
                   Log In & Connect
                 </button>
 
-                <div className="bg-slate-50 border border-slate-100 rounded-lg p-2 mt-2">
-                  <span className="text-[9px] font-bold text-slate-500 block">Quick Autofill:</span>
-                  <button
-                    type="button"
-                    onClick={() => setInstaUsername('travel_guru_2026')}
-                    className="text-[9px] text-[#0095F6] font-semibold hover:underline block mt-0.5"
-                  >
-                    Autofill: @travel_guru_2026
-                  </button>
-                </div>
+
               </form>
             )}
 
