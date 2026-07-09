@@ -20,7 +20,7 @@ export function OrganizationView() {
   const { state, updateState } = useAppState();
 
   const [accountType, setAccountType] = useState<'individual' | 'organization'>(
-    state.accountType || 'individual',
+    state.accountType === 'unassigned' ? 'individual' : state.accountType,
   );
 
   const [individualBrandName, setIndividualBrandName] = useState(

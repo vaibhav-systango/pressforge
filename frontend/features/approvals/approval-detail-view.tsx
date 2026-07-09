@@ -244,8 +244,8 @@ export function ApprovalDetailView() {
                   </p>
                   <p className="text-[#075E54] font-semibold">
                     {activeTab === 'instagram' 
-                      ? (draft.hashtags ?? []).map((h) => `#${h}`).join(' ') 
-                      : (draft.liHashtags ?? draft.hashtags ?? []).map((h) => `#${h}`).join(' ')}
+                      ? (draft.hashtags ?? []).map((h: string) => `#${h}`).join(' ') 
+                      : (draft.liHashtags ?? draft.hashtags ?? []).map((h: string) => `#${h}`).join(' ')}
                   </p>
                 </div>
               </div>

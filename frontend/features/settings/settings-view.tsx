@@ -61,7 +61,7 @@ export function SettingsView() {
         if (u.id === userId) {
           const currentIds = u.workspaceIds || [];
           const newIds = currentIds.includes(workspaceId)
-            ? currentIds.filter((id) => id !== workspaceId)
+            ? currentIds.filter((id: string) => id !== workspaceId)
             : [...currentIds, workspaceId];
           return { ...u, workspaceIds: newIds };
         }

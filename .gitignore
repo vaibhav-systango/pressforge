@@ -291,6 +291,9 @@ __pycache__/
 .env
 .env*
 
+# Root node_modules
+node_modules/
+
 # Frontend
 frontend/node_modules/
 frontend/.pnp
@@ -315,3 +318,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+
+# Allow frontend/lib folder to be committed
+!frontend/lib/

@@ -10,7 +10,8 @@ import { ChevronLeft, MailOpen, MousePointerClick, MessageSquare, ShieldCheck, M
 export function PrDetailView() {
   const { id } = useParams<{ id: string }>();
   const { state } = useAppState();
-  const { data: allJournalists = [] } = useJournalistsQuery();
+  const { data: journalistsData } = useJournalistsQuery();
+  const allJournalists = journalistsData?.journalists || [];
 
   const campaign = state.campaigns.find((c) => c.id === id);
 
@@ -27,7 +28,7 @@ export function PrDetailView() {
   }
 
   // Load journalists targeted
-  const journalists = allJournalists.filter((j) => campaign.journalists?.includes(j.id) ?? false);
+  const journalists = allJournalists.filter((j: any) => campaign.journalists?.includes(j.id) ?? false);
   const sortedJournalists = [...journalists].sort((a, b) => a.id.localeCompare(b.id));
 
   const repliedCount = Math.min(campaign.stats?.replies ?? 0, sortedJournalists.length);

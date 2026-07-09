@@ -11,7 +11,8 @@ import { ChevronLeft, Send, Sparkles, Filter, Search, UserCheck } from 'lucide-r
 export function PrNewView() {
   const router = useRouter();
   const { state, addCampaign } = useAppState();
-  const { data: journalists = [] } = useJournalistsQuery();
+  const { data: journalistsData } = useJournalistsQuery();
+  const journalists = journalistsData?.journalists || [];
 
   const [title, setTitle] = useState('');
   const [brief, setBrief] = useState('');
@@ -50,7 +51,7 @@ export function PrNewView() {
   };
 
   // Filter journalists list
-  const filteredJournalists = journalists.filter((j) => {
+  const filteredJournalists = journalists.filter((j: any) => {
     const matchesSearch = j.name.toLowerCase().includes(search.toLowerCase()) ||
                           j.publication.toLowerCase().includes(search.toLowerCase());
     const matchesBeat = beatFilter === 'All' || j.beat === beatFilter || (beatFilter === 'Environment' && j.beat === 'Environment');
@@ -59,7 +60,7 @@ export function PrNewView() {
     return matchesSearch && matchesBeat && matchesCity && matchesTier;
   });
 
-  const visibleIds = filteredJournalists.map((j) => j.id);
+  const visibleIds = filteredJournalists.map((j: any) => j.id);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,7 +150,7 @@ export function PrNewView() {
               Selected <span className="font-bold text-instagram-pink">{selectedJournalists.length}</span> journalists across{' '}
               <span className="font-bold text-slate-800">
                 {Array.from(
-                  new Set(journalists.filter((j) => selectedJournalists.includes(j.id)).map((j) => j.publication))
+                  new Set(journalists.filter((j: any) => selectedJournalists.includes(j.id)).map((j: any) => j.publication))
                 ).length}
               </span>{' '}
               publications.
@@ -254,7 +255,7 @@ export function PrNewView() {
                   <th className="p-3 w-10 text-center">
                     <input
                       type="checkbox"
-                      checked={visibleIds.length > 0 && visibleIds.every((id) => selectedJournalists.includes(id))}
+                      checked={visibleIds.length > 0 && visibleIds.every((id: string) => selectedJournalists.includes(id))}
                       onChange={() => handleSelectAllVisible(visibleIds)}
                       className="rounded text-[#E1306C] focus:ring-[#E1306C]"
                     />
@@ -267,7 +268,7 @@ export function PrNewView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#EFEFEF]">
-                {filteredJournalists.map((j) => (
+                {filteredJournalists.map((j: any) => (
                   <tr
                     key={j.id}
                     onClick={() => handleToggleJournalist(j.id)}
