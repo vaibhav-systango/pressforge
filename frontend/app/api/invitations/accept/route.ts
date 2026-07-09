@@ -8,7 +8,7 @@ function mapAcceptErrorStatus(status: number): string {
   if (status === 404) return 'INVITATION_NOT_FOUND';
   if (status === 410) return 'INVITATION_EXPIRED';
   if (status === 409) return 'INVITATION_ALREADY_ACCEPTED';
-  return 'ACCEPTATION_FAILED';
+  return 'ACCEPTANCE_FAILED';
 }
 
 export async function POST(request: Request) {
