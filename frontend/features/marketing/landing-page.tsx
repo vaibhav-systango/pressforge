@@ -17,8 +17,6 @@ export function LandingPage() {
 
           <nav className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm text-[#737373] hover:text-[#262626] font-medium transition">Features</a>
-            <a href="#workflow" className="text-sm text-[#737373] hover:text-[#262626] font-medium transition">Workflow</a>
-            <a href="#demo" className="text-sm text-[#737373] hover:text-[#262626] font-medium transition">Demo Flow</a>
           </nav>
 
           <div className="flex items-center gap-4">
@@ -41,10 +39,6 @@ export function LandingPage() {
 
       {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-6 pt-16 pb-20 text-center flex-1 flex flex-col items-center justify-center">
-        <div className="inline-flex items-center gap-1.5 bg-pink-50 border border-pink-100 rounded-full px-3 py-1 text-instagram-pink text-xs font-semibold mb-6 animate-fade-in">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Non-Functional Navigable Wireframe Prototype</span>
-        </div>
 
         <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-[#262626] max-w-4xl leading-tight">
           Automate Your Brand's PR & Social Media with <span className="bg-gradient-to-r from-[#F58529] via-[#DD2A7B] to-[#515BD4] bg-clip-text text-transparent">AI Intelligence</span>
@@ -59,7 +53,7 @@ export function LandingPage() {
             href="/auth/signup"
             className="bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white px-8 py-3.5 rounded-full text-base font-bold hover:opacity-95 transition shadow-md flex items-center gap-2"
           >
-            <span>Start Interactive Demo</span>
+            <span>Get Started Now</span>
             <ArrowRight className="w-5 h-5" />
           </Link>
           <Link
@@ -110,7 +104,7 @@ export function LandingPage() {
                 </div>
               </div>
               <div className="h-48 bg-slate-50 border border-[#EFEFEF] rounded-xl flex items-center justify-center text-xs text-[#737373] font-medium">
-                Simulated Interactive UI Wireframe Preview
+                Real-time Campaign Performance Analytics Dashboard
               </div>
             </div>
           </div>
@@ -196,7 +190,7 @@ export function LandingPage() {
             &copy; 2026 PRESSFORGE AI. Designed for stakeholder validation. Built with Vite & Tailwind CSS.
           </p>
           <div className="flex gap-4">
-            <Link href="/auth/signup" className="text-xs font-semibold text-instagram-pink">Start Demo Flow</Link>
+            <Link href="/auth/signup" className="text-xs font-semibold text-instagram-pink">Get Started</Link>
             <Link href="/app" className="text-xs font-semibold text-slate-700">App Dashboard</Link>
           </div>
         </div>

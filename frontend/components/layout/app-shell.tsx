@@ -422,7 +422,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {!isClient && (
               <button
                 onClick={resetState}
-                title="Reset Demo State"
+                title="Reset Application State"
                 className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-instagram-pink transition duration-150 py-1 px-1.5 rounded-lg hover:bg-bg-hover"
               >
                 <RefreshCw className="w-3.5 h-3.5" />

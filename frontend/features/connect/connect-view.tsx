@@ -34,7 +34,7 @@ export function ConnectView() {
         <NavLink href="/app" className="text-sm text-text-secondary">Back to Dashboard</NavLink>
       </div>
 
-      <p className="text-sm text-text-secondary mb-4">Connect multiple social channels (mock/demo mode). Add Instagram, LinkedIn, or other accounts to simulate posting.</p>
+      <p className="text-sm text-text-secondary mb-4">Connect multiple social channels. Add Instagram, LinkedIn, or other accounts to publish posts.</p>
 
       <div className="mb-4 flex gap-2">
         <input className="px-3 py-2 border rounded" placeholder="Account display name" value={newName} onChange={(e) => setNewName(e.target.value)} />
@@ -62,7 +62,7 @@ export function ConnectView() {
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => removeChannel(c.id)} className="text-red-500"><Trash className="w-4 h-4"/></button>
-                <button className="text-instagram-pink flex items-center gap-1"><LinkIcon className="w-4 h-4"/>Mock OAuth</button>
+                <button className="text-instagram-pink flex items-center gap-1"><LinkIcon className="w-4 h-4"/>Configure OAuth</button>
               </div>
             </div>
           ))

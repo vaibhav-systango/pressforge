@@ -5,7 +5,7 @@ import { notifications } from "@mantine/notifications";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import { ErrorMessage } from "@/components/common/error-message";
 import { getPostAuthRedirect } from "@/lib/auth/redirect";
@@ -140,38 +140,7 @@ export function LoginView() {
           </p>
         </div>
 
-        <div className="bg-bg-app border border-border-primary rounded-xl p-3.5 text-left flex flex-col gap-2">
-          <p className="text-[11px] font-semibold text-text-secondary flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-instagram-pink" /> Quick Demo
-            Autocomplete
-          </p>
-          <div className="flex flex-col gap-1.5">
-            <button
-              type="button"
-              onClick={() =>
-                form.setValues({
-                  email: "alex@pressforge.ai",
-                  password: "password123",
-                })
-              }
-              className="text-[10px] text-instagram-pink font-semibold hover:underline text-left"
-            >
-              • Fill Agency Account (Jane)
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                form.setValues({
-                  email: "jane@pressforge.ai",
-                  password: "password123",
-                })
-              }
-              className="text-[10px] text-instagram-pink font-semibold hover:underline text-left"
-            >
-              • Fill Individual Account (Alex)
-            </button>
-          </div>
-        </div>
+
       </div>
     </div>
   );
