@@ -40,7 +40,8 @@ export function WorkspaceView() {
         website: website || 'https://example.com',
         tone: 'casual',
         keywords: [],
-        rules: []
+        rules: [],
+        schedules: [],
       });
       updateState({ activeWorkspaceId: newId, currentStep: 3 });
     }

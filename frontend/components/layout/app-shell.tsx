@@ -3,6 +3,7 @@
 import { NavLink } from "@/components/navigation/nav-link";
 import { useRouter } from "next/navigation";
 import { useAppState } from "@/lib/queries/use-app-state";
+import { useAuth } from "@/lib/hooks/queries/use-auth";
 import React, { useState } from "react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import {
@@ -28,15 +29,19 @@ import {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { state, setActiveWorkspace, resetState, logout } = useAppState();
+  const { user } = useAuth();
   const router = useRouter();
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [showOrgMenu, setShowOrgMenu] = useState(false);
   const [showClientMenu, setShowClientMenu] = useState(false);
 
-  const isClient = state.currentUserType === "client";
+  const isClient =
+    user?.userType === "client" || state.currentUserType === "client";
   const isIndividual =
+    user?.userType === "individual" ||
     state.currentUserType === "individual" ||
     state.accountType === "individual";
+  const displayUserName = user?.name || state.currentUserName || "User";
 
   // Get active workspace details
   const activeWorkspace =
@@ -447,7 +452,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 /* Individual: Only user's name selected, no org dropdown, no client dropdown */
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-primary text-xs font-semibold text-text-primary bg-bg-app">
                   <User className="w-3.5 h-3.5 text-instagram-pink" />
-                  <span>{state.currentUserName || "Individual User"}</span>
+                  <span>{displayUserName}</span>
                 </div>
               ) : (
                 /* Organization: Org dropdown + Client dropdown */

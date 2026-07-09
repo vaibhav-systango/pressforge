@@ -2,25 +2,29 @@
 
 import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
+import { useAuth } from '@/lib/hooks/queries/use-auth';
+import {
+  formatAccountTypeLabel,
+  formatMeTimestamp,
+} from '@/lib/auth/me-user';
+import { formatOrganizationRole } from '@/lib/invitations/role-hierarchy';
+import { PageLoader } from '@/components/common/page-loader';
 import React, { useState } from 'react';
 import { 
   Settings, User, Lock, CreditCard, ShieldAlert, 
   Check, ToggleLeft, ToggleRight, Trash2, RefreshCw, 
-  Building2, Sparkles, ShieldCheck, Users, Plus, Instagram, X, Mail
+  Building2, Sparkles, Users, Instagram, X
 } from 'lucide-react';
 
 export function SettingsView() {
   const { state, updateState, resetState } = useAppState();
+  const { user, isLoading: isUserLoading } = useAuth();
   const router = useRouter();
-  const isClient = state.currentUserType === 'client';
+  const isClient = user?.userType === 'client' || state.currentUserType === 'client';
 
   // Form states
-  const [profileName, setProfileName] = useState(
-    isClient ? 'Client Partner' : 'Jane Doe'
-  );
-  const [profileEmail, setProfileEmail] = useState(
-    isClient ? state.currentUserEmail : 'jane@forgeagency.com'
-  );
+  const [profileName, setProfileName] = useState(user?.name ?? '');
+  const [profileEmail, setProfileEmail] = useState(user?.email ?? '');
   const [orgName, setOrgName] = useState(state.organizationName || 'Forge Agencies');
   
   // Password fields
@@ -41,11 +45,6 @@ export function SettingsView() {
   // Selected billing plan (Agency only)
   const [activePlan, setActivePlan] = useState<string>('growth');
 
-  // Team Management states
-  const [newMemberName, setNewMemberName] = useState('');
-  const [newMemberEmail, setNewMemberEmail] = useState('');
-  const [selectedWorkspaces, setSelectedWorkspaces] = useState<string[]>([]);
-  
   // Instagram Auth modal states
   const [showInstaModal, setShowInstaModal] = useState(false);
   const [instaModalTarget, setInstaModalTarget] = useState<string | null>(null);
@@ -53,36 +52,7 @@ export function SettingsView() {
   const [instaPassword, setInstaPassword] = useState('');
   const [instaStep, setInstaStep] = useState<'login' | 'authorize' | 'loading'>('login');
 
-  const handleAddMember = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMemberName.trim() || !newMemberEmail.trim()) {
-      alert('Please enter Name and Email.');
-      return;
-    }
-    const newMember = {
-      id: 'org-user-' + Date.now(),
-      name: newMemberName.trim(),
-      email: newMemberEmail.trim(),
-      instagramConnected: false,
-      workspaceIds: selectedWorkspaces
-    };
-    updateState((prev) => ({
-      ...prev,
-      orgUsers: [...(prev.orgUsers || []), newMember]
-    }));
-    setNewMemberName('');
-    setNewMemberEmail('');
-    setSelectedWorkspaces([]);
-  };
-
-  const handleRemoveMember = (id: string) => {
-    if (confirm('Are you sure you want to remove this team member?')) {
-      updateState((prev) => ({
-        ...prev,
-        orgUsers: (prev.orgUsers || []).filter((u) => u.id !== id)
-      }));
-    }
-  };
+  const activeTeamMembers = (state.orgUsers || []).filter((member) => member.status !== 'pending');
 
   const handleToggleWorkspace = (userId: string, workspaceId: string) => {
     updateState((prev) => ({
@@ -183,6 +153,10 @@ export function SettingsView() {
     }
   };
 
+  if (isUserLoading && !user) {
+    return <PageLoader />;
+  }
+
   return (
     <div className="flex flex-col gap-6 animate-fade-in max-w-5xl mx-auto w-full text-text-primary">
       {/* Header */}
@@ -224,16 +198,52 @@ export function SettingsView() {
                   <input
                     type="email"
                     required
+                    readOnly
                     value={profileEmail}
-                    onChange={(e) => setProfileEmail(e.target.value)}
-                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition"
+                    className="border border-border-primary bg-bg-app/60 text-text-secondary rounded-xl px-3.5 py-2.5 text-xs outline-none cursor-not-allowed"
                   />
                 </div>
               </div>
 
+              {user ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-xl border border-border-primary bg-bg-app/40 p-4 text-xs">
+                  <div>
+                    <span className="block text-[10px] uppercase font-bold text-text-secondary mb-1">Account Type</span>
+                    <span className="font-semibold text-text-primary">{formatAccountTypeLabel(user.accountType)}</span>
+                  </div>
+                  {user.organizationRole ? (
+                    <div>
+                      <span className="block text-[10px] uppercase font-bold text-text-secondary mb-1">Organization Role</span>
+                      <span className="font-semibold text-text-primary">{formatOrganizationRole(user.organizationRole)}</span>
+                    </div>
+                  ) : null}
+                  <div>
+                    <span className="block text-[10px] uppercase font-bold text-text-secondary mb-1">Onboarding Status</span>
+                    <span className="font-semibold text-text-primary">{user.onboardingStatus ?? '—'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] uppercase font-bold text-text-secondary mb-1">Account Status</span>
+                    <span className={`font-semibold ${user.isActive ? 'text-green-600' : 'text-red-500'}`}>
+                      {user.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] uppercase font-bold text-text-secondary mb-1">Member Since</span>
+                    <span className="font-semibold text-text-primary">{formatMeTimestamp(user.createdAt)}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] uppercase font-bold text-text-secondary mb-1">Last Login</span>
+                    <span className="font-semibold text-text-primary">{formatMeTimestamp(user.lastLogin)}</span>
+                  </div>
+                </div>
+              ) : null}
+
               <div className="flex items-center justify-between pt-2">
                 <div className="text-[10px] text-text-secondary">
-                  Role: <span className="font-bold text-instagram-pink uppercase">{state.currentUserType}</span>
+                  Role:{' '}
+                  <span className="font-bold text-instagram-pink uppercase">
+                    {user?.userType ?? state.currentUserType}
+                  </span>
                 </div>
                 {profileSaved ? (
                   <span className="flex items-center gap-1 text-green-600 text-xs font-bold bg-green-50 dark:bg-green-950/20 px-3 py-1.5 rounded-xl border border-green-200 dark:border-green-900">
@@ -296,63 +306,10 @@ export function SettingsView() {
                 <span>Team Members & Workspace Access</span>
               </h3>
 
-              {/* Add Team Member Form */}
-              <form onSubmit={handleAddMember} className="bg-bg-app/40 border border-border-primary p-4 rounded-xl space-y-4">
-                <p className="text-xs font-bold text-text-primary">Invite a New Team Member</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold uppercase text-text-secondary">Name</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Alex Johnson"
-                      value={newMemberName}
-                      onChange={(e) => setNewMemberName(e.target.value)}
-                      className="border border-border-primary bg-bg-card text-text-primary rounded-lg px-3 py-1.5 text-xs outline-none focus:border-instagram-pink"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold uppercase text-text-secondary">Email Address</label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="alex@agency.com"
-                      value={newMemberEmail}
-                      onChange={(e) => setNewMemberEmail(e.target.value)}
-                      className="border border-border-primary bg-bg-card text-text-primary rounded-lg px-3 py-1.5 text-xs outline-none focus:border-instagram-pink"
-                    />
-                  </div>
-                </div>
-
-                {/* Workspace checklist */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold uppercase text-text-secondary">Assign Brand Workspaces</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {state.workspaces.map((ws) => (
-                      <label key={ws.id} className="flex items-center gap-2 bg-bg-card border border-border-primary rounded-lg p-2.5 text-xs text-text-primary cursor-pointer hover:border-slate-300 dark:hover:border-slate-800 transition">
-                        <input
-                          type="checkbox"
-                          checked={selectedWorkspaces.includes(ws.id)}
-                          onChange={() => {
-                            setSelectedWorkspaces((prev) =>
-                              prev.includes(ws.id) ? prev.filter((id) => id !== ws.id) : [...prev, ws.id]
-                            );
-                          }}
-                          className="rounded text-instagram-pink focus:ring-instagram-pink h-3.5 w-3.5 border-border-primary"
-                        />
-                        <span className="truncate">{ws.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  className="bg-instagram-pink text-white hover:opacity-90 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer self-start"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add Team User
-                </button>
-              </form>
+              <p className="text-xs text-text-secondary">
+                Invite new users from Client Portals. Use this section to manage workspace access and Instagram
+                connections for active team members.
+              </p>
 
               {/* Members List Table */}
               <div className="border border-border-primary rounded-xl overflow-hidden bg-bg-card">
@@ -362,11 +319,10 @@ export function SettingsView() {
                       <th className="p-3">User Details</th>
                       <th className="p-3">Instagram Channel</th>
                       <th className="p-3">Assigned Workspaces</th>
-                      <th className="p-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border-primary">
-                    {(state.orgUsers || []).map((user) => (
+                    {activeTeamMembers.map((user) => (
                       <tr key={user.id} className="hover:bg-bg-app/20">
                         <td className="p-3">
                           <p className="font-bold text-text-primary">{user.name}</p>
@@ -410,21 +366,12 @@ export function SettingsView() {
                             })}
                           </div>
                         </td>
-                        <td className="p-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveMember(user.id)}
-                            className="text-red-500 hover:text-red-600 p-1"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
                       </tr>
                     ))}
-                    {(state.orgUsers || []).length === 0 && (
+                    {activeTeamMembers.length === 0 && (
                       <tr>
-                        <td colSpan={4} className="text-center p-6 text-text-secondary italic">
-                          No team members added yet. Invite users above to configure access.
+                        <td colSpan={3} className="text-center p-6 text-text-secondary italic">
+                          No active team members yet. Invite users from Client Portals to get started.
                         </td>
                       </tr>
                     )}

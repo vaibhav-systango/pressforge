@@ -1,5 +1,7 @@
 'use client';
 
+import type { Workspace } from '@/lib/types';
+
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
@@ -148,7 +150,7 @@ export function ContentNewView() {
     if (!activeWorkspace) return;
     updateWorkspace({
       ...activeWorkspace,
-      tone: e.target.value
+      tone: e.target.value as Workspace['tone'],
     });
   };
 
@@ -156,10 +158,10 @@ export function ContentNewView() {
   const handleAddKeyword = () => {
     if (!activeWorkspace || !keywordInput.trim()) return;
     const clean = keywordInput.trim().toLowerCase();
-    if (!activeWorkspace.keywords.includes(clean)) {
+    if (!activeWorkspace.keywords?.includes(clean)) {
       updateWorkspace({
         ...activeWorkspace,
-        keywords: [...activeWorkspace.keywords, clean]
+        keywords: [...(activeWorkspace.keywords ?? []), clean]
       });
     }
     setKeywordInput('');
@@ -170,7 +172,7 @@ export function ContentNewView() {
     if (!activeWorkspace) return;
     updateWorkspace({
       ...activeWorkspace,
-      keywords: activeWorkspace.keywords.filter(k => k !== kw)
+      keywords: (activeWorkspace.keywords ?? []).filter(k => k !== kw)
     });
   };
 
@@ -443,12 +445,12 @@ export function ContentNewView() {
 
     setTimeout(() => {
       let tweakedCaption = caption;
-      let tweakedHashtags = [...hashtags];
-      let tweakedBrief = imageBrief;
+      const tweakedHashtags = [...hashtags];
+      const tweakedBrief = imageBrief;
 
       let tweakedLiCaption = liCaption;
-      let tweakedLiHashtags = [...liHashtags];
-      let tweakedLiBrief = liImageBrief;
+      const tweakedLiHashtags = [...liHashtags];
+      const tweakedLiBrief = liImageBrief;
 
       let actionLabel = `AI Tweak: ${instructionText}`;
       const lowerText = instructionText.toLowerCase();
@@ -597,7 +599,7 @@ export function ContentNewView() {
 
     addDraft({
       id,
-      workspaceId: state.activeWorkspaceId,
+      workspaceId: state.activeWorkspaceId ?? '',
       prompt,
       caption,
       hashtags,
@@ -861,7 +863,7 @@ export function ContentNewView() {
                         </button>
                       </div>
                       <div className="flex flex-wrap gap-1 mt-1.5 max-h-[80px] overflow-y-auto pr-1">
-                        {activeWorkspace.keywords.map((kw) => (
+                        {(activeWorkspace.keywords ?? []).map((kw) => (
                           <span
                             key={kw}
                             className="inline-flex items-center gap-0.5 bg-bg-card border border-border-primary rounded-full px-2 py-0.5 text-[10px] text-text-primary"

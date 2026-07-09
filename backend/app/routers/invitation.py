@@ -8,10 +8,32 @@ from app.schemas.invitation import InviteUserRequest, InviteUserResponse, Accept
 from app.schemas.auth import Token
 from app.core.dependencies import get_current_user, permission_guard
 from app.core.constants.invitation_constants import InvitationErrorCodes, InvitationErrorMessages
+from app.repositories.organization_repository import organization_repository
 from app.services.invitation_service import invitation_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _build_token_response(db: Session, access_token: str, refresh_token: str, user: User) -> dict:
+    organization_id = organization_repository.get_organization_id_for_user(db, user.id)
+    return {
+        "accessToken": access_token,
+        "refreshToken": refresh_token,
+        "user": {
+            "id": user.id,
+            "fullName": user.fullName,
+            "email": user.email,
+            "accountType": user.accountType,
+            "onboardingStatus": user.onboardingStatus,
+            "isActive": user.isActive,
+            "lastLogin": user.lastLogin,
+            "createdAt": user.createdAt,
+            "updatedAt": user.updatedAt,
+            "organizationId": organization_id,
+        },
+        "organizationId": organization_id,
+    }
 
 
 @router.post(
@@ -64,16 +86,12 @@ async def accept_invitation(
     db: Session = Depends(get_db)
 ):
     try:
-        access_token, refresh_token, user = invitation_service.accept_invitation(
+        access_token, refresh_token, user, _organization_id = invitation_service.accept_invitation(
             db,
             token=body.token,
             password=body.password,
         )
-        return {
-            "accessToken": access_token,
-            "refreshToken": refresh_token,
-            "user": user,
-        }
+        return _build_token_response(db, access_token, refresh_token, user)
     except ValueError as e:
         code = str(e)
         error_map = {

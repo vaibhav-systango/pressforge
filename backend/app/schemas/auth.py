@@ -24,6 +24,7 @@ class UserResponse(BaseModel):
     createdAt: int
     updatedAt: int
     organizationId: str | None = None
+    organizationRole: str | None = None
 
     class Config:
         from_attributes = True

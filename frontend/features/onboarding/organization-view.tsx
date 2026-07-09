@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
+import type { Schedule } from '@/lib/types';
 import React, { useState } from 'react';
 import { OnboardingStepper } from '@/components/onboarding/onboarding-stepper';
 import {
@@ -23,7 +24,7 @@ export function OrganizationView() {
   );
 
   const [individualBrandName, setIndividualBrandName] = useState(
-    state.workspaces[0]?.name || '',
+    state.workspaces?.[0]?.name || '',
   );
   const [individualNiche, setIndividualNiche] = useState(state.individualNiche || '');
   const [individualGoal, setIndividualGoal] = useState(
@@ -216,9 +217,10 @@ export function OrganizationView() {
           id: brandId,
           name: individualBrandName,
           website: individualWebsite || '',
-          tone: 'casual',
-          keywords: [],
-          rules: [],
+          tone: 'casual' as const,
+          keywords: [] as string[],
+          rules: [] as string[],
+          schedules: [] as Schedule[],
         };
 
         return {

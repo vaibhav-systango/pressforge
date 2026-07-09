@@ -42,6 +42,7 @@ export function DashboardView() {
   }
 
   const activeWorkspace = state.workspaces.find((w) => w.id === state.activeWorkspaceId) || state.workspaces[0];
+  const connectedAccounts = state.connectedAccounts ?? { instagram: false, linkedin: false };
 
   const isClient = state.currentUserType === 'client';
   const currentClient = isClient ? state.clients.find(c => c.id === state.activeClientId) : null;
@@ -266,7 +267,7 @@ export function DashboardView() {
                 <div className="flex flex-col gap-1">
                   <span className="text-[10px] text-text-secondary font-bold uppercase">Brand Keywords</span>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {activeWorkspace?.keywords.map((kw) => (
+                    {activeWorkspace?.keywords?.map((kw) => (
                       <span key={kw} className="bg-bg-app border border-border-primary text-text-primary px-2 py-0.5 rounded text-[10px] font-medium">
                         #{kw}
                       </span>
@@ -522,10 +523,10 @@ export function DashboardView() {
                 </span>
                 <span
                   className={`text-xs font-bold ${
-                    state.connectedAccounts.instagram ? 'text-green-600' : 'text-slate-400'
+                    connectedAccounts.instagram ? 'text-green-600' : 'text-slate-400'
                   }`}
                 >
-                  {state.connectedAccounts.instagram ? 'Connected' : 'Disconnected'}
+                  {connectedAccounts.instagram ? 'Connected' : 'Disconnected'}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm">
@@ -534,10 +535,10 @@ export function DashboardView() {
                 </span>
                 <span
                   className={`text-xs font-bold ${
-                    state.connectedAccounts.linkedin ? 'text-green-600' : 'text-slate-400'
+                    connectedAccounts.linkedin ? 'text-green-600' : 'text-slate-400'
                   }`}
                 >
-                  {state.connectedAccounts.linkedin ? 'Connected' : 'Disconnected'}
+                  {connectedAccounts.linkedin ? 'Connected' : 'Disconnected'}
                 </span>
               </div>
             </div>
@@ -545,7 +546,7 @@ export function DashboardView() {
             <div className="border-t border-border-primary pt-4 space-y-3">
               <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Voice Rules</h4>
               <div className="flex flex-wrap gap-1.5">
-                {activeWorkspace?.keywords.map((kw) => (
+                {activeWorkspace?.keywords?.map((kw) => (
                   <span key={kw} className="text-[10px] bg-bg-app text-text-secondary px-2 py-0.5 rounded-full font-bold">
                     #{kw}
                   </span>

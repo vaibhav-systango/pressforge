@@ -4,9 +4,9 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { PageLoader } from '@/components/common/page-loader';
-import { hasAuthTokens } from '@/lib/auth/token-storage';
-import { hasSessionCookie } from '@/lib/auth/session-cookie';
 import { useAuth } from '@/lib/hooks/queries/use-auth';
+import { useClientSession } from '@/lib/hooks/use-client-session';
+import { useMounted } from '@/lib/hooks/use-mounted';
 
 interface AuthRouteGuardProps {
   children: React.ReactNode;
@@ -14,19 +14,31 @@ interface AuthRouteGuardProps {
 
 export function AuthRouteGuard({ children }: AuthRouteGuardProps) {
   const router = useRouter();
-  const { isLoading, user } = useAuth();
+  const mounted = useMounted();
+  const hasSession = useClientSession();
+  const { user, isError, isAuthReady } = useAuth();
 
   useEffect(() => {
-    if (!hasAuthTokens() && !hasSessionCookie()) {
+    if (!mounted || !isAuthReady) return;
+
+    if (!hasSession) {
       router.replace('/auth/login');
     }
-  }, [router]);
+  }, [mounted, isAuthReady, hasSession, router]);
 
-  if (!hasAuthTokens() && !hasSessionCookie()) {
-    return null;
+  useEffect(() => {
+    if (!mounted || !hasSession || !isAuthReady || !isError) return;
+
+    fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
+      router.replace('/auth/login');
+    });
+  }, [mounted, hasSession, isAuthReady, isError, router]);
+
+  if (!mounted || !isAuthReady) {
+    return <PageLoader />;
   }
 
-  if (isLoading && !user) {
+  if (!hasSession || (isError && !user)) {
     return <PageLoader />;
   }
 

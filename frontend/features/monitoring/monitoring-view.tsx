@@ -27,7 +27,7 @@ export function MonitoringView() {
   const negativePercent = Math.round((negativeCount / total) * 100);
 
   const proposedRule = 'Always acknowledge delivery inquiries with warm shipping timelines.';
-  const ruleInjected = activeWorkspace?.rules.includes(proposedRule) ?? false;
+  const ruleInjected = activeWorkspace?.rules?.includes(proposedRule) ?? false;
 
   // Response drafter modal/box state
   const [draftingMentionId, setDraftingMentionId] = useState<string | null>(null);
@@ -35,11 +35,11 @@ export function MonitoringView() {
 
   const handleInjectRule = () => {
     if (activeWorkspace) {
-      const alreadyHas = activeWorkspace.rules.includes(proposedRule);
+      const alreadyHas = activeWorkspace.rules?.includes(proposedRule) ?? false;
       if (!alreadyHas) {
         updateWorkspace({
           ...activeWorkspace,
-          rules: [...activeWorkspace.rules, proposedRule]
+          rules: [...(activeWorkspace.rules ?? []), proposedRule]
         });
       }
       alert('AI Rule injected successfully into Brand Voice rules!');
@@ -59,7 +59,7 @@ export function MonitoringView() {
 
     addDraft({
       id: 'draft-response-' + Date.now(),
-      workspaceId: state.activeWorkspaceId,
+      workspaceId: state.activeWorkspaceId ?? '',
       prompt: `Social Reply to mention ${draftingMentionId}`,
       caption: generatedResponse,
       hashtags: ['CustomerCare', activeWorkspace?.name.replace(/\s+/g, '') || 'BrandCare'],
@@ -152,7 +152,7 @@ export function MonitoringView() {
 
                   <div className="text-right">
                     <button
-                      onClick={() => handleCreateDraftResponse(men.id, men.author, men.content)}
+                      onClick={() => handleCreateDraftResponse(men.id, men.author ?? 'user', men.content ?? '')}
                       className="text-[10px] text-instagram-pink font-bold hover:underline"
                     >
                       AI Response Draft

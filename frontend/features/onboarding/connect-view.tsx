@@ -16,24 +16,24 @@ export function OnboardingConnectView() {
 
   // Automatically mark Instagram as connected in AppState if they are individual and connected
   useEffect(() => {
-    if (isIndividual && state.individualInstagramConnected && !state.connectedAccounts.instagram) {
+    if (isIndividual && state.individualInstagramConnected && !state.connectedAccounts?.instagram) {
       updateState((prev) => ({
         ...prev,
         connectedAccounts: {
-          ...prev.connectedAccounts,
-          instagram: true
-        }
+          ...(prev.connectedAccounts ?? { instagram: false, linkedin: false }),
+          instagram: true,
+        },
       }));
     } else if (isOrg) {
       // For orgs, if there is at least one connected user, unlock instagram features
       const hasConnectedUser = (state.orgUsers || []).some(u => u.instagramConnected);
-      if (hasConnectedUser && !state.connectedAccounts.instagram) {
+      if (hasConnectedUser && !state.connectedAccounts?.instagram) {
         updateState((prev) => ({
           ...prev,
           connectedAccounts: {
-            ...prev.connectedAccounts,
-            instagram: true
-          }
+            ...(prev.connectedAccounts ?? { instagram: false, linkedin: false }),
+            instagram: true,
+          },
         }));
       }
     }
@@ -45,9 +45,9 @@ export function OnboardingConnectView() {
       updateState((prev) => ({
         ...prev,
         connectedAccounts: {
-          ...prev.connectedAccounts,
-          [platform]: true
-        }
+          ...(prev.connectedAccounts ?? { instagram: false, linkedin: false }),
+          [platform]: true,
+        },
       }));
       setConnecting(null);
     }, 1000);
@@ -114,7 +114,7 @@ export function OnboardingConnectView() {
                     </div>
                   </div>
 
-                  {state.connectedAccounts.linkedin ? (
+                  {state.connectedAccounts?.linkedin ? (
                     <span className="flex items-center gap-1 bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-full text-xs font-bold">
                       <Check className="w-3.5 h-3.5" /> Connected
                     </span>
@@ -192,7 +192,7 @@ export function OnboardingConnectView() {
                     </div>
                   </div>
 
-                  {state.connectedAccounts.linkedin ? (
+                  {state.connectedAccounts?.linkedin ? (
                     <span className="flex items-center gap-1 bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-full text-xs font-bold">
                       <Check className="w-3.5 h-3.5" /> Connected
                     </span>
