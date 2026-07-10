@@ -51,6 +51,7 @@ export interface Workspace {
   targetAudience?: string;
   brandVoice?: string;
   logoUrl?: string;
+  brandAsset?: string;
   schedules: Schedule[];
   ownerId?: string;
   tone?: 'professional' | 'friendly' | 'witty' | 'bold' | 'empathetic' | 'casual' | 'energetic' | 'formal';

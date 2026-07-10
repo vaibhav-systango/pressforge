@@ -63,6 +63,45 @@ class CloudinaryProvider:
             "originalFilename": filename,
         }
 
+    def upload_brand_asset(
+        self,
+        *,
+        file_bytes: bytes,
+        upload_key: str,
+        filename: str,
+        content_type: str,
+    ) -> dict:
+        self._configure()
+
+        resource_type = "raw" if content_type == "application/pdf" else "image"
+        public_id = upload_key
+
+        try:
+            result = cloudinary.uploader.upload(
+                file_bytes,
+                folder=settings.CLOUDINARY_BRAND_ASSETS_FOLDER,
+                public_id=public_id,
+                resource_type=resource_type,
+                overwrite=False,
+            )
+        except Exception as exc:
+            logger.error("Cloudinary upload failed for brand asset key %s: %s", upload_key, exc)
+            raise ValueError(UploadErrorCodes.UPLOAD_FAILED) from exc
+
+        secure_url = result.get("secure_url")
+        public_id_result = result.get("public_id")
+        if not secure_url or not public_id_result:
+            raise ValueError(UploadErrorCodes.UPLOAD_FAILED)
+
+        return {
+            "publicId": public_id_result,
+            "secureUrl": secure_url,
+            "resourceType": result.get("resource_type", resource_type),
+            "format": result.get("format"),
+            "bytes": result.get("bytes"),
+            "originalFilename": filename,
+        }
+
     def get_secure_url(self, public_id: str, *, resource_type: str = "image") -> str:
         self._configure()
         url, _ = cloudinary_url(public_id, resource_type=resource_type, secure=True)

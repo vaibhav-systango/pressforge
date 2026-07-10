@@ -78,7 +78,7 @@ export function buildOnboardingPayload(
         registeredAddress: orgKyc.businessAddress,
         primaryContactName: contact.name,
         primaryContactDesignation: contact.designation || null,
-        businessDocumentFileKey: orgKyc.uploadedFile || null,
+        document: orgKyc.uploadedFile ? JSON.parse(orgKyc.uploadedFile) : null,
       },
     };
   }
