@@ -174,7 +174,9 @@ class InvitationService:
         search: str | None = None,
         plan: str | None = None,
         status_filter: str | None = None,
-        role_filter: str | None = None
+        role_filter: str | None = None,
+        skip: int = 0,
+        limit: int | None = None
     ) -> list[dict]:
         """
         Get members/clients for an organization scoped by the requester's role.
@@ -272,6 +274,10 @@ class InvitationService:
                     "plan": "Free"
                 })
 
+        if limit is not None:
+            return clients[skip : skip + limit]
+        elif skip > 0:
+            return clients[skip :]
         return clients
 
     def delete_pending_invitation(

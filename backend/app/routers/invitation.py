@@ -154,6 +154,8 @@ async def get_clients(
     plan: str | None = None,
     status_filter: str | None = None,
     role_filter: str | None = None,
+    skip: int = 0,
+    limit: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(permission_guard)
 ):
@@ -164,7 +166,9 @@ async def get_clients(
         search=search,
         plan=plan,
         status_filter=status_filter,
-        role_filter=role_filter
+        role_filter=role_filter,
+        skip=skip,
+        limit=limit
     )
 
 

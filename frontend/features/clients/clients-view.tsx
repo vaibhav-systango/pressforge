@@ -7,11 +7,12 @@ import { useAuth } from '@/lib/hooks/queries/use-auth';
 import { useInviteMemberMutation } from '@/lib/hooks/mutations/use-invitation';
 import { ApiError } from '@/lib/utils/api-errors';
 import React, { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useInfiniteQuery } from '@tanstack/react-query';
 import { useDebounce } from '@/lib/hooks/use-debounce';
 import { Skeleton } from '@/components/common/skeleton';
 import { Select } from '@/components/common/select';
 import { DeleteModal } from '@/components/common/delete-modal';
+import { InfiniteScroll } from '@/components/common/infinite-scroll';
 import { 
   Users, Mail, ArrowRight, ShieldAlert, Building, X, Plus, 
   Trash2, Calendar, ShieldCheck, UserCheck, AlertTriangle, 
@@ -68,23 +69,41 @@ export function ClientsView() {
     enabled: Boolean(organizationId),
   });
 
-  // Fetch Filtered Clients from Backend
-  const { data: clients = [], isLoading: isClientsLoading, refetch: refetchClients } = useQuery({
+  // Fetch Filtered Clients from Backend with Infinite Scroll
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: isClientsLoading,
+    refetch: refetchClients,
+  } = useInfiniteQuery({
     queryKey: ['clients', organizationId, debouncedSearchTerm, selectedPlanFilter, selectedStatusFilter, selectedRoleFilter],
-    queryFn: async () => {
+    queryFn: async ({ pageParam = 0 }) => {
       if (!organizationId) return [];
       const queryParams = new URLSearchParams();
       if (debouncedSearchTerm) queryParams.set('search', debouncedSearchTerm);
       if (selectedPlanFilter !== 'all') queryParams.set('plan', selectedPlanFilter);
       if (selectedStatusFilter !== 'all') queryParams.set('status_filter', selectedStatusFilter);
       if (selectedRoleFilter !== 'all') queryParams.set('role_filter', selectedRoleFilter);
+      queryParams.set('skip', String(pageParam));
+      queryParams.set('limit', '10'); // Fetch 10 items at a time
 
       const res = await fetch(`/api/organizations/${organizationId}/clients?${queryParams.toString()}`);
       if (!res.ok) throw new Error('Failed to fetch clients');
       return res.json() as Promise<any[]>;
     },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      const LIMIT = 10;
+      if (lastPage.length < LIMIT) return undefined;
+      const totalLoaded = allPages.reduce((sum, page) => sum + page.length, 0);
+      return totalLoaded;
+    },
     enabled: Boolean(organizationId),
   });
+
+  const clients = data ? data.pages.flatMap((page) => page) : [];
 
   // Fetch Supported Plans from Backend
   const { data: plans = [] } = useQuery({
@@ -318,114 +337,122 @@ export function ClientsView() {
           <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
             <h3 className="text-base font-bold text-text-primary border-b border-border-primary pb-2 flex items-center gap-1.5">
               <Users className="w-5 h-5 text-instagram-pink" />
-              <span>Registered Clients ({filteredClients.length})</span>
+              <span>Registered Clients</span>
             </h3>
 
-            <div className="grid grid-cols-1 gap-4">
-              {isClientsLoading ? (
-                <div className="flex flex-col gap-4 animate-pulse">
-                  {[...Array(2)].map((_, i) => (
-                    <div key={i} className="border border-border-primary rounded-2xl p-5 bg-bg-app/40 space-y-3">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="space-y-2.5 w-full max-w-md">
-                          <div className="flex items-center gap-2">
-                            <Skeleton className="h-5 w-24" />
-                            <Skeleton className="h-4 w-14" />
-                            <Skeleton className="h-4 w-18" />
+            <div className="max-h-[530px] overflow-y-auto pr-1">
+              <InfiniteScroll
+                hasMore={hasNextPage}
+                onLoadMore={fetchNextPage}
+                isLoading={isFetchingNextPage}
+              >
+                <div className="grid grid-cols-1 gap-4 pr-1">
+                  {isClientsLoading ? (
+                    <div className="flex flex-col gap-4 animate-pulse">
+                      {[...Array(2)].map((_, i) => (
+                        <div key={i} className="border border-border-primary rounded-2xl p-5 bg-bg-app/40 space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="space-y-2.5 w-full max-w-md">
+                              <div className="flex items-center gap-2">
+                                <Skeleton className="h-5 w-24" />
+                                <Skeleton className="h-4 w-14" />
+                                <Skeleton className="h-4 w-18" />
+                              </div>
+                              <Skeleton className="h-4 w-40" />
+                            </div>
+                            <Skeleton className="h-8 w-8 rounded-lg" />
                           </div>
-                          <Skeleton className="h-4 w-40" />
                         </div>
-                        <Skeleton className="h-8 w-8 rounded-lg" />
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                filteredClients.map((client) => {
-                  const computedStatus = getComputedStatus(client);
-                  
-                  const statusStyles = 
-                    computedStatus === 'active' 
-                      ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-900 dark:text-green-400' 
-                      : computedStatus === 'pending'
-                      ? 'bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-950/20 dark:border-yellow-900 dark:text-yellow-400'
-                      : 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900 dark:text-red-400';
+                  ) : (
+                    filteredClients.map((client) => {
+                      const computedStatus = getComputedStatus(client);
+                      
+                      const statusStyles = 
+                        computedStatus === 'active' 
+                          ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-900 dark:text-green-400' 
+                          : computedStatus === 'pending'
+                          ? 'bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-950/20 dark:border-yellow-900 dark:text-yellow-400'
+                          : 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900 dark:text-red-400';
 
-                  const planStyles = 
-                    client.plan === 'Enterprise'
-                      ? 'bg-purple-100 border-purple-200 text-purple-700 dark:bg-purple-950/20 dark:border-purple-900 dark:text-purple-400'
-                      : client.plan === 'Pro'
-                      ? 'bg-blue-100 border-blue-200 text-blue-700 dark:bg-blue-950/20 dark:border-blue-900 dark:text-blue-400'
-                      : 'bg-slate-100 border-slate-200 text-slate-700 dark:bg-slate-950/20 dark:border-slate-900 dark:text-slate-400';
+                      const planStyles = 
+                        client.plan === 'Enterprise'
+                          ? 'bg-purple-100 border-purple-200 text-purple-700 dark:bg-purple-950/20 dark:border-purple-900 dark:text-purple-400'
+                          : client.plan === 'Pro'
+                          ? 'bg-blue-100 border-blue-200 text-blue-700 dark:bg-blue-950/20 dark:border-blue-900 dark:text-blue-400'
+                          : 'bg-slate-100 border-slate-200 text-slate-700 dark:bg-slate-950/20 dark:border-slate-900 dark:text-slate-400';
 
-                  const getRoleBadgeStyles = (role: string) => {
-                    const normalized = role?.toUpperCase();
-                    if (normalized === 'OWNER') {
-                      return 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-950/20 dark:border-purple-900 dark:text-purple-400';
-                    }
-                    if (normalized === 'ADMIN') {
-                      return 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900 dark:text-red-400';
-                    }
-                    if (normalized === 'MEMBER') {
-                      return 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950/20 dark:border-blue-900 dark:text-blue-400';
-                    }
-                    return 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-900 dark:text-emerald-400';
-                  };
+                      const getRoleBadgeStyles = (role: string) => {
+                        const normalized = role?.toUpperCase();
+                        if (normalized === 'OWNER') {
+                          return 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-950/20 dark:border-purple-900 dark:text-purple-400';
+                        }
+                        if (normalized === 'ADMIN') {
+                          return 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900 dark:text-red-400';
+                        }
+                        if (normalized === 'MEMBER') {
+                          return 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950/20 dark:border-blue-900 dark:text-blue-400';
+                        }
+                        return 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-900 dark:text-emerald-400';
+                      };
 
-                  return (
-                    <div key={client.id} className="border border-border-primary rounded-xl p-5 bg-bg-app/20 hover:border-slate-300 dark:hover:border-slate-800 transition duration-150 flex flex-col justify-between gap-4">
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                        
-                        {/* Left: Info */}
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="font-extrabold text-base text-text-primary">{client.name}</h4>
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${statusStyles}`}>
-                              {computedStatus}
-                            </span>
-                            {client.role && (
-                              <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase border ${getRoleBadgeStyles(client.role)}`}>
-                                {client.role}
-                              </span>
-                            )}
-                            {client.plan && (
-                              <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold border ${planStyles}`}>
-                                {client.plan} Plan
-                              </span>
-                            )}
+                      return (
+                        <div key={client.id} className="border border-border-primary rounded-xl p-5 bg-bg-app/20 hover:border-slate-300 dark:hover:border-slate-800 transition duration-150 flex flex-col justify-between gap-4">
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                            
+                            {/* Left: Info */}
+                            <div className="space-y-1.5">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="font-extrabold text-base text-text-primary">{client.name}</h4>
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${statusStyles}`}>
+                                  {computedStatus}
+                                </span>
+                                {client.role && (
+                                  <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase border ${getRoleBadgeStyles(client.role)}`}>
+                                    {client.role}
+                                  </span>
+                                )}
+                                {client.plan && (
+                                  <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold border ${planStyles}`}>
+                                    {client.plan} Plan
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-text-secondary flex items-center gap-1.5">
+                                <Mail className="w-3.5 h-3.5 text-text-secondary" />
+                                <span>{client.email}</span>
+                              </p>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center gap-2 self-end sm:self-start">
+                              {!client.isAccepted && (
+                                <button
+                                  onClick={() => setDeleteInviteId(client.id)}
+                                  disabled={deleteInviteMutation.isPending}
+                                  title="Delete Pending Invitation"
+                                  className="p-2 border border-border-primary bg-bg-card rounded-lg hover:border-red-500 hover:text-red-500 transition text-text-secondary disabled:opacity-50"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <p className="text-xs text-text-secondary flex items-center gap-1.5">
-                            <Mail className="w-3.5 h-3.5 text-text-secondary" />
-                            <span>{client.email}</span>
-                          </p>
+
+
                         </div>
+                      );
+                    })
+                  )}
 
-                        {/* Actions */}
-                        <div className="flex items-center gap-2 self-end sm:self-start">
-                          {!client.isAccepted && (
-                            <button
-                              onClick={() => setDeleteInviteId(client.id)}
-                              disabled={deleteInviteMutation.isPending}
-                              title="Delete Pending Invitation"
-                              className="p-2 border border-border-primary bg-bg-card rounded-lg hover:border-red-500 hover:text-red-500 transition text-text-secondary disabled:opacity-50"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-
+                  {!isClientsLoading && filteredClients.length === 0 && (
+                    <div className="text-center py-12 text-text-secondary italic text-sm">
+                      No clients match the selected search or filter criteria.
                     </div>
-                  );
-                })
-              )}
-
-              {!isClientsLoading && filteredClients.length === 0 && (
-                <div className="text-center py-12 text-text-secondary italic text-sm">
-                  No clients match the selected search or filter criteria.
+                  )}
                 </div>
-              )}
+              </InfiniteScroll>
             </div>
           </div>
         </div>
