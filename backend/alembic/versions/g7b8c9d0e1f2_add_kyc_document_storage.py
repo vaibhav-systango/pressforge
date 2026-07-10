@@ -29,6 +29,11 @@ def _add_column_if_missing(table_name: str, column_name: str, column: sa.Column)
         op.add_column(table_name, column)
 
 
+def _drop_column_if_exists(table_name: str, column_name: str) -> None:
+    if column_name in _column_names(table_name):
+        op.drop_column(table_name, column_name)
+
+
 def upgrade() -> None:
     org_columns = _column_names('organization_kyc')
     if 'businessDocumentFileKey' in org_columns:
@@ -49,10 +54,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_column('organization_kyc', 'documentOriginalFilename')
-    op.drop_column('organization_kyc', 'documentBytes')
-    op.drop_column('organization_kyc', 'documentFormat')
-    op.drop_column('organization_kyc', 'documentResourceType')
+    _drop_column_if_exists('organization_kyc', 'documentOriginalFilename')
+    _drop_column_if_exists('organization_kyc', 'documentBytes')
+    _drop_column_if_exists('organization_kyc', 'documentFormat')
+    _drop_column_if_exists('organization_kyc', 'documentResourceType')
 
     org_columns = _column_names('organization_kyc')
     if 'documentSecureUrl' in org_columns:

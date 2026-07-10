@@ -1,5 +1,4 @@
 import logging
-import time
 
 import cloudinary
 import cloudinary.uploader
@@ -29,14 +28,14 @@ class CloudinaryProvider:
         self,
         *,
         file_bytes: bytes,
-        user_id: str,
+        upload_key: str,
         filename: str,
         content_type: str,
     ) -> dict:
         self._configure()
 
         resource_type = "raw" if content_type == "application/pdf" else "image"
-        public_id = f"{user_id}/{int(time.time() * 1000)}"
+        public_id = upload_key
 
         try:
             result = cloudinary.uploader.upload(
@@ -44,12 +43,10 @@ class CloudinaryProvider:
                 folder=settings.CLOUDINARY_KYC_FOLDER,
                 public_id=public_id,
                 resource_type=resource_type,
-                use_filename=True,
-                unique_filename=True,
                 overwrite=False,
             )
         except Exception as exc:
-            logger.error("Cloudinary upload failed for user %s: %s", user_id, exc)
+            logger.error("Cloudinary upload failed for key %s: %s", upload_key, exc)
             raise ValueError(UploadErrorCodes.UPLOAD_FAILED) from exc
 
         secure_url = result.get("secure_url")
