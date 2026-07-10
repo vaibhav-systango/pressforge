@@ -1,4 +1,5 @@
 import html
+from app.core.constants.invitation_constants import INVITATION_EXPIRY_DAYS
 
 
 def invitation_email(*, org_name: str, full_name: str, email: str, accept_link: str) -> dict:
@@ -64,7 +65,7 @@ def invitation_email(*, org_name: str, full_name: str, email: str, accept_link: 
                   
                   <!-- Secondary text / Expire warning -->
                   <p style="color: #6a6f80; font-size: 12px; line-height: 1.5; margin-top: 32px; text-align: center; margin-bottom: 0;">
-                    For security reasons, this invitation link will expire in 7 days.<br>
+                    For security reasons, this invitation link will expire in {INVITATION_EXPIRY_DAYS} days.<br>
                     If you did not expect this invitation, please ignore this email.
                   </p>
                 </td>

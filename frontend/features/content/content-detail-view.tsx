@@ -542,7 +542,7 @@ export function ContentDetailView() {
                 <button
                   type="button"
                   onClick={handleAddUrl}
-                  className="bg-bg-hover hover:bg-slate-200 dark:hover:bg-slate-800 border border-border-primary px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer"
+                  className="bg-bg-hover hover:bg-slate-200 border border-border-primary px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer"
                 >
                   Add
                 </button>

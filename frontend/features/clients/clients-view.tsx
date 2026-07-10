@@ -381,7 +381,7 @@ export function ClientsView() {
                           ? 'bg-purple-100 border-purple-200 text-purple-700 dark:bg-purple-950/20 dark:border-purple-900 dark:text-purple-400'
                           : client.plan === 'Pro'
                           ? 'bg-blue-100 border-blue-200 text-blue-700 dark:bg-blue-950/20 dark:border-blue-900 dark:text-blue-400'
-                          : 'bg-slate-100 border-slate-200 text-slate-700 dark:bg-slate-950/20 dark:border-slate-900 dark:text-slate-400';
+                          : 'bg-bg-app border-border-primary text-text-secondary';
 
                       const getRoleBadgeStyles = (role: string) => {
                         const normalized = role?.toUpperCase();
@@ -398,7 +398,7 @@ export function ClientsView() {
                       };
 
                       return (
-                        <div key={client.id} className="border border-border-primary rounded-xl p-5 bg-bg-app/20 hover:border-slate-300 dark:hover:border-slate-800 transition duration-150 flex flex-col justify-between gap-4">
+                        <div key={client.id} className="border border-border-primary rounded-xl p-5 bg-bg-app/20 hover:border-instagram-pink/40 transition duration-150 flex flex-col justify-between gap-4">
                           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                             
                             {/* Left: Info */}

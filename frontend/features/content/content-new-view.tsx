@@ -782,7 +782,7 @@ export function ContentNewView() {
                     <button
                       type="button"
                       onClick={handleAddUrl}
-                      className="bg-bg-hover hover:bg-slate-200 dark:hover:bg-slate-800 border border-border-primary px-3 py-1 rounded-xl text-xs font-bold cursor-pointer"
+                      className="bg-bg-hover hover:bg-slate-200 border border-border-primary px-3 py-1 rounded-xl text-xs font-bold cursor-pointer"
                     >
                       Add
                     </button>
@@ -852,7 +852,7 @@ export function ContentNewView() {
                         <button
                           type="button"
                           onClick={handleAddKeyword}
-                          className="bg-bg-hover hover:bg-slate-200 dark:hover:bg-slate-800 border border-border-primary px-3 py-1 rounded-xl text-xs font-bold cursor-pointer"
+                          className="bg-bg-hover hover:bg-slate-200 border border-border-primary px-3 py-1 rounded-xl text-xs font-bold cursor-pointer"
                         >
                           Add
                         </button>

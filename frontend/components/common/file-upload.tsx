@@ -54,17 +54,18 @@ export function FileUpload({
       currentProgress += 25;
       if (currentProgress >= 100) {
         clearInterval(interval);
+        const fileKey = `kyc-docs/${Date.now()}_${file.name}`;
         
         if (file.type.startsWith('image/')) {
           const reader = new FileReader();
           reader.onloadend = () => {
             const resultStr = reader.result as string;
-            onChange(file.name, resultStr, file.type);
+            onChange(fileKey, resultStr, file.type);
             setIsUploading(false);
           };
           reader.readAsDataURL(file);
         } else {
-          onChange(file.name, null, file.type);
+          onChange(fileKey, null, file.type);
           setIsUploading(false);
         }
       }
@@ -80,6 +81,8 @@ export function FileUpload({
       })
       .join(', ');
   };
+
+  const displayFilename = value ? value.replace(/^kyc-docs\/\d+_(.+)$/, '$1') : '';
 
   return (
     <div className="flex flex-col gap-1.5 w-full">
@@ -100,7 +103,7 @@ export function FileUpload({
               )}
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-800 truncate max-w-[220px]">
-                  {value}
+                  {displayFilename}
                 </p>
                 <p className="text-[10px] text-slate-400 mt-0.5">
                   {(fileType?.split('/')?.[1] || 'document').toUpperCase()}

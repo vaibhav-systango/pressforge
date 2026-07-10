@@ -293,11 +293,11 @@ export function WorkspacesView() {
               </h4>
 
               <div className="mt-3 space-y-2">
-                {(currentWorkspace.schedules || []).length === 0 && (
+                {(currentWorkspace?.schedules || []).length === 0 && (
                   <p className="text-xs text-text-secondary italic">No schedules configured for this workspace.</p>
                 )}
 
-                {(currentWorkspace.schedules || []).map((s) => (
+                {(currentWorkspace?.schedules || []).map((s) => (
                   <div key={s.id} className="flex items-center justify-between gap-2 bg-bg-app/30 border border-border-primary rounded-lg px-3 py-2 text-xs">
                     <div>
                       <div className="font-bold text-text-primary">{s.label}</div>
@@ -497,7 +497,7 @@ export function WorkspacesView() {
                     }`}
                   >
                     <div className="flex items-center gap-2.5 overflow-hidden pr-6">
-                      <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-xs shrink-0 text-text-primary">
+                      <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center font-bold text-xs shrink-0 text-text-primary">
                         {ws.name.charAt(0)}
                       </div>
                       <div className="truncate">
@@ -522,7 +522,7 @@ export function WorkspacesView() {
                           </button>
                           <button
                             onClick={() => setDeleteConfirmId(null)}
-                            className="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-text-primary px-1.5 py-0.5 rounded"
+                            className="bg-slate-200 hover:bg-slate-100 text-text-primary px-1.5 py-0.5 rounded"
                           >
                             No
                           </button>
@@ -681,7 +681,7 @@ export function WorkspacesView() {
                       <button
                         type="button"
                         onClick={handleAddKeyword}
-                        className="bg-bg-hover hover:bg-slate-200 dark:hover:bg-slate-800 border border-border-primary px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer"
+                        className="bg-bg-hover hover:bg-slate-200 border border-border-primary px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer"
                       >
                         Add
                       </button>
@@ -721,7 +721,7 @@ export function WorkspacesView() {
                       <button
                         type="button"
                         onClick={handleAddRule}
-                        className="bg-bg-hover hover:bg-slate-200 dark:hover:bg-slate-800 border border-border-primary px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer"
+                        className="bg-bg-hover hover:bg-slate-200 border border-border-primary px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer"
                       >
                         Add
                       </button>

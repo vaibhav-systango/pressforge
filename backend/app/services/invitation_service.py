@@ -90,8 +90,13 @@ class InvitationService:
             accept_link=accept_link
         )
         try:
-            email_provider.send(to=email, subject=template["subject"], html=template["html"])
+            delivered = email_provider.send(to=email, subject=template["subject"], html=template["html"])
+            if not delivered:
+                db.rollback()
+                raise ValueError(InvitationErrorCodes.EMAIL_SEND_FAILED)
         except Exception as e:
+            if isinstance(e, ValueError) and e.args and e.args[0] == InvitationErrorCodes.EMAIL_SEND_FAILED:
+                raise
             logger.error(f"Email send failed: {e}")
             db.rollback()
             raise ValueError(InvitationErrorCodes.EMAIL_SEND_FAILED) from e
@@ -284,10 +289,18 @@ class InvitationService:
         self,
         db: Session,
         *,
+        current_user: User,
         organization_id: str,
         invitation_id: str
     ) -> None:
         """Delete a pending or expired invitation from an organization."""
+        member = db.query(OrganizationMember).filter(
+            OrganizationMember.organizationId == organization_id,
+            OrganizationMember.userId == current_user.id
+        ).first()
+        if not member:
+            raise ValueError(InvitationErrorCodes.INVITER_NOT_MEMBER)
+
         invitation = invitation_repository.get_by_id(db, invitation_id)
         if not invitation or invitation.organizationId != organization_id:
             raise ValueError(InvitationErrorCodes.INVITATION_NOT_FOUND)
@@ -298,8 +311,21 @@ class InvitationService:
         invitation_repository.delete(db, invitation)
         db.commit()
 
-    def get_mock_inbox(self, db: Session, *, organization_id: str) -> list[dict]:
+    def get_mock_inbox(
+        self,
+        db: Session,
+        *,
+        current_user: User,
+        organization_id: str
+    ) -> list[dict]:
         """Retrieve simulated emails for all pending organization invitations."""
+        member = db.query(OrganizationMember).filter(
+            OrganizationMember.organizationId == organization_id,
+            OrganizationMember.userId == current_user.id
+        ).first()
+        if not member:
+            raise ValueError(InvitationErrorCodes.INVITER_NOT_MEMBER)
+
         org = organization_repository.get_by_id(db, organization_id)
         if not org:
             raise ValueError(InvitationErrorCodes.ORGANIZATION_NOT_FOUND)

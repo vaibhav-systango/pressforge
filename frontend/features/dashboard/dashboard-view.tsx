@@ -78,17 +78,17 @@ export function DashboardView() {
     return (
       <div className="flex flex-col gap-8 animate-fade-in text-text-primary">
         {/* Welcome Block */}
-        <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-3xl p-8 text-white shadow-md relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#F58529]/20 to-[#DD2A7B]/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="bg-gradient-to-r from-slate-100 to-slate-50 border border-border-primary rounded-3xl p-8 text-text-primary shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#F58529]/15 to-[#DD2A7B]/15 rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10 space-y-2">
-            <span className="text-[10px] bg-instagram-pink/20 text-instagram-pink border border-instagram-pink/30 px-2.5 py-1 rounded-full font-bold uppercase tracking-wider">
+            <span className="text-[10px] bg-instagram-pink/15 text-instagram-pink border border-instagram-pink/25 px-2.5 py-1 rounded-full font-bold uppercase tracking-wider">
               Client Portal
             </span>
-            <h1 className="text-3xl font-extrabold tracking-tight">
+            <h1 className="text-3xl font-extrabold tracking-tight text-text-primary">
               Welcome back, {clientName}!
             </h1>
-            <p className="text-slate-300 text-sm max-w-xl">
-              Collaborate and review content drafts for the <span className="font-semibold text-white">{activeWorkspace?.name}</span> workspace. You can approve drafts, request revisions, and suggest new content ideas.
+            <p className="text-text-secondary text-sm max-w-xl">
+              Collaborate and review content drafts for the <span className="font-semibold text-text-primary">{activeWorkspace?.name}</span> workspace. You can approve drafts, request revisions, and suggest new content ideas.
             </p>
           </div>
         </div>

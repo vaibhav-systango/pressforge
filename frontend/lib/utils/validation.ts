@@ -23,8 +23,9 @@ export function validatePassword(value: string | undefined | null): string | nul
  * Validates an email address.
  */
 export function validateEmail(value: string | undefined | null): string | null {
-  if (!value || !value.trim()) {
+  const trimmed = value ? value.trim() : '';
+  if (!trimmed) {
     return 'Email is required';
   }
-  return /^\S+@\S+\.\S+$/.test(value) ? null : 'Enter a valid email address';
+  return /^\S+@\S+\.\S+$/.test(trimmed) ? null : 'Enter a valid email address';
 }

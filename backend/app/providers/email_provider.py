@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class EmailProvider:
 
-    def send(self, *, to: str, subject: str, html: str) -> None:
+    def send(self, *, to: str, subject: str, html: str) -> bool:
         if not settings.SENDGRID_API_KEY or not settings.SENDGRID_FROM:
             logger.warning(
                 "SendGrid is not configured. Email logged to console:\n"
@@ -20,7 +20,7 @@ class EmailProvider:
                 subject,
                 html
             )
-            return
+            return False
 
         message = Mail(
             from_email=settings.SENDGRID_FROM,
@@ -44,6 +44,7 @@ class EmailProvider:
             response.status_code,
             subject,
         )
+        return True
 
 
 email_provider = EmailProvider()
