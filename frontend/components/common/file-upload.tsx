@@ -66,7 +66,8 @@ export function FileUpload({
       }
 
       const result = await response.json();
-      onChange(JSON.stringify(result), result.secureUrl, file.type);
+      const isImage = file.type.startsWith('image/');
+      onChange(JSON.stringify(result), isImage ? result.secureUrl : null, file.type);
     } catch (err: any) {
       console.error('File upload error:', err);
       alert(err.message || 'File upload failed. Please try again.');
