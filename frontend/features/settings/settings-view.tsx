@@ -15,6 +15,8 @@ import {
   Check, ToggleLeft, ToggleRight, Trash2, RefreshCw, 
   Building2, Sparkles, Users, Instagram, X
 } from 'lucide-react';
+import { PasswordInput } from '@/components/common/password-input';
+import { validatePassword } from '@/lib/utils/validation';
 
 export function SettingsView() {
   const { state, updateState, resetState } = useAppState();
@@ -25,7 +27,9 @@ export function SettingsView() {
   // Form states
   const [profileName, setProfileName] = useState(user?.name ?? '');
   const [profileEmail, setProfileEmail] = useState(user?.email ?? '');
-  const [orgName, setOrgName] = useState(state.organizationName || 'Forge Agencies');
+  const [orgName, setOrgName] = useState(
+    state.organizationName && state.organizationName !== 'Forge Agencies' ? state.organizationName : '',
+  );
   
   // Password fields
   const [currentPassword, setCurrentPassword] = useState('');
@@ -115,6 +119,10 @@ export function SettingsView() {
 
   const handleSaveOrg = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!orgName.trim()) {
+      alert("Organization name cannot be empty.");
+      return;
+    }
     updateState({ organizationName: orgName });
     setOrgSaved(true);
     setTimeout(() => setOrgSaved(false), 3000);
@@ -122,6 +130,11 @@ export function SettingsView() {
 
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault();
+    const passError = validatePassword(newPassword);
+    if (passError) {
+      alert(passError);
+      return;
+    }
     if (newPassword !== confirmPassword) {
       alert("New passwords do not match!");
       return;
@@ -390,39 +403,30 @@ export function SettingsView() {
 
             <form onSubmit={handleChangePassword} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-text-secondary">Current Password</label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-text-secondary">New Password</label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-text-secondary">Confirm New Password</label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition"
-                  />
-                </div>
+                <PasswordInput
+                  label="Current Password"
+                  placeholder="••••••••"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="text-xs py-2"
+                  required
+                />
+                <PasswordInput
+                  label="New Password"
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="text-xs py-2"
+                  required
+                />
+                <PasswordInput
+                  label="Confirm New Password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="text-xs py-2"
+                  required
+                />
               </div>
 
               <div className="flex justify-end">
@@ -692,13 +696,12 @@ export function SettingsView() {
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold uppercase text-slate-500">Password</label>
-                  <input
-                    type="password"
-                    required
+                  <PasswordInput
                     placeholder="••••••••"
                     value={instaPassword}
                     onChange={(e) => setInstaPassword(e.target.value)}
-                    className="border border-[#EFEFEF] bg-white text-slate-800 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-instagram-pink"
+                    className="border border-[#EFEFEF] bg-white text-slate-800 rounded-lg text-xs py-1.5 focus:border-instagram-pink"
+                    required
                   />
                 </div>
 

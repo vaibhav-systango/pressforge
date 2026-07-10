@@ -235,7 +235,7 @@ export const INITIAL_STATE: AppState = {
   currentUserName: '',
 
   accountType: 'organization',
-  organizationName: 'Forge Agencies',
+  organizationName: '',
   orgUsers: SEED_ORG_USERS,
 
   onboardingStep: 0,

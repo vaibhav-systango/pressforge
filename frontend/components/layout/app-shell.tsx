@@ -6,6 +6,8 @@ import { useAppState } from "@/lib/queries/use-app-state";
 import { useAuth } from "@/lib/hooks/queries/use-auth";
 import React, { useState } from "react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { formatAccountTypeLabel } from "@/lib/auth/me-user";
+import { formatOrganizationRole } from "@/lib/invitations/role-hierarchy";
 import {
   LayoutDashboard,
   Calendar,
@@ -42,6 +44,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     state.currentUserType === "individual" ||
     state.accountType === "individual";
   const displayUserName = user?.name || state.currentUserName || "User";
+  const userInitials = displayUserName
+    .split(/\s+/)
+    .map((n) => n[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase() || "U";
+
+  const displayRole = user
+    ? user.organizationRole
+      ? formatOrganizationRole(user.organizationRole)
+      : formatAccountTypeLabel(user.accountType)
+    : (isClient ? "Client Reviewer" : "Brand Manager");
 
   // Get active workspace details
   const activeWorkspace =
@@ -85,9 +99,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2">
             <span className="text-xl font-bold tracking-tight text-text-primary flex items-center">
               PRESSFORGE<span className="text-instagram-pink ml-0.5">.AI</span>
-            </span>
-            <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-text-secondary px-1.5 py-0.5 rounded-full font-medium">
-              WIP
             </span>
           </div>
 
@@ -405,16 +416,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="p-4 border-t border-border-primary flex flex-col gap-2 bg-bg-card transition-colors duration-200">
           <div className="flex items-center gap-3 p-1.5">
             <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center font-bold text-text-primary text-sm">
-              {isClient
-                ? currentClient?.name.substring(0, 2).toUpperCase()
-                : "JD"}
+              {userInitials}
             </div>
             <div>
               <p className="text-sm font-semibold text-text-primary leading-none">
-                {isClient ? currentClient?.name : "Jane Doe"}
+                {displayUserName}
               </p>
               <p className="text-xs text-text-secondary mt-0.5">
-                {isClient ? "Client Reviewer" : "Brand Manager"}
+                {displayRole}
               </p>
             </div>
           </div>

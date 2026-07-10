@@ -3,7 +3,7 @@
 import { notifications } from '@mantine/notifications';
 import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { OnboardingStepper } from '@/components/onboarding/onboarding-stepper';
 import { useCompleteOnboardingMutation } from '@/lib/hooks/mutations/use-onboarding';
 import { buildOnboardingPayload } from '@/lib/onboarding/map-payload';
@@ -21,35 +21,85 @@ export function KycView() {
   const isOrg = state.accountType === 'organization';
 
   // Form States
-  const [fullName, setFullName] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [dob, setDob] = useState('');
-  const [idType, setIdType] = useState('passport');
+  const [fullName, setFullName] = useState(state.kycDetails?.fullName || '');
+  const [phoneNumber, setPhoneNumber] = useState(state.kycDetails?.phoneNumber || '');
+  const [dob, setDob] = useState(state.kycDetails?.dob || '');
+  const [idType, setIdType] = useState(state.kycDetails?.idType || 'passport');
   
-  const [companyName, setCompanyName] = useState(state.organizationName || '');
-  const [businessType, setBusinessType] = useState('llc');
-  const [taxId, setTaxId] = useState('');
-  const [businessAddress, setBusinessAddress] = useState('');
-  const [contactPerson, setContactPerson] = useState('');
+  const [companyName, setCompanyName] = useState(state.kycDetails?.companyName || state.organizationName || '');
+  const [businessType, setBusinessType] = useState(state.kycDetails?.businessType || 'llc');
+  const [taxId, setTaxId] = useState(state.kycDetails?.taxId || '');
+  const [businessAddress, setBusinessAddress] = useState(state.kycDetails?.businessAddress || '');
+  const [contactPerson, setContactPerson] = useState(state.kycDetails?.contactPerson || '');
 
   // UI States
-  const [uploadedFile, setUploadedFile] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<string | null>(state.kycDetails?.uploadedFile || null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [fileType, setFileType] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [submitError, setSubmitError] = useState('');
 
-  const handleSimulatedUpload = () => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Restore file preview and metadata on mount if present
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedPreview = sessionStorage.getItem('kyc_file_preview');
+      const savedFileType = sessionStorage.getItem('kyc_file_type');
+      if (savedPreview) setFilePreview(savedPreview);
+      if (savedFileType) setFileType(savedFileType);
+    }
+  }, []);
+
+  const handleFile = (file: File) => {
+    // Validate size (Max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File is too large. Max size is 10MB.');
+      return;
+    }
+
+    // Validate format
+    const allowedTypes = ['image/png', 'image/jpeg', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Invalid file format. Please upload PDF, PNG, or JPG.');
+      return;
+    }
+
     setIsUploading(true);
     let currentProgress = 0;
     const interval = setInterval(() => {
-      currentProgress += 20;
+      currentProgress += 25;
       if (currentProgress >= 100) {
         clearInterval(interval);
-        setUploadedFile(isIndividual ? 'passport_scan.jpg' : 'business_registration.pdf');
-        setIsUploading(false);
+        setUploadedFile(file.name);
+        setFileType(file.type);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('kyc_file_type', file.type);
+        }
+
+        if (file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const resultStr = reader.result as string;
+            setFilePreview(resultStr);
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('kyc_file_preview', resultStr);
+            }
+            setIsUploading(false);
+          };
+          reader.readAsDataURL(file);
+        } else {
+          setFilePreview(null);
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('kyc_file_preview');
+          }
+          setIsUploading(false);
+        }
       }
-    }, 150);
+    }, 100);
   };
 
   const handleFinish = async (e: React.FormEvent) => {
@@ -73,8 +123,39 @@ export function KycView() {
     }, 150);
 
     try {
+      // Save KYC details to frontend session state
+      await updateState((prev) => ({
+        ...prev,
+        kycDetails: {
+          fullName,
+          phoneNumber,
+          dob,
+          idType,
+          companyName,
+          businessType,
+          taxId,
+          businessAddress,
+          contactPerson,
+          uploadedFile: uploadedFile || undefined,
+        },
+      }));
+
       const payload = buildOnboardingPayload(
-        state,
+        {
+          ...state,
+          kycDetails: {
+            fullName,
+            phoneNumber,
+            dob,
+            idType,
+            companyName,
+            businessType,
+            taxId,
+            businessAddress,
+            contactPerson,
+            uploadedFile: uploadedFile || undefined,
+          },
+        },
         isOrg
           ? {
               companyName,
@@ -82,6 +163,7 @@ export function KycView() {
               taxId,
               businessAddress,
               contactPerson,
+              uploadedFile: uploadedFile || undefined,
             }
           : undefined,
       );
@@ -101,6 +183,12 @@ export function KycView() {
         message: 'Your account is ready. Welcome to PressForge!',
         color: 'green',
       });
+
+      // Clear local preview storage
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('kyc_file_preview');
+        sessionStorage.removeItem('kyc_file_type');
+      }
 
       router.push('/app');
     } catch (error) {
@@ -330,31 +418,78 @@ export function KycView() {
                 </label>
                 
                 {uploadedFile ? (
-                  <div className="border border-green-200 bg-green-50/50 rounded-2xl p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
-                        <Check className="w-4 h-4" />
+                  <div className="border border-slate-100 bg-[#FAFAFA] rounded-2xl p-4 flex flex-col gap-3 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {filePreview ? (
+                          <div className="w-12 h-12 rounded-lg overflow-hidden border border-slate-100 flex-shrink-0">
+                            <img src={filePreview} alt="Preview" className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className="w-12 h-12 rounded-lg bg-pink-50 text-instagram-pink flex items-center justify-center flex-shrink-0">
+                            <FileText className="w-6 h-6" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-800 truncate max-w-[220px]">
+                            {uploadedFile}
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            {(fileType?.split('/')?.[1] || 'document').toUpperCase()}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-xs font-bold text-slate-800 truncate max-w-[200px]">{uploadedFile}</p>
-                        <p className="text-[10px] text-green-700">Document Uploaded Successfully</p>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUploadedFile(null);
+                          setFilePreview(null);
+                          setFileType(null);
+                          if (typeof window !== 'undefined') {
+                            sessionStorage.removeItem('kyc_file_preview');
+                            sessionStorage.removeItem('kyc_file_type');
+                          }
+                        }}
+                        className="text-xs text-red-500 hover:text-red-600 font-semibold px-2 py-1 rounded-lg hover:bg-red-50 transition"
+                      >
+                        Remove
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setUploadedFile(null)}
-                      className="text-xs text-red-500 hover:underline font-semibold"
-                    >
-                      Remove
-                    </button>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={handleSimulatedUpload}
-                    disabled={isUploading}
-                    className="border border-dashed border-[#EFEFEF] rounded-2xl p-6 text-center hover:bg-slate-50 transition duration-150 cursor-pointer flex flex-col items-center justify-center gap-2 w-full text-slate-500 disabled:opacity-75"
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDragging(true);
+                    }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) {
+                        handleFile(file);
+                      }
+                    }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`border border-dashed rounded-2xl p-6 text-center hover:bg-slate-50 transition duration-150 cursor-pointer flex flex-col items-center justify-center gap-2 w-full text-slate-500 ${
+                      isDragging
+                        ? 'border-instagram-pink bg-pink-50/30'
+                        : 'border-[#EFEFEF]'
+                    }`}
                   >
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept="image/png, image/jpeg, application/pdf"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleFile(file);
+                        }
+                      }}
+                    />
                     {isUploading ? (
                       <div className="flex flex-col items-center gap-2">
                         <div className="w-6 h-6 border-2 border-instagram-pink border-t-transparent rounded-full animate-spin"></div>
@@ -369,7 +504,7 @@ export function KycView() {
                         </div>
                       </>
                     )}
-                  </button>
+                  </div>
                 )}
               </div>
 
