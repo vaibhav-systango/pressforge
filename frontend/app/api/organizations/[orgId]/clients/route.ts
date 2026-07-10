@@ -17,11 +17,13 @@ export async function GET(
   const search = searchParams.get('search');
   const plan = searchParams.get('plan');
   const statusFilter = searchParams.get('status_filter');
+  const roleFilter = searchParams.get('role_filter');
 
   const queryParams = new URLSearchParams();
   if (search) queryParams.set('search', search);
   if (plan) queryParams.set('plan', plan);
   if (statusFilter) queryParams.set('status_filter', statusFilter);
+  if (roleFilter) queryParams.set('role_filter', roleFilter);
 
   const queryString = queryParams.toString();
   const endpoint = `/organizations/${orgId}/clients${queryString ? `?${queryString}` : ''}`;

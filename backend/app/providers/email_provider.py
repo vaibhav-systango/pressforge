@@ -10,10 +10,17 @@ logger = logging.getLogger(__name__)
 class EmailProvider:
 
     def send(self, *, to: str, subject: str, html: str) -> None:
-        if not settings.SENDGRID_API_KEY:
-            raise RuntimeError("SENDGRID_API_KEY is not configured")
-        if not settings.SENDGRID_FROM:
-            raise RuntimeError("SENDGRID_FROM is not configured")
+        if not settings.SENDGRID_API_KEY or not settings.SENDGRID_FROM:
+            logger.warning(
+                "SendGrid is not configured. Email logged to console:\n"
+                "To: %s\n"
+                "Subject: %s\n"
+                "Body:\n%s",
+                to,
+                subject,
+                html
+            )
+            return
 
         message = Mail(
             from_email=settings.SENDGRID_FROM,

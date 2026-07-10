@@ -24,3 +24,23 @@ class InviteUserResponse(BaseModel):
 class AcceptInvitationRequest(BaseModel):
     token: str
     password: str = Field(..., min_length=8, max_length=30)
+
+
+class ClientResponse(BaseModel):
+    id: str
+    name: str
+    email: str
+    status: str
+    role: str
+    expiresAt: int | None = None
+    isAccepted: bool
+    workspaceId: str | None = None
+    plan: str | None = "Free"
+
+    class Config:
+        from_attributes = True
+
+
+class InvitableRoleResponse(BaseModel):
+    value: str
+    label: str

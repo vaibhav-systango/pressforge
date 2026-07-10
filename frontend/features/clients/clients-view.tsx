@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
 import { useAuth } from '@/lib/hooks/queries/use-auth';
 import { useInviteMemberMutation } from '@/lib/hooks/mutations/use-invitation';
-import { formatOrganizationRole, getInvitableRoles, resolveOrganizationRole, type InvitableRole } from '@/lib/invitations/role-hierarchy';
 import { ApiError } from '@/lib/utils/api-errors';
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -22,27 +21,38 @@ export function ClientsView() {
   const { state } = useAppState();
   const { user } = useAuth();
   const organizationId = user?.organizationId ?? null;
-  const invitableRoles = getInvitableRoles(
-    resolveOrganizationRole(user?.organizationRole, user?.accountType),
-  );
   const inviteMutation = useInviteMemberMutation(organizationId ?? '');
   const router = useRouter();
 
   const isClient = state.currentUserType === 'client';
-  const canInvite = Boolean(organizationId) && invitableRoles.length > 0;
   
   // Search and Filter States
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [selectedPlanFilter, setSelectedPlanFilter] = useState<string>('all');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<'all' | 'active' | 'pending' | 'expired'>('all');
+  const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('all');
 
   // Backend invitation form
   const [isInviting, setIsInviting] = useState(false);
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<InvitableRole>('CLIENT');
+  const [inviteRole, setInviteRole] = useState<string>('');
   const [inviteError, setInviteError] = useState('');
+
+  // Fetch Invitable Roles from Backend
+  const { data: invitableRoles = [], isLoading: isRolesLoading } = useQuery({
+    queryKey: ['invitable-roles', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const res = await fetch(`/api/organizations/${organizationId}/invitable-roles`);
+      if (!res.ok) throw new Error('Failed to fetch invitable roles');
+      return res.json() as Promise<{ value: string; label: string }[]>;
+    },
+    enabled: Boolean(organizationId),
+  });
+
+  const canInvite = Boolean(organizationId) && (isRolesLoading || invitableRoles.length > 0);
 
   // Fetch ALL Clients (for stats cards)
   const { data: allClients = [], refetch: refetchAllClients } = useQuery({
@@ -58,13 +68,14 @@ export function ClientsView() {
 
   // Fetch Filtered Clients from Backend
   const { data: clients = [], isLoading: isClientsLoading, refetch: refetchClients } = useQuery({
-    queryKey: ['clients', organizationId, debouncedSearchTerm, selectedPlanFilter, selectedStatusFilter],
+    queryKey: ['clients', organizationId, debouncedSearchTerm, selectedPlanFilter, selectedStatusFilter, selectedRoleFilter],
     queryFn: async () => {
       if (!organizationId) return [];
       const queryParams = new URLSearchParams();
       if (debouncedSearchTerm) queryParams.set('search', debouncedSearchTerm);
       if (selectedPlanFilter !== 'all') queryParams.set('plan', selectedPlanFilter);
       if (selectedStatusFilter !== 'all') queryParams.set('status_filter', selectedStatusFilter);
+      if (selectedRoleFilter !== 'all') queryParams.set('role_filter', selectedRoleFilter);
 
       const res = await fetch(`/api/organizations/${organizationId}/clients?${queryParams.toString()}`);
       if (!res.ok) throw new Error('Failed to fetch clients');
@@ -82,8 +93,6 @@ export function ClientsView() {
       return res.json() as Promise<string[]>;
     },
   });
-
-
 
   // Delete Invitation Mutation
   const deleteInviteMutation = useMutation({
@@ -114,9 +123,7 @@ export function ClientsView() {
     },
   });
 
-  const selectedInviteRole: InvitableRole = invitableRoles.includes(inviteRole)
-    ? inviteRole
-    : (invitableRoles[0] ?? 'CLIENT');
+  const selectedInviteRole = inviteRole || (invitableRoles[0]?.value ?? '');
 
   const handleSendInvitation = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,14 +143,14 @@ export function ClientsView() {
       await inviteMutation.mutateAsync({
         email: inviteEmail.trim(),
         fullName: inviteName.trim(),
-        role: selectedInviteRole,
+        role: selectedInviteRole as any,
       });
 
       refetchClients();
       refetchAllClients();
       setInviteName('');
       setInviteEmail('');
-      setInviteRole(invitableRoles[0] ?? 'CLIENT');
+      setInviteRole(invitableRoles[0]?.value ?? '');
       setIsInviting(false);
 
       notifications.show({
@@ -282,6 +289,21 @@ export function ClientsView() {
             className="py-1.5 px-3 text-xs"
             containerClassName="w-36"
           />
+
+          {/* Role Filter */}
+          <Select
+            value={selectedRoleFilter}
+            onChange={(e) => setSelectedRoleFilter(e.target.value)}
+            options={[
+              { value: 'all', label: 'All Roles' },
+              { value: 'ADMIN', label: 'Admin' },
+              { value: 'MEMBER', label: 'Member' },
+              { value: 'CLIENT', label: 'Client' },
+              { value: 'OWNER', label: 'Owner' }
+            ]}
+            className="py-1.5 px-3 text-xs"
+            containerClassName="w-36"
+          />
         </div>
       </div>
 
@@ -334,6 +356,20 @@ export function ClientsView() {
                       ? 'bg-blue-100 border-blue-200 text-blue-700 dark:bg-blue-950/20 dark:border-blue-900 dark:text-blue-400'
                       : 'bg-slate-100 border-slate-200 text-slate-700 dark:bg-slate-950/20 dark:border-slate-900 dark:text-slate-400';
 
+                  const getRoleBadgeStyles = (role: string) => {
+                    const normalized = role?.toUpperCase();
+                    if (normalized === 'OWNER') {
+                      return 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-950/20 dark:border-purple-900 dark:text-purple-400';
+                    }
+                    if (normalized === 'ADMIN') {
+                      return 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900 dark:text-red-400';
+                    }
+                    if (normalized === 'MEMBER') {
+                      return 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950/20 dark:border-blue-900 dark:text-blue-400';
+                    }
+                    return 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-900 dark:text-emerald-400';
+                  };
+
                   return (
                     <div key={client.id} className="border border-border-primary rounded-xl p-5 bg-bg-app/20 hover:border-slate-300 dark:hover:border-slate-800 transition duration-150 flex flex-col justify-between gap-4">
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -345,6 +381,11 @@ export function ClientsView() {
                             <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${statusStyles}`}>
                               {computedStatus}
                             </span>
+                            {client.role && (
+                              <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase border ${getRoleBadgeStyles(client.role)}`}>
+                                {client.role}
+                              </span>
+                            )}
                             {client.plan && (
                               <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold border ${planStyles}`}>
                                 {client.plan} Plan
@@ -435,10 +476,10 @@ export function ClientsView() {
                 <Select
                   label="Role"
                   value={selectedInviteRole}
-                  onChange={(e) => setInviteRole(e.target.value as InvitableRole)}
+                  onChange={(e) => setInviteRole(e.target.value)}
                   options={invitableRoles.map((role) => ({
-                    value: role,
-                    label: formatOrganizationRole(role)
+                    value: role.value,
+                    label: role.label
                   }))}
                   className="py-2 text-xs"
                 />

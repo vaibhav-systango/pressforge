@@ -2,6 +2,8 @@ from sqlalchemy.orm import Session
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.organization_kyc import OrganizationKyc
+from app.models.user import User
+
 
 class OrganizationRepository:
 
@@ -98,5 +100,37 @@ class OrganizationRepository:
         db.flush()
         return kyc
 
+    def get_by_id(self, db: Session, organization_id: str) -> Organization | None:
+        """Fetch a single organization by its unique ID."""
+        return db.query(Organization).filter(Organization.id == organization_id).first()
+
+    def get_members_by_role_with_users(
+        self,
+        db: Session,
+        organization_id: str,
+        role: str | None = None,
+        search: str | None = None,
+        invited_by: str | None = None
+    ) -> list[tuple[OrganizationMember, User]]:
+        """Fetch members of an organization with optional role, search, and invitedBy filters."""
+        query = (
+            db.query(OrganizationMember, User)
+            .join(User, OrganizationMember.userId == User.id)
+            .filter(
+                OrganizationMember.organizationId == organization_id
+            )
+        )
+        if role:
+            query = query.filter(OrganizationMember.role == role)
+        if invited_by:
+            query = query.filter(OrganizationMember.invitedBy == invited_by)
+        if search:
+            search_term = f"%{search}%"
+            query = query.filter(
+                User.fullName.ilike(search_term) | User.email.ilike(search_term)
+            )
+        return query.all()
+
 # Export a single repository instance
 organization_repository = OrganizationRepository()
+
