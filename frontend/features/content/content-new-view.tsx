@@ -11,6 +11,7 @@ import {
   Heart, MessageCircle, Send as ShareIcon, Bookmark, Building, Edit3,
   Link2, Undo, Check, Linkedin, Share2, ThumbsUp, MoreHorizontal
 } from 'lucide-react';
+import { Select } from '@/components/common/select';
 
 const TONES = ['professional', 'friendly', 'witty', 'bold', 'empathetic', 'casual', 'formal'];
 const GOALS = [
@@ -726,36 +727,33 @@ export function ContentNewView() {
               {/* Preferences */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-text-secondary">Objective</label>
-                  <select
+                  <Select
+                    label="Objective"
                     value={goal}
                     onChange={(e) => setGoal(e.target.value)}
-                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-2.5 py-2 text-xs focus:border-instagram-pink outline-none"
-                  >
-                    {GOALS.map(g => <option key={g} value={g}>{g}</option>)}
-                  </select>
+                    options={GOALS}
+                    className="py-2 text-xs"
+                  />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-text-secondary">Call to Action (CTA)</label>
-                  <select
+                  <Select
+                    label="Call to Action (CTA)"
                     value={cta}
                     onChange={(e) => setCta(e.target.value)}
-                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-2.5 py-2 text-xs focus:border-instagram-pink outline-none"
-                  >
-                    {CTAS.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                    options={CTAS}
+                    className="py-2 text-xs"
+                  />
                 </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-text-secondary">Visual Aesthetic / Image Style</label>
-                <select
+                <Select
+                  label="Visual Aesthetic / Image Style"
                   value={visualStyle}
                   onChange={(e) => setVisualStyle(e.target.value)}
-                  className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-2.5 py-2 text-xs focus:border-instagram-pink outline-none"
-                >
-                  {VISUAL_STYLES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+                  options={VISUAL_STYLES}
+                  className="py-2 text-xs"
+                />
               </div>
 
               {/* References & Inspiration */}
@@ -826,16 +824,13 @@ export function ContentNewView() {
                 {activeWorkspace ? (
                   <div className="bg-bg-app border border-border-primary rounded-xl p-3.5 space-y-3 text-xs">
                     <div className="flex flex-col gap-1">
-                      <label className="font-semibold text-text-secondary">Active Tone</label>
-                      <select
+                      <Select
+                        label="Active Tone"
                         value={activeWorkspace.tone}
                         onChange={handleToneChange}
-                        className="border border-border-primary bg-bg-card text-text-primary rounded-xl px-2.5 py-1.5 text-xs focus:border-instagram-pink outline-none"
-                      >
-                        {TONES.map(t => (
-                          <option key={t} value={t} className="capitalize">{t}</option>
-                        ))}
-                      </select>
+                        options={TONES.map(t => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) }))}
+                        className="py-1.5 text-xs"
+                      />
                     </div>
 
                     <div className="flex flex-col gap-1">

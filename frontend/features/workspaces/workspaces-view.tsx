@@ -10,6 +10,7 @@ import {
   Layers, ExternalLink, Globe, FileText, Calendar, Clock, Repeat
 } from 'lucide-react';
 import type { Workspace, ClientUser, Schedule } from '@/lib/types';
+import { Select } from '@/components/common/select';
 
 const TONES = ['professional', 'friendly', 'witty', 'bold', 'empathetic'] as const;
 type ToneOption = (typeof TONES)[number];
@@ -448,16 +449,13 @@ export function WorkspacesView() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold text-text-secondary">Active Tone</label>
-                <select
+                <Select
+                  label="Active Tone"
                   value={newWorkspaceTone}
                   onChange={(e) => setNewWorkspaceTone(e.target.value)}
-                  className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3 py-2.5 text-xs focus:border-instagram-pink outline-none"
-                >
-                  {TONES.map(t => (
-                    <option key={t} value={t} className="capitalize">{t}</option>
-                  ))}
-                </select>
+                  options={TONES.map(t => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) }))}
+                  className="py-2.5 text-xs"
+                />
               </div>
 
               <button
@@ -812,17 +810,18 @@ export function WorkspacesView() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] text-text-secondary font-bold uppercase block mb-1">Recurrence</label>
-                    <select 
-                      value={newScheduleRecurrence} 
-                      onChange={(e) => setNewScheduleRecurrence(e.target.value as any)} 
-                      className="w-full border border-border-primary bg-bg-app text-text-primary rounded-xl px-3 py-2.5 text-xs outline-none focus:border-instagram-pink transition"
-                    >
-                      <option value="none">None (one-time)</option>
-                      <option value="daily">Daily</option>
-                      <option value="weekly">Weekly</option>
-                      <option value="monthly">Monthly</option>
-                    </select>
+                    <Select
+                      label="Recurrence"
+                      value={newScheduleRecurrence}
+                      onChange={(e) => setNewScheduleRecurrence(e.target.value as any)}
+                      options={[
+                        { value: 'none', label: 'None (one-time)' },
+                        { value: 'daily', label: 'Daily' },
+                        { value: 'weekly', label: 'Weekly' },
+                        { value: 'monthly', label: 'Monthly' }
+                      ]}
+                      className="py-2.5 text-xs"
+                    />
                   </div>
 
                   <div className="md:col-span-4 flex items-center justify-between mt-2 pt-2 border-t border-dashed border-border-primary">

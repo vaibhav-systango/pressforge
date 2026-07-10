@@ -14,6 +14,7 @@ import {
   Building,
 } from 'lucide-react';
 import { PasswordInput } from '@/components/common/password-input';
+import { Select } from '@/components/common/select';
 
 export function OrganizationView() {
   const router = useRouter();
@@ -626,20 +627,19 @@ export function OrganizationView() {
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-[#737373]" htmlFor="team-size">
-                        Team Size
-                      </label>
-                      <select
+                      <Select
                         id="team-size"
+                        label="Team Size"
                         value={teamSize}
                         onChange={(e) => setTeamSize(e.target.value)}
-                        className="border border-[#EFEFEF] bg-white rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
-                      >
-                        <option value="1-5">1-5 Members (Starter)</option>
-                        <option value="6-20">6-20 Members (Growth)</option>
-                        <option value="21-100">21-100 Members (Pro)</option>
-                        <option value="100+">100+ Members (Enterprise)</option>
-                      </select>
+                        options={[
+                          { value: '1-5', label: '1-5 Members (Starter)' },
+                          { value: '6-20', label: '6-20 Members (Growth)' },
+                          { value: '21-100', label: '21-100 Members (Pro)' },
+                          { value: '100+', label: '100+ Members (Enterprise)' }
+                        ]}
+                        className="py-2.5 text-sm"
+                      />
                     </div>
                   </div>
 

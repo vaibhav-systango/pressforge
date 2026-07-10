@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
+import { Select } from '@/components/common/select';
 import { useAppState } from '@/lib/queries/use-app-state';
 import {
   Sparkles,
@@ -26,6 +28,7 @@ import {
 
 export function DashboardView() {
   const { state, isLoading } = useAppState();
+  const [dashboardTimeframe, setDashboardTimeframe] = useState('Last 7 Days');
 
   if (isLoading) {
     return (
@@ -360,10 +363,13 @@ export function DashboardView() {
               <h3 className="text-base font-bold text-text-primary">Weekly Engagement Trend</h3>
               <p className="text-xs text-text-secondary">Likes, shares, and comments count</p>
             </div>
-            <select className="border border-border-primary text-xs font-semibold text-text-primary bg-bg-card rounded-lg px-2.5 py-1.5">
-              <option>Last 7 Days</option>
-              <option>Last 30 Days</option>
-            </select>
+            <Select
+              value={dashboardTimeframe}
+              onChange={(e) => setDashboardTimeframe(e.target.value)}
+              options={['Last 7 Days', 'Last 30 Days']}
+              className="py-1 px-2.5 text-xs font-semibold"
+              containerClassName="w-36"
+            />
           </div>
 
           {/* SVG Line Graph */}
