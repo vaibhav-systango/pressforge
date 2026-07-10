@@ -105,6 +105,15 @@ export interface IndividualOnboardingDetails {
   website?: string | null;
 }
 
+export interface KycDocumentReference {
+  publicId: string;
+  secureUrl: string;
+  resourceType?: string | null;
+  format?: string | null;
+  bytes?: number | null;
+  originalFilename?: string | null;
+}
+
 export interface OrganizationOnboardingDetails {
   name: string;
   website?: string | null;
@@ -119,7 +128,7 @@ export interface OrganizationOnboardingDetails {
   registeredAddress: string;
   primaryContactName: string;
   primaryContactDesignation?: string | null;
-  businessDocumentFileKey?: string | null;
+  document: KycDocumentReference;
 }
 
 export interface OnboardingRequest {

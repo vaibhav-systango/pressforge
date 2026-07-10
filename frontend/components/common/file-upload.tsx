@@ -11,6 +11,7 @@ interface FileUploadProps {
   label?: string;
   accept?: string;
   maxSize?: number; // in bytes
+  uploadUrl?: string;
 }
 
 export function FileUpload({
@@ -21,12 +22,13 @@ export function FileUpload({
   label,
   accept = 'image/png, image/jpeg, application/pdf',
   maxSize = 10 * 1024 * 1024, // 10MB
+  uploadUrl = '/api/uploads/kyc',
 }: FileUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     // Validate size
     if (file.size > maxSize) {
       alert(`File is too large. Max size is ${Math.round(maxSize / (1024 * 1024))}MB.`);
@@ -49,27 +51,29 @@ export function FileUpload({
     }
 
     setIsUploading(true);
-    let currentProgress = 0;
-    const interval = setInterval(() => {
-      currentProgress += 25;
-      if (currentProgress >= 100) {
-        clearInterval(interval);
-        const fileKey = `kyc-docs/${Date.now()}_${file.name}`;
-        
-        if (file.type.startsWith('image/')) {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const resultStr = reader.result as string;
-            onChange(fileKey, resultStr, file.type);
-            setIsUploading(false);
-          };
-          reader.readAsDataURL(file);
-        } else {
-          onChange(fileKey, null, file.type);
-          setIsUploading(false);
-        }
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `Upload failed (${response.status})`);
       }
-    }, 100);
+
+      const result = await response.json();
+      const isImage = file.type.startsWith('image/');
+      onChange(JSON.stringify(result), isImage ? result.secureUrl : null, file.type);
+    } catch (err: any) {
+      console.error('File upload error:', err);
+      alert(err.message || 'File upload failed. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const getFormatLabel = () => {
@@ -82,7 +86,15 @@ export function FileUpload({
       .join(', ');
   };
 
-  const displayFilename = value ? value.replace(/^kyc-docs\/\d+_(.+)$/, '$1') : '';
+  let displayFilename = '';
+  if (value) {
+    try {
+      const parsed = JSON.parse(value);
+      displayFilename = parsed.originalFilename || parsed.publicId || '';
+    } catch {
+      displayFilename = value.replace(/^kyc-docs\/\d+_(.+)$/, '$1');
+    }
+  }
 
   return (
     <div className="flex flex-col gap-1.5 w-full">

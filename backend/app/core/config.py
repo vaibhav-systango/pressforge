@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     CLOUDINARY_API_KEY: str = Field(default="", description="Cloudinary API key")
     CLOUDINARY_API_SECRET: str = Field(default="", description="Cloudinary API secret")
     CLOUDINARY_KYC_FOLDER: str = Field(default="pressforge/kyc", description="Cloudinary folder for KYC uploads")
+    CLOUDINARY_BRAND_ASSETS_FOLDER: str = Field(default="pressforge/brand_assets", description="Cloudinary folder for brand assets uploads")
 
     # Configuration for Pydantic Settings
     model_config = SettingsConfigDict(

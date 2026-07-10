@@ -22,3 +22,11 @@ KYC_ALLOWED_CONTENT_TYPES = {
     "image/jpg",
 }
 KYC_CLOUDINARY_FOLDER = "pressforge/kyc"
+
+BRAND_ASSET_MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024
+BRAND_ASSET_ALLOWED_CONTENT_TYPES = {
+    "application/pdf",
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+}

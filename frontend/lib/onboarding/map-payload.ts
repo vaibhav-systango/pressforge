@@ -1,5 +1,5 @@
 import type { AppState } from '@/lib/types';
-import type { OnboardingRequest } from '@/lib/types/api';
+import type { OnboardingRequest, KycDocumentReference } from '@/lib/types/api';
 
 export interface OrganizationKycInput {
   companyName: string;
@@ -45,6 +45,33 @@ function parseContactPerson(contact: string): { name: string; designation?: stri
   return { name: contact.trim() };
 }
 
+export function parseDocumentReference(uploadedFile: string): KycDocumentReference {
+  try {
+    const parsed = JSON.parse(uploadedFile);
+    if (parsed && typeof parsed === 'object' && parsed.publicId && parsed.secureUrl) {
+      return {
+        publicId: parsed.publicId,
+        secureUrl: parsed.secureUrl,
+        resourceType: parsed.resourceType || null,
+        format: parsed.format || null,
+        bytes: parsed.bytes || null,
+        originalFilename: parsed.originalFilename || null,
+      };
+    }
+  } catch {
+    // Ignore and proceed to fallback
+  }
+
+  // Fallback for legacy or raw file values
+  return {
+    publicId: uploadedFile,
+    secureUrl: uploadedFile,
+    resourceType: 'raw',
+    format: uploadedFile.split('.').pop() || null,
+    originalFilename: uploadedFile.replace(/^kyc-docs\/\d+_(.+)$/, '$1'),
+  };
+}
+
 export function buildOnboardingPayload(
   state: AppState,
   orgKyc?: OrganizationKycInput,
@@ -54,6 +81,9 @@ export function buildOnboardingPayload(
   if (isOrganization) {
     if (!orgKyc) {
       throw new Error('Organization KYC details are required.');
+    }
+    if (!orgKyc.uploadedFile) {
+      throw new Error('KYC document upload is required.');
     }
 
     const contact = parseContactPerson(orgKyc.contactPerson);
@@ -78,7 +108,7 @@ export function buildOnboardingPayload(
         registeredAddress: orgKyc.businessAddress,
         primaryContactName: contact.name,
         primaryContactDesignation: contact.designation || null,
-        businessDocumentFileKey: orgKyc.uploadedFile || null,
+        document: parseDocumentReference(orgKyc.uploadedFile),
       },
     };
   }
