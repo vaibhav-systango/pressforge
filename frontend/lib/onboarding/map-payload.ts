@@ -7,6 +7,7 @@ export interface OrganizationKycInput {
   taxId: string;
   businessAddress: string;
   contactPerson: string;
+  uploadedFile?: string | null;
 }
 
 const GOAL_MAP: Record<string, string> = {
@@ -64,7 +65,11 @@ export function buildOnboardingPayload(
         website: state.organizationWebsite || null,
         teamSize: state.organizationTeamSize || null,
         industries: state.organizationIndustries ?? [],
-        primaryGoal: mapGoal(state.organizationObjective || 'acquire clients'),
+        primaryGoal: mapGoal(
+          (state.organizationObjective || 'acquire clients')
+            .split(',')[0]
+            .trim()
+        ),
         objective: state.organizationObjective || null,
         description: state.organizationDescription || null,
         legalName: orgKyc.companyName,
@@ -73,7 +78,7 @@ export function buildOnboardingPayload(
         registeredAddress: orgKyc.businessAddress,
         primaryContactName: contact.name,
         primaryContactDesignation: contact.designation || null,
-        businessDocumentFileKey: null,
+        businessDocumentFileKey: orgKyc.uploadedFile || null,
       },
     };
   }

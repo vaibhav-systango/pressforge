@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useAppState } from '@/lib/queries/use-app-state';
 import React, { useState } from 'react';
+import { Select } from '@/components/common/select';
 import { 
   BarChart3, TrendingUp, Sparkles, Instagram, 
   Linkedin, ArrowUpRight, Award, ChevronDown, Building
@@ -210,18 +211,16 @@ export function AnalyticsView() {
             <span className="text-xs font-semibold text-text-secondary flex items-center gap-1">
               <Building className="w-3.5 h-3.5" /> Workspace Filter:
             </span>
-            <select
+            <Select
               value={selectedWorkspaceFilter}
               onChange={(e) => setSelectedWorkspaceFilter(e.target.value)}
-              className="border border-border-primary bg-bg-card text-text-primary rounded-xl px-3.5 py-2 text-xs font-bold focus:border-instagram-pink outline-none cursor-pointer transition shadow-sm"
-            >
-              <option value="all">All Workspaces (Combined)</option>
-              {state.workspaces.map((ws) => (
-                <option key={ws.id} value={ws.id}>
-                  {ws.name}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: 'all', label: 'All Workspaces (Combined)' },
+                ...state.workspaces.map((ws) => ({ value: ws.id, label: ws.name }))
+              ]}
+              className="py-2 text-xs font-bold"
+              containerClassName="w-56"
+            />
           </div>
         )}
       </div>

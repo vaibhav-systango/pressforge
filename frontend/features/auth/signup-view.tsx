@@ -8,9 +8,11 @@ import React, { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 
 import { ErrorMessage } from '@/components/common/error-message';
+import { PasswordInput } from '@/components/common/password-input';
 import { getPostAuthRedirect } from '@/lib/auth/redirect';
 import { useSignupMutation } from '@/lib/hooks/mutations/use-auth';
 import { ApiError } from '@/lib/utils/api-errors';
+import { validateEmail, validatePassword } from '@/lib/utils/validation';
 
 export function SignupView() {
   const router = useRouter();
@@ -30,16 +32,8 @@ export function SignupView() {
         if (value.length > 100) return 'Full name must be 100 characters or less';
         return null;
       },
-      email: (value) => {
-        if (!value.trim()) return 'Email is required';
-        return /^\S+@\S+\.\S+$/.test(value) ? null : 'Enter a valid email address';
-      },
-      password: (value) => {
-        if (!value) return 'Password is required';
-        if (value.length < 8) return 'Password must be at least 8 characters';
-        if (value.length > 30) return 'Password must be 30 characters or less';
-        return null;
-      },
+      email: validateEmail,
+      password: validatePassword,
       terms: (value) => (value ? null : 'You must agree to the terms'),
     },
   });
@@ -114,21 +108,14 @@ export function SignupView() {
             ) : null}
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-[#737373]" htmlFor="password">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              {...form.getInputProps('password')}
-              className="border border-[#EFEFEF] bg-[#FAFAFA] text-[#262626] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
-            />
-            {form.errors.password ? (
-              <p className="text-[11px] text-red-500 font-medium">{form.errors.password}</p>
-            ) : null}
-          </div>
+          <PasswordInput
+            id="password"
+            label="Password"
+            placeholder="••••••••"
+            className="border border-[#EFEFEF] bg-[#FAFAFA] text-[#262626]"
+            {...form.getInputProps('password')}
+            error={form.errors.password ? String(form.errors.password) : undefined}
+          />
 
           <label className="flex items-start gap-2 text-xs text-[#737373] cursor-pointer">
             <input

@@ -7,9 +7,11 @@ import { Lock, Sparkles, ArrowRight, ShieldAlert, Check, Mail } from 'lucide-rea
 
 import { ErrorMessage } from '@/components/common/error-message';
 import { PageLoader } from '@/components/common/page-loader';
+import { PasswordInput } from '@/components/common/password-input';
 import { useAcceptInvitationMutation } from '@/lib/hooks/mutations/use-invitation';
 import { ApiError } from '@/lib/utils/api-errors';
 import { useMounted } from '@/lib/hooks/use-mounted';
+import { validatePassword } from '@/lib/utils/validation';
 
 export function AcceptInviteView() {
   const router = useRouter();
@@ -38,13 +40,9 @@ export function AcceptInviteView() {
       return;
     }
 
-    if (password.length < 8) {
-      setFormError('Password must be at least 8 characters.');
-      return;
-    }
-
-    if (password.length > 30) {
-      setFormError('Password must be 30 characters or less.');
+    const passError = validatePassword(password);
+    if (passError) {
+      setFormError(passError);
       return;
     }
 
@@ -132,45 +130,29 @@ export function AcceptInviteView() {
               </p>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-text-secondary" htmlFor="password">
-                New Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-                <input
-                  id="password"
-                  type="password"
-                  required
-                  minLength={8}
-                  maxLength={30}
-                  placeholder="At least 8 characters"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full border border-border-primary bg-bg-app text-text-primary rounded-xl pl-10 pr-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition"
-                />
-              </div>
-            </div>
+            <PasswordInput
+              id="password"
+              label="New Password"
+              placeholder="At least 8 characters"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              leftIcon={<Lock className="w-4 h-4 text-text-secondary" />}
+              minLength={8}
+              maxLength={30}
+              required
+            />
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-text-secondary" htmlFor="confirmPassword">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-                <input
-                  id="confirmPassword"
-                  type="password"
-                  required
-                  minLength={8}
-                  maxLength={30}
-                  placeholder="Re-enter your password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full border border-border-primary bg-bg-app text-text-primary rounded-xl pl-10 pr-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition"
-                />
-              </div>
-            </div>
+            <PasswordInput
+              id="confirmPassword"
+              label="Confirm Password"
+              placeholder="Re-enter your password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              leftIcon={<Lock className="w-4 h-4 text-text-secondary" />}
+              minLength={8}
+              maxLength={30}
+              required
+            />
 
             <div className="flex items-start gap-2 text-[10px] text-text-secondary leading-relaxed bg-yellow-500/5 dark:bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-xl">
               <ShieldAlert className="w-4 h-4 text-yellow-600 dark:text-yellow-500 shrink-0 mt-0.5" />

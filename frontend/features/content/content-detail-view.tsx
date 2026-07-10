@@ -13,6 +13,7 @@ import {
   RefreshCw, Send, Edit3, Building, Linkedin, Share2, ThumbsUp, MoreHorizontal,
   Instagram, Check
 } from 'lucide-react';
+import { Select } from '@/components/common/select';
 
 export function ContentDetailView() {
   const router = useRouter();
@@ -468,47 +469,50 @@ export function ContentDetailView() {
           {/* Settings objective/cta */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-text-secondary">Objective</label>
-              <select
+              <Select
+                label="Objective"
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
-                className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-2.5 py-2 text-xs focus:border-instagram-pink outline-none"
-              >
-                <option value="Product Spotlight">Product Spotlight</option>
-                <option value="Behind the Scenes">Behind the Scenes</option>
-                <option value="Educational / Tips">Educational / Tips</option>
-                <option value="Customer Story / Testimonial">Customer Story</option>
-                <option value="Event / Launch Announcement">Launch Event</option>
-              </select>
+                options={[
+                  { value: 'Product Spotlight', label: 'Product Spotlight' },
+                  { value: 'Behind the Scenes', label: 'Behind the Scenes' },
+                  { value: 'Educational / Tips', label: 'Educational / Tips' },
+                  { value: 'Customer Story / Testimonial', label: 'Customer Story' },
+                  { value: 'Event / Launch Announcement', label: 'Launch Event' }
+                ]}
+                className="py-2 text-xs"
+              />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-text-secondary">Call to Action</label>
-              <select
+              <Select
+                label="Call to Action"
                 value={cta}
                 onChange={(e) => setCta(e.target.value)}
-                className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-2.5 py-2 text-xs focus:border-instagram-pink outline-none"
-              >
-                <option value="Link in Bio">Link in Bio</option>
-                <option value="Comment below">Comment below</option>
-                <option value="Save for later">Save for later</option>
-                <option value="Share this post">Share this post</option>
-              </select>
+                options={[
+                  { value: 'Link in Bio', label: 'Link in Bio' },
+                  { value: 'Comment below', label: 'Comment below' },
+                  { value: 'Save for later', label: 'Save for later' },
+                  { value: 'Share this post', label: 'Share this post' }
+                ]}
+                className="py-2 text-xs"
+              />
             </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-text-secondary">Visual Style</label>
-            <select
+            <Select
+              label="Visual Style"
               value={visualStyle}
               onChange={(e) => setVisualStyle(e.target.value)}
-              className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-2.5 py-2 text-xs focus:border-instagram-pink outline-none"
-            >
-              <option value="Warm & Organic">Warm & Organic</option>
-              <option value="Bold & Vibrant">Bold & Vibrant</option>
-              <option value="Minimalist & Clean">Minimalist & Clean</option>
-              <option value="Dark & Moody">Dark & Moody</option>
-              <option value="Professional & Corporate">Professional & Corporate</option>
-            </select>
+              options={[
+                { value: 'Warm & Organic', label: 'Warm & Organic' },
+                { value: 'Bold & Vibrant', label: 'Bold & Vibrant' },
+                { value: 'Minimalist & Clean', label: 'Minimalist & Clean' },
+                { value: 'Dark & Moody', label: 'Dark & Moody' },
+                { value: 'Professional & Corporate', label: 'Professional & Corporate' }
+              ]}
+              className="py-2 text-xs"
+            />
           </div>
 
           {/* References Manager */}
@@ -538,7 +542,7 @@ export function ContentDetailView() {
                 <button
                   type="button"
                   onClick={handleAddUrl}
-                  className="bg-bg-hover hover:bg-slate-200 dark:hover:bg-slate-800 border border-border-primary px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer"
+                  className="bg-bg-hover hover:bg-slate-200 border border-border-primary px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer"
                 >
                   Add
                 </button>

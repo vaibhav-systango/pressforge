@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 import logging
+from typing import List
 
 from app.database.database import get_db
 from app.models.user import User
-from app.schemas.invitation import InviteUserRequest, InviteUserResponse, AcceptInvitationRequest
+from app.schemas.invitation import InviteUserRequest, InviteUserResponse, AcceptInvitationRequest, ClientResponse, InvitableRoleResponse
 from app.schemas.auth import Token
 from app.core.dependencies import get_current_user, permission_guard
 from app.core.constants.invitation_constants import InvitationErrorCodes, InvitationErrorMessages
@@ -105,3 +106,139 @@ async def accept_invitation(
             raise HTTPException(status_code=status_code, detail=detail)
         logger.error(f"Unexpected error in accept_invitation: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
+
+
+@router.get(
+    "/plans",
+    status_code=status.HTTP_200_OK,
+    summary="Get list of supported subscription plans",
+)
+async def get_plans():
+    return ["Free", "Basic", "Pro", "Enterprise"]
+
+
+@router.get(
+    "/organizations/{org_id}/invitable-roles",
+    response_model=List[InvitableRoleResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Get roles that the current user can invite within the organization",
+)
+async def get_invitable_roles(
+    org_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(permission_guard)
+):
+    try:
+        return invitation_service.get_invitable_roles(db, user=current_user, organization_id=org_id)
+    except ValueError as e:
+        code = str(e)
+        error_map = {
+            InvitationErrorCodes.INVITER_NOT_MEMBER: (status.HTTP_403_FORBIDDEN, InvitationErrorMessages.INVITER_NOT_MEMBER),
+        }
+        if code in error_map:
+            status_code, detail = error_map[code]
+            raise HTTPException(status_code=status_code, detail=detail)
+        logger.error(f"Unexpected error in get_invitable_roles: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
+
+
+@router.get(
+    "/organizations/{org_id}/clients",
+    response_model=List[ClientResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Get all clients/members for an organization",
+)
+async def get_clients(
+    org_id: str,
+    search: str | None = None,
+    plan: str | None = None,
+    status_filter: str | None = None,
+    role_filter: str | None = None,
+    skip: int = 0,
+    limit: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(permission_guard)
+):
+    try:
+        return invitation_service.get_clients(
+            db,
+            current_user=current_user,
+            organization_id=org_id,
+            search=search,
+            plan=plan,
+            status_filter=status_filter,
+            role_filter=role_filter,
+            skip=skip,
+            limit=limit
+        )
+    except ValueError as e:
+        code = str(e)
+        error_map = {
+            InvitationErrorCodes.ORGANIZATION_NOT_FOUND: (status.HTTP_404_NOT_FOUND, InvitationErrorMessages.ORGANIZATION_NOT_FOUND),
+            InvitationErrorCodes.INVITER_NOT_MEMBER: (status.HTTP_403_FORBIDDEN, InvitationErrorMessages.INVITER_NOT_MEMBER),
+        }
+        if code in error_map:
+            status_code, detail = error_map[code]
+            raise HTTPException(status_code=status_code, detail=detail)
+        logger.error(f"Unexpected error in get_clients: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
+
+
+@router.delete(
+    "/organizations/{org_id}/invitations/{invitation_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a pending invitation",
+)
+async def delete_invitation(
+    org_id: str,
+    invitation_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(permission_guard)
+):
+    try:
+        invitation_service.delete_pending_invitation(
+            db,
+            current_user=current_user,
+            organization_id=org_id,
+            invitation_id=invitation_id
+        )
+        return
+    except ValueError as e:
+        code = str(e)
+        error_map = {
+            InvitationErrorCodes.INVITER_NOT_MEMBER: (status.HTTP_403_FORBIDDEN, InvitationErrorMessages.INVITER_NOT_MEMBER),
+            InvitationErrorCodes.INVITATION_NOT_FOUND: (status.HTTP_404_NOT_FOUND, InvitationErrorMessages.INVITATION_NOT_FOUND),
+            InvitationErrorCodes.INVITATION_ALREADY_ACCEPTED: (status.HTTP_400_BAD_REQUEST, InvitationErrorMessages.INVITATION_ALREADY_ACCEPTED),
+        }
+        if code in error_map:
+            status_code, detail = error_map[code]
+            raise HTTPException(status_code=status_code, detail=detail)
+        logger.error(f"Unexpected error in delete_invitation: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
+
+
+@router.get(
+    "/organizations/{org_id}/mock-inbox",
+    status_code=status.HTTP_200_OK,
+    summary="Get simulated inbox for organization invitations",
+)
+async def get_mock_inbox(
+    org_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(permission_guard)
+):
+    try:
+        return invitation_service.get_mock_inbox(db, current_user=current_user, organization_id=org_id)
+    except ValueError as e:
+        code = str(e)
+        error_map = {
+            InvitationErrorCodes.INVITER_NOT_MEMBER: (status.HTTP_403_FORBIDDEN, InvitationErrorMessages.INVITER_NOT_MEMBER),
+            InvitationErrorCodes.ORGANIZATION_NOT_FOUND: (status.HTTP_404_NOT_FOUND, InvitationErrorMessages.ORGANIZATION_NOT_FOUND),
+        }
+        if code in error_map:
+            status_code, detail = error_map[code]
+            raise HTTPException(status_code=status_code, detail=detail)
+        logger.error(f"Unexpected error in get_mock_inbox: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
+
+
