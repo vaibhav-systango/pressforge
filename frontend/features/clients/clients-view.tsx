@@ -11,6 +11,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useDebounce } from '@/lib/hooks/use-debounce';
 import { Skeleton } from '@/components/common/skeleton';
 import { Select } from '@/components/common/select';
+import { DeleteModal } from '@/components/common/delete-modal';
 import { 
   Users, Mail, ArrowRight, ShieldAlert, Building, X, Plus, 
   Trash2, Calendar, ShieldCheck, UserCheck, AlertTriangle, 
@@ -39,6 +40,7 @@ export function ClientsView() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<string>('');
   const [inviteError, setInviteError] = useState('');
+  const [deleteInviteId, setDeleteInviteId] = useState<string | null>(null);
 
   // Fetch Invitable Roles from Backend
   const { data: invitableRoles = [], isLoading: isRolesLoading } = useQuery({
@@ -402,11 +404,7 @@ export function ClientsView() {
                         <div className="flex items-center gap-2 self-end sm:self-start">
                           {!client.isAccepted && (
                             <button
-                              onClick={() => {
-                                if (confirm('Are you sure you want to delete/cancel this pending invitation?')) {
-                                  deleteInviteMutation.mutate(client.id);
-                                }
-                              }}
+                              onClick={() => setDeleteInviteId(client.id)}
                               disabled={deleteInviteMutation.isPending}
                               title="Delete Pending Invitation"
                               className="p-2 border border-border-primary bg-bg-card rounded-lg hover:border-red-500 hover:text-red-500 transition text-text-secondary disabled:opacity-50"
@@ -494,11 +492,23 @@ export function ClientsView() {
               </button>
             </form>
           </div>
-
-
-
         </div>
       </div>
+
+      <DeleteModal
+        isOpen={deleteInviteId !== null}
+        onClose={() => setDeleteInviteId(null)}
+        onConfirm={async () => {
+          if (deleteInviteId) {
+            await deleteInviteMutation.mutateAsync(deleteInviteId);
+            setDeleteInviteId(null);
+          }
+        }}
+        isPending={deleteInviteMutation.isPending}
+        title="Delete Invitation"
+        description="Are you sure you want to delete/cancel this pending invitation? The invite link will be invalidated."
+        confirmLabel="Delete Invitation"
+      />
     </div>
   );
 }

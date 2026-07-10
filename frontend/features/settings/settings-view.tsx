@@ -16,6 +16,7 @@ import {
   Building2, Sparkles, Users, Instagram, X
 } from 'lucide-react';
 import { PasswordInput } from '@/components/common/password-input';
+import { DeleteModal } from '@/components/common/delete-modal';
 import { validatePassword } from '@/lib/utils/validation';
 
 export function SettingsView() {
@@ -23,6 +24,10 @@ export function SettingsView() {
   const { user, isLoading: isUserLoading } = useAuth();
   const router = useRouter();
   const isClient = user?.userType === 'client' || state.currentUserType === 'client';
+
+  // Modal confirm states
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Form states
   const [profileName, setProfileName] = useState(user?.name ?? '');
@@ -153,17 +158,13 @@ export function SettingsView() {
   };
 
   const handleResetData = () => {
-    if (confirm("Are you sure you want to reset all data to default settings? This will delete custom workspaces, drafts, and client portals.")) {
-      resetState();
-      alert("Application state reset successfully.");
-      router.push('/app');
-    }
+    resetState();
+    alert("Application state reset successfully.");
+    router.push('/app');
   };
 
   const handleDeleteAccount = () => {
-    if (confirm("Are you sure you want to delete your account? This action is irreversible.")) {
-      window.location.href = '/';
-    }
+    window.location.href = '/';
   };
 
   if (isUserLoading && !user) {
@@ -619,7 +620,7 @@ export function SettingsView() {
                   Restores default settings, clear all custom workspaces and client invitations.
                 </p>
                 <button
-                  onClick={handleResetData}
+                  onClick={() => setShowResetConfirm(true)}
                   className="w-full mt-1.5 border border-border-primary bg-bg-app hover:bg-red-50 dark:hover:bg-red-950/20 text-text-primary hover:text-red-500 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
@@ -633,7 +634,7 @@ export function SettingsView() {
                   Permanently delete this account and all linked organization records.
                 </p>
                 <button
-                  onClick={handleDeleteAccount}
+                  onClick={() => setShowDeleteConfirm(true)}
                   className="w-full mt-1.5 bg-red-600 hover:opacity-90 text-white py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -777,6 +778,32 @@ export function SettingsView() {
           </div>
         </div>
       )}
+
+      {/* Reset Confirmation Modal */}
+      <DeleteModal
+        isOpen={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={() => {
+          setShowResetConfirm(false);
+          handleResetData();
+        }}
+        title="Reset Application Data"
+        description="Are you sure you want to reset all data to default settings? This will delete custom workspaces, drafts, and client portals."
+        confirmLabel="Reset Data"
+      />
+
+      {/* Delete Account Confirmation Modal */}
+      <DeleteModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => {
+          setShowDeleteConfirm(false);
+          handleDeleteAccount();
+        }}
+        title="Delete Account"
+        description="Are you sure you want to delete your account? This action is irreversible."
+        confirmLabel="Delete Account"
+      />
     </div>
   );
 }
