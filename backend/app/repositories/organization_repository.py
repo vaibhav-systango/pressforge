@@ -81,7 +81,12 @@ class OrganizationRepository:
         registeredAddress: str,
         primaryContactName: str,
         primaryContactDesignation: str | None = None,
-        businessDocumentFileKey: str | None = None
+        documentPublicId: str | None = None,
+        documentSecureUrl: str | None = None,
+        documentResourceType: str | None = None,
+        documentFormat: str | None = None,
+        documentBytes: int | None = None,
+        documentOriginalFilename: str | None = None,
     ) -> OrganizationKyc:
         """Create and persist a new KYC compliance record for an organization."""
         kyc = OrganizationKyc(
@@ -92,7 +97,12 @@ class OrganizationRepository:
             registeredAddress=registeredAddress,
             primaryContactName=primaryContactName,
             primaryContactDesignation=primaryContactDesignation,
-            businessDocumentFileKey=businessDocumentFileKey
+            documentPublicId=documentPublicId,
+            documentSecureUrl=documentSecureUrl,
+            documentResourceType=documentResourceType,
+            documentFormat=documentFormat,
+            documentBytes=documentBytes,
+            documentOriginalFilename=documentOriginalFilename,
         )
         db.add(kyc)
         db.flush()
