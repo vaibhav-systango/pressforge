@@ -67,6 +67,30 @@ async def get_current_user(
     return user
 
 
+async def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(reusable_oauth2),
+    db: Session = Depends(get_db),
+) -> User | None:
+    """Return the authenticated user when a valid Bearer token is present, otherwise None."""
+    if not credentials:
+        return None
+
+    token = credentials.credentials
+    payload = decode_access_token(token)
+    if not payload:
+        return None
+
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+
+    user = user_repository.get_by_id(db, user_id)
+    if not user or not user.isActive:
+        return None
+
+    return user
+
+
 def check_account_types(allowed_types: list[str]):
     """
     Dependency factory to check if the current user's account type is authorized.

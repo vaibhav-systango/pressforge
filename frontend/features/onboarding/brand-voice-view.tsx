@@ -47,10 +47,10 @@ export function BrandVoiceView() {
     setRules(rules.filter((r) => r !== rule));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (activeWs) {
-      updateWorkspace({
+      await updateWorkspace({
         ...activeWs,
         tone: tone as Workspace['tone'],
         keywords,
@@ -58,7 +58,7 @@ export function BrandVoiceView() {
       });
     }
 
-    updateState({ currentStep: 4 });
+    await updateState({ currentStep: 4 });
     router.push('/onboarding/kyc');
   };
 

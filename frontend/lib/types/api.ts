@@ -131,3 +131,72 @@ export interface OnboardingRequest {
 export interface OnboardingResponse {
   user: BackendUserResponse;
 }
+
+export interface ScheduleResponse {
+  id: string;
+  workspaceId: string;
+  platform?: string | null;
+  dayOfWeek?: string | null;
+  time?: string | null;
+  contentType?: string | null;
+  label?: string | null;
+  datetime?: string | null;
+  recurrence?: 'none' | 'daily' | 'weekly' | 'monthly' | string;
+  publishAsDraft?: boolean;
+  enabled?: boolean;
+  nextRun?: string | null;
+}
+
+export interface WorkspaceResponse {
+  id: string;
+  name: string;
+  website?: string | null;
+  description?: string | null;
+  industry?: string | null;
+  targetAudience?: string | null;
+  brandVoice?: string | null;
+  logoUrl?: string | null;
+  tone?: string | null;
+  keywords?: string[];
+  rules?: string[];
+  ownerId?: string | null;
+  organizationId?: string | null;
+  schedules?: ScheduleResponse[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface WorkspaceListResponse {
+  workspaces: WorkspaceResponse[];
+  activeWorkspaceId?: string | null;
+}
+
+export interface CreateWorkspaceRequest {
+  name: string;
+  website?: string | null;
+  description?: string | null;
+  industry?: string | null;
+  targetAudience?: string | null;
+  brandVoice?: string | null;
+  logoUrl?: string | null;
+  tone?: string | null;
+  keywords?: string[];
+  rules?: string[];
+}
+
+export type UpdateWorkspaceRequest = Partial<CreateWorkspaceRequest>;
+
+export interface CreateScheduleRequest {
+  platform?: string | null;
+  dayOfWeek?: string | null;
+  time?: string | null;
+  contentType?: string | null;
+  label?: string | null;
+  datetime?: string | null;
+  recurrence?: 'none' | 'daily' | 'weekly' | 'monthly' | string;
+  publishAsDraft?: boolean;
+  enabled?: boolean;
+  nextRun?: string | null;
+}
+
+export type UpdateScheduleRequest = Partial<CreateScheduleRequest>;

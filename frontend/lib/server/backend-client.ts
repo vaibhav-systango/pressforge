@@ -68,6 +68,10 @@ export async function callBackend<T>(
     };
   }
 
+  if (response.status === 204) {
+    return { data: null, response };
+  }
+
   const data = await parseJsonResponse<T>(response);
   if (!data) {
     return {

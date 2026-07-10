@@ -12,41 +12,51 @@ export function WorkspaceView() {
   const router = useRouter();
   const { state, addWorkspace, updateWorkspace, updateState } = useAppState();
   
-  // Try to pre-load workspace if one was created in the previous step (e.g. for Individual setup)
   const activeWs = state.workspaces.find((w) => w.id === state.activeWorkspaceId) || state.workspaces[0];
 
-  const [brandName, setBrandName] = useState(activeWs && state.accountType === 'individual' ? activeWs.name : '');
-  const [website, setWebsite] = useState(activeWs && state.accountType === 'individual' ? activeWs.website : '');
+  const [brandName, setBrandName] = useState(
+    activeWs?.name || (state.accountType === 'individual' ? state.organizationName : '') || '',
+  );
+  const [website, setWebsite] = useState(
+    activeWs?.website || state.individualWebsite || '',
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!brandName) {
+    if (!brandName.trim()) {
       alert('Please enter a workspace brand name.');
       return;
     }
 
-    if (state.accountType === 'individual' && activeWs) {
-      updateWorkspace({
-        ...activeWs,
-        name: brandName,
-        website: website || 'https://example.com'
-      });
-      updateState({ activeWorkspaceId: activeWs.id, currentStep: 3 });
-    } else {
-      const newId = brandName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      addWorkspace({
-        id: newId,
-        name: brandName,
-        website: website || 'https://example.com',
-        tone: 'casual',
-        keywords: [],
-        rules: [],
-        schedules: [],
-      });
-      updateState({ activeWorkspaceId: newId, currentStep: 3 });
-    }
+    setIsSubmitting(true);
+    try {
+      if (activeWs) {
+        await updateWorkspace({
+          ...activeWs,
+          name: brandName.trim(),
+          website: website.trim() || undefined,
+        });
+        await updateState({ activeWorkspaceId: activeWs.id, currentStep: 3 });
+      } else {
+        await addWorkspace({
+          id: '',
+          name: brandName.trim(),
+          website: website.trim() || undefined,
+          tone: 'casual',
+          keywords: [],
+          rules: [],
+          schedules: [],
+        });
+        await updateState({ currentStep: 3 });
+      }
 
-    router.push('/onboarding/brand-voice');
+      router.push('/onboarding/brand-voice');
+    } catch {
+      alert('Failed to save workspace. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -110,9 +120,10 @@ export function WorkspaceView() {
 
           <button
             type="submit"
-            className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3 rounded-full text-sm font-semibold hover:opacity-95 transition shadow-sm mt-2"
+            disabled={isSubmitting}
+            className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3 rounded-full text-sm font-semibold hover:opacity-95 transition shadow-sm mt-2 disabled:opacity-60"
           >
-            <span>Configure Brand Voice</span>
+            <span>{isSubmitting ? 'Saving...' : 'Configure Brand Voice'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
@@ -122,4 +133,3 @@ export function WorkspaceView() {
     </div>
   );
 }
-

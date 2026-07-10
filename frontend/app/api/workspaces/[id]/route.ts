@@ -1,62 +1,181 @@
 import { NextResponse } from 'next/server';
 
-import { withAuth } from '@/lib/server/auth/with-auth';
+import { getAccessToken } from '@/lib/server/auth/get-access-token';
+import { jsonError } from '@/lib/server/auth/with-auth';
+import { callBackend } from '@/lib/server/backend-client';
+import { parseJsonBody } from '@/lib/server/validate-payload';
 import {
-  addWorkspaceSchedule,
-  deleteWorkspace,
-  deleteWorkspaceSchedule,
-  updateWorkspace,
-  updateWorkspaceSchedule,
-} from '@/lib/server/mock-store';
+  mapScheduleResponse,
+  mapWorkspaceResponse,
+  scheduleToCreateRequest,
+  scheduleToUpdateRequest,
+  workspaceToUpdateRequest,
+} from '@/lib/workspaces/map-workspace';
+import type { ScheduleResponse, WorkspaceResponse } from '@/lib/types/api';
 import type { Schedule, Workspace } from '@/lib/types';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+function mapWorkspaceErrorStatus(status: number): string {
+  if (status === 404) return 'WORKSPACE_NOT_FOUND';
+  if (status === 403) return 'ACCESS_DENIED';
+  if (status === 400) return 'BAD_REQUEST';
+  return 'WORKSPACE_FAILED';
+}
+
+export async function GET(_request: Request, context: RouteContext) {
+  const { id } = await context.params;
+  const accessToken = await getAccessToken();
+  if (!accessToken) {
+    return jsonError('Authentication required', 401, 'TOKEN_MISSING');
+  }
+
+  const { data, errorMessage, response } = await callBackend<WorkspaceResponse>(
+    `/workspaces/${id}`,
+    { accessToken },
+  );
+
+  if (!data) {
+    return jsonError(
+      errorMessage ?? 'Failed to fetch workspace',
+      response.status,
+      mapWorkspaceErrorStatus(response.status),
+    );
+  }
+
+  return NextResponse.json({ workspace: mapWorkspaceResponse(data) });
+}
+
 export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params;
-  const result = await withAuth(async (auth) => {
-    const workspace = (await request.json()) as Workspace;
-    if (workspace.id !== id) {
-      return NextResponse.json({ error: 'ID mismatch', code: 'BAD_REQUEST' }, { status: 400 });
-    }
-    updateWorkspace(auth.sessionId, workspace);
-    return { workspace };
-  });
+  const body = await parseJsonBody<Workspace>(request);
+  if (!body) {
+    return jsonError('Invalid JSON', 400, 'BAD_REQUEST');
+  }
 
-  if (result instanceof NextResponse) return result;
-  return NextResponse.json(result);
+  const accessToken = await getAccessToken();
+  if (!accessToken) {
+    return jsonError('Authentication required', 401, 'TOKEN_MISSING');
+  }
+
+  const { data, errorMessage, response } = await callBackend<WorkspaceResponse>(
+    `/workspaces/${id}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(workspaceToUpdateRequest(body)),
+      accessToken,
+    },
+  );
+
+  if (!data) {
+    return jsonError(
+      errorMessage ?? 'Failed to update workspace',
+      response.status,
+      mapWorkspaceErrorStatus(response.status),
+    );
+  }
+
+  return NextResponse.json({ workspace: mapWorkspaceResponse(data) });
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
   const { id } = await context.params;
-  const result = await withAuth(async (auth) => {
-    const state = deleteWorkspace(auth.sessionId, id);
-    return { state };
+  const accessToken = await getAccessToken();
+  if (!accessToken) {
+    return jsonError('Authentication required', 401, 'TOKEN_MISSING');
+  }
+
+  const { errorMessage, response } = await callBackend<null>(`/workspaces/${id}`, {
+    method: 'DELETE',
+    accessToken,
   });
 
-  if (result instanceof NextResponse) return result;
-  return NextResponse.json(result);
+  if (!response.ok) {
+    return jsonError(
+      errorMessage ?? 'Failed to delete workspace',
+      response.status,
+      mapWorkspaceErrorStatus(response.status),
+    );
+  }
+
+  return new NextResponse(null, { status: 204 });
 }
 
 export async function POST(request: Request, context: RouteContext) {
   const { id } = await context.params;
-  const result = await withAuth(async (auth) => {
-    const body = (await request.json()) as { schedule?: Schedule; action?: string; scheduleId?: string };
-    if (body.action === 'update-schedule' && body.schedule) {
-      const schedule = updateWorkspaceSchedule(auth.sessionId, id, body.schedule);
-      return { schedule };
-    }
-    if (body.schedule) {
-      const schedule = addWorkspaceSchedule(auth.sessionId, id, body.schedule);
-      return { schedule };
-    }
-    if (body.action === 'delete-schedule' && body.scheduleId) {
-      deleteWorkspaceSchedule(auth.sessionId, id, body.scheduleId);
-      return { success: true };
-    }
-    return NextResponse.json({ error: 'Invalid action', code: 'BAD_REQUEST' }, { status: 400 });
-  });
+  const body = await parseJsonBody<{
+    schedule?: Schedule;
+    action?: string;
+    scheduleId?: string;
+  }>(request);
 
-  if (result instanceof NextResponse) return result;
-  return NextResponse.json(result);
+  const accessToken = await getAccessToken();
+  if (!accessToken) {
+    return jsonError('Authentication required', 401, 'TOKEN_MISSING');
+  }
+
+  if (body?.action === 'update-schedule' && body.schedule) {
+    const { data, errorMessage, response } = await callBackend<ScheduleResponse>(
+      `/workspaces/${id}/schedules/${body.schedule.id}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(scheduleToUpdateRequest(body.schedule)),
+        accessToken,
+      },
+    );
+
+    if (!data) {
+      return jsonError(
+        errorMessage ?? 'Failed to update schedule',
+        response.status,
+        mapWorkspaceErrorStatus(response.status),
+      );
+    }
+
+    return NextResponse.json({ schedule: mapScheduleResponse(data) });
+  }
+
+  if (body?.schedule) {
+    const { id: _scheduleId, workspaceId: _workspaceId, ...scheduleFields } = body.schedule;
+    const { data, errorMessage, response } = await callBackend<ScheduleResponse>(
+      `/workspaces/${id}/schedules`,
+      {
+        method: 'POST',
+        body: JSON.stringify(scheduleToCreateRequest(scheduleFields)),
+        accessToken,
+      },
+    );
+
+    if (!data) {
+      return jsonError(
+        errorMessage ?? 'Failed to create schedule',
+        response.status,
+        mapWorkspaceErrorStatus(response.status),
+      );
+    }
+
+    return NextResponse.json({ schedule: mapScheduleResponse(data) });
+  }
+
+  if (body?.action === 'delete-schedule' && body.scheduleId) {
+    const { errorMessage, response } = await callBackend<null>(
+      `/workspaces/${id}/schedules/${body.scheduleId}`,
+      {
+        method: 'DELETE',
+        accessToken,
+      },
+    );
+
+    if (!response.ok) {
+      return jsonError(
+        errorMessage ?? 'Failed to delete schedule',
+        response.status,
+        mapWorkspaceErrorStatus(response.status),
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  }
+
+  return jsonError('Invalid action', 400, 'BAD_REQUEST');
 }

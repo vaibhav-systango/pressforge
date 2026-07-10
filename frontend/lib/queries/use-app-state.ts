@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { AppState, Workspace, ClientUser, Schedule, Draft, Campaign } from '@/lib/types';
 import { INITIAL_STATE } from '@/lib/data/mock-data';
+import { workspaceToCreateRequest, workspaceToUpdateRequest } from '@/lib/workspaces/map-workspace';
 
 // ── Fetcher ───────────────────────────────────────────────────────────────────
 
@@ -11,6 +12,15 @@ async function fetchAppState(): Promise<{ state: AppState }> {
   const res = await fetch('/api/state');
   if (!res.ok) throw new Error('Failed to fetch app state');
   return res.json() as Promise<{ state: AppState }>;
+}
+
+async function fetchWorkspacesFromBackend(): Promise<{
+  workspaces: Workspace[];
+  activeWorkspaceId: string | null;
+}> {
+  const res = await fetch('/api/workspaces');
+  if (!res.ok) throw new Error('Failed to fetch workspaces');
+  return res.json() as Promise<{ workspaces: Workspace[]; activeWorkspaceId: string | null }>;
 }
 
 const DEFAULT_CONNECTED_ACCOUNTS = { instagram: false, linkedin: false };
@@ -40,6 +50,22 @@ export function useAppState() {
     staleTime: 30_000,
     retry: false,
   });
+
+  const syncWorkspacesInCache = async () => {
+    const workspaceData = await fetchWorkspacesFromBackend();
+    queryClient.setQueryData(['app-state'], (old: { state: AppState } | undefined) => {
+      const prevState = old?.state ?? EMPTY_STATE;
+      return {
+        state: {
+          ...prevState,
+          workspaces: workspaceData.workspaces,
+          activeWorkspaceId:
+            workspaceData.activeWorkspaceId ?? prevState.activeWorkspaceId ?? null,
+        },
+      };
+    });
+    return workspaceData;
+  };
 
   const mergeMutation = useMutation({
     mutationFn: async (merge: Partial<AppState>) => {
@@ -93,25 +119,49 @@ export function useAppState() {
   };
 
   const addWorkspace = async (workspace: Workspace) => {
-    return updateState((prev) => ({
-      workspaces: [...(prev.workspaces || []), workspace],
-    }));
+    const res = await fetch('/api/workspaces', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(workspaceToCreateRequest(workspace)),
+    });
+    if (!res.ok) throw new Error('Failed to create workspace');
+
+    const data = (await res.json()) as { workspace: Workspace };
+    await syncWorkspacesInCache();
+
+    if (!state.activeWorkspaceId) {
+      await setActiveWorkspace(data.workspace.id);
+    }
+
+    return data;
   };
 
   const updateWorkspace = async (workspace: Workspace) => {
-    return updateState((prev) => ({
-      workspaces: (prev.workspaces || []).map((w) => (w.id === workspace.id ? workspace : w)),
-    }));
+    const res = await fetch(`/api/workspaces/${workspace.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(workspaceToUpdateRequest(workspace)),
+    });
+    if (!res.ok) throw new Error('Failed to update workspace');
+
+    await syncWorkspacesInCache();
+    return res.json() as Promise<{ workspace: Workspace }>;
   };
 
   const deleteWorkspace = async (workspaceId: string) => {
-    return updateState((prev) => ({
-      workspaces: (prev.workspaces || []).filter((w) => w.id !== workspaceId),
-      activeWorkspaceId:
-        prev.activeWorkspaceId === workspaceId
-          ? ((prev.workspaces || []).find((w) => w.id !== workspaceId)?.id ?? null)
-          : prev.activeWorkspaceId,
-    }));
+    const res = await fetch(`/api/workspaces/${workspaceId}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed to delete workspace');
+
+    const workspaceData = await syncWorkspacesInCache();
+    if (state.activeWorkspaceId === workspaceId) {
+      const nextActive =
+        workspaceData.workspaces.find((w) => w.id !== workspaceId)?.id ??
+        workspaceData.workspaces[0]?.id ??
+        null;
+      if (nextActive !== state.activeWorkspaceId) {
+        await setActiveWorkspace(nextActive);
+      }
+    }
   };
 
   const addClient = async (client: ClientUser) => {
@@ -152,34 +202,36 @@ export function useAppState() {
   };
 
   const addWorkspaceSchedule = async (workspaceId: string, schedule: Schedule) => {
-    return updateState((prev) => ({
-      workspaces: (prev.workspaces || []).map((w) =>
-        w.id === workspaceId ? { ...w, schedules: [...(w.schedules || []), schedule] } : w
-      ),
-    }));
+    const { id: _id, workspaceId: _wsId, ...scheduleFields } = schedule;
+    const res = await fetch(`/api/workspaces/${workspaceId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ schedule: { ...scheduleFields, id: schedule.id } }),
+    });
+    if (!res.ok) throw new Error('Failed to add schedule');
+    await syncWorkspacesInCache();
+    return res.json() as Promise<{ schedule: Schedule }>;
   };
 
   const updateWorkspaceSchedule = async (workspaceId: string, schedule: Schedule) => {
-    return updateState((prev) => ({
-      workspaces: (prev.workspaces || []).map((w) =>
-        w.id === workspaceId
-          ? {
-              ...w,
-              schedules: (w.schedules || []).map((s) => (s.id === schedule.id ? schedule : s)),
-            }
-          : w
-      ),
-    }));
+    const res = await fetch(`/api/workspaces/${workspaceId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update-schedule', schedule }),
+    });
+    if (!res.ok) throw new Error('Failed to update schedule');
+    await syncWorkspacesInCache();
+    return res.json() as Promise<{ schedule: Schedule }>;
   };
 
   const deleteWorkspaceSchedule = async (workspaceId: string, scheduleId: string) => {
-    return updateState((prev) => ({
-      workspaces: (prev.workspaces || []).map((w) =>
-        w.id === workspaceId
-          ? { ...w, schedules: (w.schedules || []).filter((s) => s.id !== scheduleId) }
-          : w
-      ),
-    }));
+    const res = await fetch(`/api/workspaces/${workspaceId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete-schedule', scheduleId }),
+    });
+    if (!res.ok) throw new Error('Failed to delete schedule');
+    await syncWorkspacesInCache();
   };
 
   const addDraft = async (draft: Draft) => {
@@ -201,7 +253,20 @@ export function useAppState() {
   };
 
   const setActiveWorkspace = async (workspaceId: string | null) => {
-    return updateState({ activeWorkspaceId: workspaceId });
+    const res = await fetch('/api/session/workspace', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceId }),
+    });
+    if (!res.ok) throw new Error('Failed to set active workspace');
+
+    const data = (await res.json()) as { activeWorkspaceId: string | null };
+    queryClient.setQueryData(['app-state'], (old: { state: AppState } | undefined) => ({
+      state: {
+        ...(old?.state ?? EMPTY_STATE),
+        activeWorkspaceId: data.activeWorkspaceId,
+      },
+    }));
   };
 
   const resetState = async () => {
