@@ -2,19 +2,26 @@ import json
 from sqlalchemy.orm import Session
 from app.models.user import User, AccountType, OnboardingStatus
 from app.models.organization_member import OrganizationRole
-from app.schemas.onboarding import OnboardingRequest
+from app.schemas.onboarding import OnboardingRequest, KycDocumentReference
 from app.repositories.user_repository import user_repository
 from app.repositories.organization_repository import organization_repository
 from app.core.constants.onboarding_constants import OnboardingErrorCodes
 
+
+def _document_fields(document: KycDocumentReference) -> dict:
+    return {
+        "documentPublicId": document.publicId,
+        "documentSecureUrl": document.secureUrl,
+        "documentResourceType": document.resourceType,
+        "documentFormat": document.format,
+        "documentBytes": document.bytes,
+        "documentOriginalFilename": document.originalFilename,
+    }
+
+
 class OnboardingService:
 
     def onboard_user(self, db: Session, user: User, request_data: OnboardingRequest) -> User:
-        """
-        Onboard a user to an individual or organization account type.
-        Ensures transaction atomic safety.
-        """
-        # 1. Verify user onboarding is not already completed
         if user.onboardingStatus == OnboardingStatus.COMPLETED.value:
             raise ValueError(OnboardingErrorCodes.USER_ALREADY_ONBOARDED)
 
@@ -24,7 +31,6 @@ class OnboardingService:
                 if not details:
                     raise ValueError(OnboardingErrorCodes.INVALID_ONBOARDING_DETAILS)
 
-                # Create user profile
                 user_repository.create_user_profile(
                     db,
                     userId=user.id,
@@ -33,7 +39,6 @@ class OnboardingService:
                     website=details.website
                 )
 
-                # Update user onboarding status
                 user_repository.update_onboarding_status(
                     db,
                     user=user,
@@ -46,10 +51,9 @@ class OnboardingService:
                 if not details:
                     raise ValueError(OnboardingErrorCodes.INVALID_ONBOARDING_DETAILS)
 
-                # Serialize industries to JSON string
                 industries_json = json.dumps(details.industries)
+                doc_fields = _document_fields(details.document)
 
-                # Create organization
                 org = organization_repository.create_organization(
                     db,
                     name=details.name,
@@ -62,7 +66,6 @@ class OnboardingService:
                     description=details.description
                 )
 
-                # Create organization owner member
                 organization_repository.create_member(
                     db,
                     organizationId=org.id,
@@ -70,7 +73,6 @@ class OnboardingService:
                     role=OrganizationRole.OWNER.value
                 )
 
-                # Create KYC compliance record
                 organization_repository.create_kyc(
                     db,
                     organizationId=org.id,
@@ -80,10 +82,9 @@ class OnboardingService:
                     registeredAddress=details.registeredAddress,
                     primaryContactName=details.primaryContactName,
                     primaryContactDesignation=details.primaryContactDesignation,
-                    businessDocumentFileKey=details.businessDocumentFileKey
+                    **doc_fields,
                 )
 
-                # Update user onboarding status
                 user_repository.update_onboarding_status(
                     db,
                     user=user,
@@ -102,5 +103,5 @@ class OnboardingService:
             db.rollback()
             raise e
 
-# Export a single service instance
+
 onboarding_service = OnboardingService()

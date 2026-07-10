@@ -22,5 +22,5 @@ __all__ = [
     "RolePermission",
     "RoutePermission",
     "UserProfile",
-    "Invitation"
+    "Invitation",
 ]

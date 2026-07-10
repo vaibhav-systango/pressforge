@@ -48,6 +48,12 @@ class Settings(BaseSettings):
     # Frontend
     FRONTEND_URL: str = Field(default="http://localhost:3000")
 
+    # Cloudinary (KYC document storage)
+    CLOUDINARY_CLOUD_NAME: str = Field(default="", description="Cloudinary cloud name")
+    CLOUDINARY_API_KEY: str = Field(default="", description="Cloudinary API key")
+    CLOUDINARY_API_SECRET: str = Field(default="", description="Cloudinary API secret")
+    CLOUDINARY_KYC_FOLDER: str = Field(default="pressforge/kyc", description="Cloudinary folder for KYC uploads")
+
     # Configuration for Pydantic Settings
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",

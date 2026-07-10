@@ -1,5 +1,6 @@
 fastapi
 uvicorn
+python-multipart
 pydantic-settings
 sqlalchemy
 psycopg2-binary
@@ -10,3 +11,4 @@ pyjwt
 bcrypt
 email-validator
 sendgrid
+cloudinary
