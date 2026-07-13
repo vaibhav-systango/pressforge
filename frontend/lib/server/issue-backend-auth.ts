@@ -44,7 +44,11 @@ export async function issueBackendAuthResponse(
     currentUserName: mapped.name,
   });
 
-  await migrateGuestWorkspacesToBackend(tokenData.accessToken, mapped.userId);
+  try {
+    await migrateGuestWorkspacesToBackend(tokenData.accessToken, mapped.userId);
+  } catch (error) {
+    console.error('Guest workspace migration failed:', error);
+  }
 
   const response = NextResponse.json({
     user: {

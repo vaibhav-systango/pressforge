@@ -244,6 +244,14 @@ class WorkspaceService:
         org_id = self._resolve_organization_id(db, user)
 
         try:
+            seen_names: set[str] = set()
+            for workspace in workspaces:
+                normalized = _normalize_workspace_name(workspace.name)
+                if normalized in seen_names:
+                    raise ValueError(WorkspaceErrorCodes.WORKSPACE_NAME_CONFLICT)
+                seen_names.add(normalized)
+                self._assert_unique_workspace_name(db, workspace.name, user=user)
+
             for workspace in workspaces:
                 workspace.ownerUserId = user.id
                 workspace.guestSessionId = None
@@ -288,14 +296,14 @@ class WorkspaceService:
                 keywords=data.get("keywords") or [],
                 rules=data.get("rules") or [],
             )
-            db.commit()
-            db.refresh(workspace)
 
             profile = self._get_or_create_user_profile(db, user)
             if not profile.activeWorkspaceId:
                 profile.activeWorkspaceId = workspace.id
                 db.add(profile)
-                db.commit()
+
+            db.commit()
+            db.refresh(workspace)
 
             refreshed = workspace_repository.get_by_id(db, workspace.id)
             return _workspace_to_dict(refreshed or workspace)
@@ -344,6 +352,9 @@ class WorkspaceService:
 
         try:
             workspace_repository.soft_delete(db, workspace)
+            db.query(OrganizationMember).filter(
+                OrganizationMember.workspaceId == workspace_id
+            ).update({"workspaceId": None}, synchronize_session=False)
             profile = self._get_user_profile(db, user.id)
             if profile and profile.activeWorkspaceId == workspace_id:
                 profile.activeWorkspaceId = None
@@ -419,7 +430,7 @@ class WorkspaceService:
         if not schedule:
             raise ValueError(WorkspaceErrorCodes.SCHEDULE_NOT_FOUND)
 
-        update_fields = {key: value for key, value in data.items() if value is not None}
+        update_fields = {key: value for key, value in data.items()}
 
         try:
             workspace_repository.update_schedule(db, schedule, **update_fields)

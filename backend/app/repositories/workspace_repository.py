@@ -173,8 +173,7 @@ class WorkspaceRepository:
 
     def update_schedule(self, db: Session, schedule: WorkspaceSchedule, **fields) -> WorkspaceSchedule:
         for key, value in fields.items():
-            if value is not None:
-                setattr(schedule, key, value)
+            setattr(schedule, key, value)
         db.add(schedule)
         db.flush()
         return schedule

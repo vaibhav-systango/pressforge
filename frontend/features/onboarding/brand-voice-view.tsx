@@ -24,6 +24,7 @@ export function BrandVoiceView() {
   const [keywords, setKeywords] = useState<string[]>(activeWs?.keywords || []);
   const [ruleInput, setRuleInput] = useState('');
   const [rules, setRules] = useState<string[]>(activeWs?.rules || []);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAddKeyword = () => {
     if (keywordInput.trim() && !keywords.includes(keywordInput.trim())) {
@@ -49,17 +50,24 @@ export function BrandVoiceView() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (activeWs) {
-      await updateWorkspace({
-        ...activeWs,
-        tone: tone as Workspace['tone'],
-        keywords,
-        rules
-      });
-    }
+    setIsSubmitting(true);
+    try {
+      if (activeWs) {
+        await updateWorkspace({
+          ...activeWs,
+          tone: tone as Workspace['tone'],
+          keywords,
+          rules,
+        });
+      }
 
-    await updateState({ currentStep: 4 });
-    router.push('/onboarding/kyc');
+      await updateState({ currentStep: 4 });
+      router.push('/onboarding/kyc');
+    } catch {
+      alert('Failed to save brand voice settings. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -191,9 +199,10 @@ export function BrandVoiceView() {
 
           <button
             type="submit"
-            className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3 rounded-full text-sm font-semibold hover:opacity-95 transition shadow-sm mt-2"
+            disabled={isSubmitting}
+            className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3 rounded-full text-sm font-semibold hover:opacity-95 transition shadow-sm mt-2 disabled:opacity-60"
           >
-            <span>Continue to KYC</span>
+            <span>{isSubmitting ? 'Saving...' : 'Continue to KYC'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>

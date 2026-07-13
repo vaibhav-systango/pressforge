@@ -3,7 +3,7 @@ import type { NextResponse } from 'next/server';
 
 import { GUEST_SESSION_COOKIE, REFRESH_TOKEN_TTL_SECONDS } from '@/lib/server/auth/constants';
 import { getAccessToken } from '@/lib/server/auth/get-access-token';
-import { verifyAccessToken } from '@/lib/server/auth/tokens';
+import { verifyAccessToken, verifyBackendAccessToken } from '@/lib/server/auth/tokens';
 
 export interface RequestSession {
   sessionId: string;
@@ -11,19 +11,6 @@ export interface RequestSession {
   isAuthenticated: boolean;
   guestId?: string;
   isNewGuest: boolean;
-}
-
-function decodeJwtSub(token: string): string | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const payloadB64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const decoded = Buffer.from(payloadB64, 'base64').toString('utf-8');
-    const payload = JSON.parse(decoded) as { sub?: string };
-    return payload.sub ?? null;
-  } catch {
-    return null;
-  }
 }
 
 async function resolveAuthenticatedSession(accessToken: string): Promise<RequestSession | null> {
@@ -36,14 +23,19 @@ async function resolveAuthenticatedSession(accessToken: string): Promise<Request
       isNewGuest: false,
     };
   } catch {
-    const userId = decodeJwtSub(accessToken);
-    if (!userId) return null;
+    // Fall through to backend token verification.
+  }
+
+  try {
+    const payload = await verifyBackendAccessToken(accessToken);
     return {
-      sessionId: userId,
+      sessionId: payload.sub,
       accessToken,
       isAuthenticated: true,
       isNewGuest: false,
     };
+  } catch {
+    return null;
   }
 }
 
