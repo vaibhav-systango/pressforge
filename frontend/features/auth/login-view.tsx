@@ -8,9 +8,11 @@ import React, { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 
 import { ErrorMessage } from "@/components/common/error-message";
+import { PasswordInput } from "@/components/common/password-input";
 import { getPostAuthRedirect } from "@/lib/auth/redirect";
 import { useLoginMutation } from "@/lib/hooks/mutations/use-auth";
 import { ApiError } from "@/lib/utils/api-errors";
+import { validateEmail } from "@/lib/utils/validation";
 
 export function LoginView() {
   const router = useRouter();
@@ -24,10 +26,7 @@ export function LoginView() {
       password: "",
     },
     validate: {
-      email: (value) => {
-        if (!value.trim()) return "Email is required";
-        return /^\S+@\S+\.\S+$/.test(value) ? null : "Enter a valid email address";
-      },
+      email: validateEmail,
       password: (value) => (!value ? "Password is required" : null),
     },
   });
@@ -99,24 +98,13 @@ export function LoginView() {
             ) : null}
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label
-              className="text-xs font-semibold text-text-secondary"
-              htmlFor="password"
-            >
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              {...form.getInputProps("password")}
-              className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
-            />
-            {form.errors.password ? (
-              <p className="text-[11px] text-red-500 font-medium">{form.errors.password}</p>
-            ) : null}
-          </div>
+          <PasswordInput
+            id="password"
+            label="Password"
+            placeholder="••••••••"
+            {...form.getInputProps("password")}
+            error={form.errors.password ? String(form.errors.password) : undefined}
+          />
 
           <button
             type="submit"

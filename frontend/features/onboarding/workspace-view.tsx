@@ -2,11 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { OnboardingStepper } from '@/components/onboarding/onboarding-stepper';
 import { ArrowRight } from 'lucide-react';
-
-
+import { FileUpload } from '@/components/common/file-upload';
 
 export function WorkspaceView() {
   const router = useRouter();
@@ -22,34 +21,59 @@ export function WorkspaceView() {
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const [uploadedFile, setUploadedFile] = useState<string | null>(activeWs?.brandAsset || null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [fileType, setFileType] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeWs?.brandAsset) {
+      try {
+        const parsed = JSON.parse(activeWs.brandAsset);
+        setUploadedFile(activeWs.brandAsset);
+        setFilePreview(parsed.secureUrl || null);
+        setFileType(parsed.resourceType === 'raw' ? 'application/pdf' : 'image/png');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, [activeWs]);
+
+  const handleFileChange = (name: string | null, preview: string | null, type: string | null) => {
+    setUploadedFile(name);
+    setFilePreview(preview);
+    setFileType(type);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!brandName.trim()) {
       alert('Please enter a workspace brand name.');
       return;
     }
-
-    setIsSubmitting(true);
+ setIsSubmitting(true);
     try {
-      if (activeWs) {
-        await updateWorkspace({
-          ...activeWs,
-          name: brandName.trim(),
-          website: website.trim() || undefined,
-        });
-        await updateState({ activeWorkspaceId: activeWs.id, currentStep: 3 });
-      } else {
-        await addWorkspace({
-          id: '',
-          name: brandName.trim(),
-          website: website.trim() || undefined,
-          tone: 'casual',
-          keywords: [],
-          rules: [],
-          schedules: [],
-        });
-        await updateState({ currentStep: 3 });
-      }
+    if (state.accountType === 'individual' && activeWs) {
+      updateWorkspace({
+        ...activeWs,
+        name: brandName,
+        website: website || 'https://example.com',
+        brandAsset: uploadedFile || undefined,
+      });
+      updateState({ activeWorkspaceId: activeWs.id, currentStep: 3 });
+    } else {
+      const newId = brandName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      addWorkspace({
+        id: newId,
+        name: brandName,
+        website: website || 'https://example.com',
+        tone: 'casual',
+        keywords: [],
+        rules: [],
+        schedules: [],
+        brandAsset: uploadedFile || undefined,
+      });
+      updateState({ activeWorkspaceId: newId, currentStep: 3 });
+    }
 
       router.push('/onboarding/brand-voice');
     } catch {
@@ -105,17 +129,15 @@ export function WorkspaceView() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-[#737373]">
-              Brand Assets (Mock Upload)
-            </label>
-            <div className="border border-dashed border-[#EFEFEF] rounded-xl p-6 text-center hover:bg-slate-50 transition duration-150 cursor-pointer">
-              <p className="text-xs text-[#737373] font-medium">
-                Drag and drop your Brand Book, Logos, or Style Guides here
-              </p>
-              <p className="text-[10px] text-slate-400 mt-1">
-                Supports PDF, JPG, PNG up to 20MB (Simulated)
-              </p>
-            </div>
+            <FileUpload
+              label="Brand Assets"
+              value={uploadedFile}
+              previewUrl={filePreview}
+              fileType={fileType}
+              onChange={handleFileChange}
+              uploadUrl="/api/uploads/brand-assets"
+              maxSize={20 * 1024 * 1024} // 20MB
+            />
           </div>
 
           <button

@@ -90,8 +90,13 @@ class InvitationService:
             accept_link=accept_link
         )
         try:
-            email_provider.send(to=email, subject=template["subject"], html=template["html"])
+            delivered = email_provider.send(to=email, subject=template["subject"], html=template["html"])
+            if not delivered:
+                db.rollback()
+                raise ValueError(InvitationErrorCodes.EMAIL_SEND_FAILED)
         except Exception as e:
+            if isinstance(e, ValueError) and e.args and e.args[0] == InvitationErrorCodes.EMAIL_SEND_FAILED:
+                raise
             logger.error(f"Email send failed: {e}")
             db.rollback()
             raise ValueError(InvitationErrorCodes.EMAIL_SEND_FAILED) from e
@@ -165,5 +170,217 @@ class InvitationService:
 
         return access_token, refresh_token, user, organization_id
 
+    def get_clients(
+        self,
+        db: Session,
+        *,
+        current_user: User,
+        organization_id: str,
+        search: str | None = None,
+        plan: str | None = None,
+        status_filter: str | None = None,
+        role_filter: str | None = None,
+        skip: int = 0,
+        limit: int | None = None
+    ) -> list[dict]:
+        """
+        Get members/clients for an organization scoped by the requester's role.
+
+        Hierarchy rules:
+        - OWNER / ADMIN  → see every member & invitation in the organization
+        - MEMBER          → see only users they personally invited
+        - CLIENT          → see nothing (empty list)
+        """
+        # 1. Resolve the requester's role inside this organization
+        requester_member = db.query(OrganizationMember).filter(
+            OrganizationMember.organizationId == organization_id,
+            OrganizationMember.userId == current_user.id
+        ).first()
+
+        if not requester_member:
+            return []
+
+        requester_role = OrganizationRole(requester_member.role)
+
+        # CLIENT role cannot see anyone
+        if requester_role == OrganizationRole.CLIENT:
+            return []
+
+        # 2. Determine scope filter
+        # OWNER / ADMIN → see everyone; MEMBER → only their invitees
+        invited_by_filter: str | None = None
+        if requester_role == OrganizationRole.MEMBER:
+            invited_by_filter = current_user.id
+
+        # Plan filtering optimization
+        if plan and plan.lower() not in ("all", "free"):
+            return []
+
+        clients = []
+
+        # Decide which queries to run based on status_filter
+        query_active = not status_filter or status_filter.lower() in ("all", "active")
+        query_invites = not status_filter or status_filter.lower() in ("all", "pending", "expired")
+
+        role_val = None if not role_filter or role_filter.lower() == "all" else role_filter.upper()
+
+        # 3. Fetch Active Members (User + OrganizationMember)
+        if query_active:
+            members = organization_repository.get_members_by_role_with_users(
+                db,
+                organization_id=organization_id,
+                role=role_val,
+                search=search,
+                invited_by=invited_by_filter
+            )
+            for member, user in members:
+                # Skip the requester themselves from the list
+                if user.id == current_user.id:
+                    continue
+                clients.append({
+                    "id": user.id,
+                    "name": user.fullName,
+                    "email": user.email,
+                    "status": "active",
+                    "role": member.role,
+                    "expiresAt": None,
+                    "isAccepted": True,
+                    "workspaceId": None,
+                    "plan": "Free"
+                })
+
+        # 4. Fetch Pending/Expired Invitations
+        if query_invites:
+            invitations = invitation_repository.get_by_org_and_role(
+                db,
+                organization_id=organization_id,
+                role=role_val,
+                search=search,
+                invited_by=invited_by_filter
+            )
+            now_ms = int(time.time() * 1000)
+            for invitation in invitations:
+                is_expired = invitation.status == InvitationStatus.EXPIRED.value or invitation.expiresAt < now_ms
+                status_val = "expired" if is_expired else "pending"
+
+                # Check status filter at service layer (since status is computed)
+                if status_filter and status_filter.lower() != "all" and status_filter.lower() != status_val:
+                    continue
+
+                clients.append({
+                    "id": invitation.id,
+                    "name": invitation.fullName,
+                    "email": invitation.email,
+                    "status": status_val,
+                    "role": invitation.role,
+                    "expiresAt": invitation.expiresAt,
+                    "isAccepted": False,
+                    "workspaceId": None,
+                    "plan": "Free"
+                })
+
+        if limit is not None:
+            return clients[skip : skip + limit]
+        elif skip > 0:
+            return clients[skip :]
+        return clients
+
+    def delete_pending_invitation(
+        self,
+        db: Session,
+        *,
+        current_user: User,
+        organization_id: str,
+        invitation_id: str
+    ) -> None:
+        """Delete a pending or expired invitation from an organization."""
+        member = db.query(OrganizationMember).filter(
+            OrganizationMember.organizationId == organization_id,
+            OrganizationMember.userId == current_user.id
+        ).first()
+        if not member:
+            raise ValueError(InvitationErrorCodes.INVITER_NOT_MEMBER)
+
+        invitation = invitation_repository.get_by_id(db, invitation_id)
+        if not invitation or invitation.organizationId != organization_id:
+            raise ValueError(InvitationErrorCodes.INVITATION_NOT_FOUND)
+
+        if invitation.status == InvitationStatus.ACCEPTED:
+            raise ValueError(InvitationErrorCodes.INVITATION_ALREADY_ACCEPTED)
+
+        invitation_repository.delete(db, invitation)
+        db.commit()
+
+    def get_mock_inbox(
+        self,
+        db: Session,
+        *,
+        current_user: User,
+        organization_id: str
+    ) -> list[dict]:
+        """Retrieve simulated emails for all pending organization invitations."""
+        member = db.query(OrganizationMember).filter(
+            OrganizationMember.organizationId == organization_id,
+            OrganizationMember.userId == current_user.id
+        ).first()
+        if not member:
+            raise ValueError(InvitationErrorCodes.INVITER_NOT_MEMBER)
+
+        org = organization_repository.get_by_id(db, organization_id)
+        if not org:
+            raise ValueError(InvitationErrorCodes.ORGANIZATION_NOT_FOUND)
+
+        invitations = invitation_repository.get_pending_by_org(db, organization_id)
+
+        emails = []
+        for invitation in invitations:
+            token = create_invite_token(invitation.id)
+            invite_link = f"/auth/accept-invite?token={token}"
+            
+            body_text = (
+                f"Hi {invitation.fullName},\n\n"
+                f"You have been invited to review content briefs and approvals for {org.name} on PressForge.\n\n"
+                f"Your login email will be: {invitation.email}\n\n"
+                f"Click the link to accept the invitation and set your password:\n"
+                f"http://localhost:3000{invite_link}"
+            )
+            
+            emails.append({
+                "id": f"email-{invitation.id}",
+                "from": "noreply@pressforge.ai",
+                "to": invitation.email,
+                "subject": f"Invite: Join PressForge portal for {org.name}",
+                "preview": f"Invitation to join {org.name} on PressForge",
+                "time": "Just now",
+                "read": False,
+                "body": body_text,
+                "timestamp": invitation.createdAt,
+                "inviteLink": invite_link
+            })
+
+        return emails
+
+    def get_invitable_roles(
+        self,
+        db: Session,
+        *,
+        user: User,
+        organization_id: str
+    ) -> list[dict]:
+        inviter_member = db.query(OrganizationMember).filter(
+            OrganizationMember.organizationId == organization_id,
+            OrganizationMember.userId == user.id
+        ).first()
+        if not inviter_member:
+            raise ValueError(InvitationErrorCodes.INVITER_NOT_MEMBER)
+
+        inviter_role = OrganizationRole(inviter_member.role)
+        allowed_roles = INVITATION_PERMISSION_MATRIX.get(inviter_role, [])
+        return [
+            {"value": role.value, "label": role.value.capitalize()}
+            for role in allowed_roles
+        ]
+
 
 invitation_service = InvitationService()
+

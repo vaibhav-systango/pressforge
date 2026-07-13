@@ -45,7 +45,7 @@ export async function callBackend<T>(
   const { accessToken, ...rest } = init;
   const headers = new Headers(rest.headers);
 
-  if (rest.body && !headers.has('Content-Type')) {
+  if (rest.body && !headers.has('Content-Type') && !(rest.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
 

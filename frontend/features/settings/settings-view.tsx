@@ -15,6 +15,9 @@ import {
   Check, ToggleLeft, ToggleRight, Trash2, RefreshCw, 
   Building2, Sparkles, Users, Instagram, X
 } from 'lucide-react';
+import { PasswordInput } from '@/components/common/password-input';
+import { DeleteModal } from '@/components/common/delete-modal';
+import { validatePassword } from '@/lib/utils/validation';
 
 export function SettingsView() {
   const { state, updateState, resetState } = useAppState();
@@ -22,10 +25,16 @@ export function SettingsView() {
   const router = useRouter();
   const isClient = user?.userType === 'client' || state.currentUserType === 'client';
 
+  // Modal confirm states
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   // Form states
   const [profileName, setProfileName] = useState(user?.name ?? '');
   const [profileEmail, setProfileEmail] = useState(user?.email ?? '');
-  const [orgName, setOrgName] = useState(state.organizationName || 'Forge Agencies');
+  const [orgName, setOrgName] = useState(
+    state.organizationName && state.organizationName !== 'Forge Agencies' ? state.organizationName : '',
+  );
   
   // Password fields
   const [currentPassword, setCurrentPassword] = useState('');
@@ -115,6 +124,10 @@ export function SettingsView() {
 
   const handleSaveOrg = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!orgName.trim()) {
+      alert("Organization name cannot be empty.");
+      return;
+    }
     updateState({ organizationName: orgName });
     setOrgSaved(true);
     setTimeout(() => setOrgSaved(false), 3000);
@@ -122,6 +135,11 @@ export function SettingsView() {
 
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault();
+    const passError = validatePassword(newPassword);
+    if (passError) {
+      alert(passError);
+      return;
+    }
     if (newPassword !== confirmPassword) {
       alert("New passwords do not match!");
       return;
@@ -139,18 +157,19 @@ export function SettingsView() {
     setTimeout(() => setPlanSaved(false), 3000);
   };
 
-  const handleResetData = () => {
-    if (confirm("Are you sure you want to reset all data to default settings? This will delete custom workspaces, drafts, and client portals.")) {
-      resetState();
+  const handleResetData = async () => {
+    try {
+      await resetState();
       alert("Application state reset successfully.");
       router.push('/app');
+    } catch (error) {
+      console.error("Failed to reset application state:", error);
+      alert("Failed to reset application state. Please try again.");
     }
   };
 
   const handleDeleteAccount = () => {
-    if (confirm("Are you sure you want to delete your account? This action is irreversible.")) {
-      window.location.href = '/';
-    }
+    window.location.href = '/';
   };
 
   if (isUserLoading && !user) {
@@ -390,39 +409,33 @@ export function SettingsView() {
 
             <form onSubmit={handleChangePassword} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-text-secondary">Current Password</label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-text-secondary">New Password</label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-text-secondary">Confirm New Password</label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition"
-                  />
-                </div>
+                <PasswordInput
+                  id="current-password"
+                  label="Current Password"
+                  placeholder="••••••••"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="text-xs py-2"
+                  required
+                />
+                <PasswordInput
+                  id="new-password"
+                  label="New Password"
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="text-xs py-2"
+                  required
+                />
+                <PasswordInput
+                  id="confirm-password"
+                  label="Confirm New Password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="text-xs py-2"
+                  required
+                />
               </div>
 
               <div className="flex justify-end">
@@ -615,7 +628,7 @@ export function SettingsView() {
                   Restores default settings, clear all custom workspaces and client invitations.
                 </p>
                 <button
-                  onClick={handleResetData}
+                  onClick={() => setShowResetConfirm(true)}
                   className="w-full mt-1.5 border border-border-primary bg-bg-app hover:bg-red-50 dark:hover:bg-red-950/20 text-text-primary hover:text-red-500 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
@@ -629,7 +642,7 @@ export function SettingsView() {
                   Permanently delete this account and all linked organization records.
                 </p>
                 <button
-                  onClick={handleDeleteAccount}
+                  onClick={() => setShowDeleteConfirm(true)}
                   className="w-full mt-1.5 bg-red-600 hover:opacity-90 text-white py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -643,11 +656,11 @@ export function SettingsView() {
 
       {/* Instagram Authentication modal */}
       {showInstaModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 animate-fade-in p-4">
-          <div className="bg-white border border-[#EFEFEF] rounded-3xl w-full max-w-sm p-6 shadow-xl animate-scale-up space-y-4 text-slate-800">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 animate-fade-in p-4">
+          <div className="bg-bg-card border border-border-primary rounded-3xl w-full max-w-sm p-6 shadow-xl animate-scale-up space-y-4 text-text-primary">
             
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-[#EFEFEF] pb-3">
+            <div className="flex items-center justify-between border-b border-border-primary pb-3">
               <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
                 <Instagram className="w-4 h-4 text-instagram-pink" />
                 <span>Instagram Auth Bridge</span>
@@ -657,7 +670,7 @@ export function SettingsView() {
                   setShowInstaModal(false);
                   setInstaModalTarget(null);
                 }}
-                className="p-1 text-slate-400 hover:bg-slate-100 rounded-lg hover:text-slate-700"
+                className="p-1 text-text-secondary hover:bg-bg-hover rounded-lg hover:text-text-primary"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -667,49 +680,47 @@ export function SettingsView() {
             {instaStep === 'loading' && (
               <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
                 <div className="w-10 h-10 border-2 border-instagram-pink border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-xs text-slate-500 font-medium">Communicating with Meta API...</p>
+                <p className="text-xs text-text-secondary font-medium">Communicating with Meta API...</p>
               </div>
             )}
 
             {/* Login State */}
             {instaStep === 'login' && (
               <form onSubmit={handleInstaSubmit} className="space-y-4">
-                <p className="text-[11px] text-slate-500 leading-normal">
+                <p className="text-[11px] text-text-secondary leading-normal">
                   Connect your team member's Instagram Creator or Business profile to PressForge.
                 </p>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold uppercase text-slate-500">Instagram Username</label>
+                  <label className="text-[10px] font-bold uppercase text-text-secondary">Instagram Username</label>
                   <input
                     type="text"
                     required
                     placeholder="@username"
                     value={instaUsername}
                     onChange={(e) => setInstaUsername(e.target.value)}
-                    className="border border-[#EFEFEF] bg-white text-slate-800 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-instagram-pink"
+                    className="border border-border-primary bg-bg-app text-text-primary rounded-lg px-3 py-1.5 text-xs outline-none focus:border-instagram-pink"
                   />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold uppercase text-slate-500">Password</label>
-                  <input
-                    type="password"
-                    required
+                  <label htmlFor="insta-password" className="text-[10px] font-bold uppercase text-text-secondary">Password</label>
+                  <PasswordInput
+                    id="insta-password"
                     placeholder="••••••••"
                     value={instaPassword}
                     onChange={(e) => setInstaPassword(e.target.value)}
-                    className="border border-[#EFEFEF] bg-white text-slate-800 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-instagram-pink"
+                    className="border border-border-primary bg-bg-app text-text-primary rounded-lg text-xs py-1.5 focus:border-instagram-pink"
+                    required
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full bg-[#262626] text-white py-2 rounded-lg text-xs font-bold hover:bg-slate-800 transition"
+                  className="w-full bg-[#262626] text-white py-2 rounded-lg text-xs font-bold hover:bg-neutral-800 transition"
                 >
                   Log In & Connect
                 </button>
-
-
               </form>
             )}
 
@@ -717,24 +728,24 @@ export function SettingsView() {
             {instaStep === 'authorize' && (
               <div className="flex flex-col gap-4 text-center">
                 <div className="flex items-center justify-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-[#262626]">
+                  <div className="w-10 h-10 rounded-full bg-bg-app flex items-center justify-center text-text-primary">
                     <Instagram className="w-5 h-5" />
                   </div>
-                  <span className="text-slate-400 text-xs">↔</span>
-                  <div className="w-10 h-10 rounded-full bg-pink-50 text-instagram-pink flex items-center justify-center font-bold text-xs">
+                  <span className="text-text-secondary text-xs">↔</span>
+                  <div className="w-10 h-10 rounded-full bg-pink-500/10 text-instagram-pink flex items-center justify-center font-bold text-xs">
                     PF
                   </div>
                 </div>
 
-                <h3 className="font-extrabold text-sm text-[#262626] mt-2">
+                <h3 className="font-extrabold text-sm text-text-primary mt-2">
                   Authorize PressForge Integration
                 </h3>
 
-                <div className="bg-slate-50/50 border border-slate-100 p-4 rounded-xl text-left space-y-2.5">
-                  <p className="text-[10px] text-slate-500 leading-normal">
-                    PressForge AI is requesting permission to access the following info for <span className="font-bold text-slate-700">@{instaUsername}</span>:
+                <div className="bg-bg-app/50 border border-border-primary p-4 rounded-xl text-left space-y-2.5">
+                  <p className="text-[10px] text-text-secondary leading-normal">
+                    PressForge AI is requesting permission to access the following info for <span className="font-bold text-text-primary">@{instaUsername}</span>:
                   </p>
-                  <ul className="text-[9px] text-slate-600 space-y-1.5 pl-1">
+                  <ul className="text-[9px] text-text-secondary space-y-1.5 pl-1">
                     <li className="flex items-start gap-1.5">
                       <Check className="w-3 h-3 text-green-600 mt-0.5 shrink-0" />
                       <span>Profile info and media files</span>
@@ -757,7 +768,7 @@ export function SettingsView() {
                       setShowInstaModal(false);
                       setInstaModalTarget(null);
                     }}
-                    className="flex-1 border border-[#EFEFEF] hover:bg-slate-50 text-slate-600 font-bold py-2 rounded-md text-xs transition"
+                    className="flex-1 border border-border-primary hover:bg-bg-app text-text-secondary font-bold py-2 rounded-md text-xs transition"
                   >
                     Decline
                   </button>
@@ -774,6 +785,32 @@ export function SettingsView() {
           </div>
         </div>
       )}
+
+      {/* Reset Confirmation Modal */}
+      <DeleteModal
+        isOpen={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={async () => {
+          await handleResetData();
+          setShowResetConfirm(false);
+        }}
+        title="Reset Application Data"
+        description="Are you sure you want to reset all data to default settings? This will delete custom workspaces, drafts, and client portals."
+        confirmLabel="Reset Data"
+      />
+
+      {/* Delete Account Confirmation Modal */}
+      <DeleteModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => {
+          setShowDeleteConfirm(false);
+          handleDeleteAccount();
+        }}
+        title="Delete Account"
+        description="Are you sure you want to delete your account? This action is irreversible."
+        confirmLabel="Delete Account"
+      />
     </div>
   );
 }

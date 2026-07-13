@@ -5,6 +5,7 @@ import { NavLink } from '@/components/navigation/nav-link';
 import { useAppState } from '@/lib/queries/use-app-state';
 import React, { useState } from 'react';
 import { Plus, Trash, Link as LinkIcon } from 'lucide-react';
+import { Select } from '@/components/common/select';
 
 export function ConnectView() {
   const { state, updateState } = useAppState();
@@ -36,15 +37,21 @@ export function ConnectView() {
 
       <p className="text-sm text-text-secondary mb-4">Connect multiple social channels. Add Instagram, LinkedIn, or other accounts to publish posts.</p>
 
-      <div className="mb-4 flex gap-2">
-        <input className="px-3 py-2 border rounded" placeholder="Account display name" value={newName} onChange={(e) => setNewName(e.target.value)} />
-        <select className="px-3 py-2 border rounded" value={newPlatform} onChange={(e) => setNewPlatform(e.target.value)}>
-          <option value="instagram">Instagram</option>
-          <option value="twitter">Twitter/X</option>
-          <option value="linkedin">LinkedIn</option>
-          <option value="facebook">Facebook</option>
-        </select>
-        <button onClick={addChannel} className="px-3 py-2 bg-instagram-pink text-white rounded flex items-center gap-2"><Plus className="w-4 h-4"/>Add</button>
+      <div className="mb-4 flex gap-2 items-end">
+        <input className="px-3 py-2.5 border border-border-primary bg-bg-card text-text-primary rounded-xl text-sm focus:border-instagram-pink outline-none transition" placeholder="Account display name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+        <Select
+          value={newPlatform}
+          onChange={(e) => setNewPlatform(e.target.value)}
+          options={[
+            { value: 'instagram', label: 'Instagram' },
+            { value: 'twitter', label: 'Twitter/X' },
+            { value: 'linkedin', label: 'LinkedIn' },
+            { value: 'facebook', label: 'Facebook' }
+          ]}
+          className="py-2.5 px-3 text-sm"
+          containerClassName="w-40"
+        />
+        <button onClick={addChannel} className="px-4 py-2.5 bg-instagram-pink text-white rounded-xl text-sm font-bold flex items-center gap-2 cursor-pointer hover:opacity-90 transition"><Plus className="w-4 h-4"/>Add</button>
       </div>
 
       <div className="grid gap-3">

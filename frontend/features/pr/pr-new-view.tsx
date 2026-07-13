@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAppState, useJournalistsQuery } from '@/lib/queries/use-app-state';
 import React, { useState } from 'react';
 import { ChevronLeft, Send, Filter, Search, UserCheck } from 'lucide-react';
+import { useDebounce } from '@/lib/hooks/use-debounce';
+import { Select } from '@/components/common/select';
 
 
 
@@ -19,6 +21,7 @@ export function PrNewView() {
 
   // Filter state
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [beatFilter, setBeatFilter] = useState('All');
   const [cityFilter, setCityFilter] = useState('All');
   const [tierFilter, setTierFilter] = useState('All');
@@ -51,8 +54,8 @@ export function PrNewView() {
 
   // Filter journalists list
   const filteredJournalists = journalists.filter((j) => {
-    const matchesSearch = j.name.toLowerCase().includes(search.toLowerCase()) ||
-                          j.publication.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = j.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+                          j.publication.toLowerCase().includes(debouncedSearch.toLowerCase());
     const matchesBeat = beatFilter === 'All' || j.beat === beatFilter || (beatFilter === 'Environment' && j.beat === 'Environment');
     const matchesCity = cityFilter === 'All' || j.city === cityFilter;
     const matchesTier = tierFilter === 'All' || j.tier === tierFilter;
@@ -193,43 +196,46 @@ export function PrNewView() {
             </div>
             <div className="flex flex-col gap-1">
               <span className="font-semibold text-slate-500">Beat</span>
-              <select
+              <Select
                 value={beatFilter}
                 onChange={(e) => setBeatFilter(e.target.value)}
-                className="border border-[#EFEFEF] bg-white rounded-lg p-1.5 outline-none focus:border-[#E1306C]"
-              >
-                <option value="All">All Beats</option>
-                <option value="Lifestyle">Lifestyle</option>
-                <option value="Business">Business</option>
-                <option value="Tech">Tech</option>
-                <option value="Environment">Environment</option>
-              </select>
+                options={[
+                  { value: 'All', label: 'All Beats' },
+                  { value: 'Lifestyle', label: 'Lifestyle' },
+                  { value: 'Business', label: 'Business' },
+                  { value: 'Tech', label: 'Tech' },
+                  { value: 'Environment', label: 'Environment' }
+                ]}
+                className="p-1.5 text-xs"
+              />
             </div>
             <div className="flex flex-col gap-1">
               <span className="font-semibold text-slate-500">City</span>
-              <select
+              <Select
                 value={cityFilter}
                 onChange={(e) => setCityFilter(e.target.value)}
-                className="border border-[#EFEFEF] bg-white rounded-lg p-1.5 outline-none focus:border-[#E1306C]"
-              >
-                <option value="All">All Cities</option>
-                <option value="New York">New York</option>
-                <option value="San Francisco">San Francisco</option>
-                <option value="London">London</option>
-              </select>
+                options={[
+                  { value: 'All', label: 'All Cities' },
+                  { value: 'New York', label: 'New York' },
+                  { value: 'San Francisco', label: 'San Francisco' },
+                  { value: 'London', label: 'London' }
+                ]}
+                className="p-1.5 text-xs"
+              />
             </div>
             <div className="flex flex-col gap-1">
               <span className="font-semibold text-slate-500">Tier</span>
-              <select
+              <Select
                 value={tierFilter}
                 onChange={(e) => setTierFilter(e.target.value)}
-                className="border border-[#EFEFEF] bg-white rounded-lg p-1.5 outline-none focus:border-[#E1306C]"
-              >
-                <option value="All">All Tiers</option>
-                <option value="Tier 1">Tier 1</option>
-                <option value="Tier 2">Tier 2</option>
-                <option value="Tier 3">Tier 3</option>
-              </select>
+                options={[
+                  { value: 'All', label: 'All Tiers' },
+                  { value: 'Tier 1', label: 'Tier 1' },
+                  { value: 'Tier 2', label: 'Tier 2' },
+                  { value: 'Tier 3', label: 'Tier 3' }
+                ]}
+                className="p-1.5 text-xs"
+              />
             </div>
           </div>
 

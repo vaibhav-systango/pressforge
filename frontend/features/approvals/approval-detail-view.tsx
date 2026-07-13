@@ -166,11 +166,10 @@ export function ApprovalDetailView() {
 
         {/* Right Side: Simulated Smartphone Frame (WhatsApp Mock) */}
         <div className="lg:col-span-6 flex justify-center">
-          {/* Smartphone Frame */}
-          <div className="w-[320px] h-[600px] border-[8px] border-slate-800 rounded-[32px] bg-slate-900 overflow-hidden shadow-2xl relative flex flex-col">
+          <div className="w-[320px] h-[600px] border-[8px] border-[#1e293b] rounded-[32px] bg-[#0f172a] overflow-hidden shadow-2xl relative flex flex-col">
             {/* Top Notch/Speaker */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-800 rounded-b-xl z-20 flex items-center justify-center">
-              <div className="w-12 h-1 bg-slate-700 rounded-full mb-1"></div>
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-[#1e293b] rounded-b-xl z-20 flex items-center justify-center">
+              <div className="w-12 h-1 bg-[#374151] rounded-full mb-1"></div>
             </div>
 
             {/* WhatsApp Header */}

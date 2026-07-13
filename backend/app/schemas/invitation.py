@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from app.models.organization_member import OrganizationRole
 
 
@@ -17,10 +17,28 @@ class InviteUserResponse(BaseModel):
     expiresAt: int
     createdAt: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AcceptInvitationRequest(BaseModel):
     token: str
     password: str = Field(..., min_length=8, max_length=30)
+
+
+class ClientResponse(BaseModel):
+    id: str
+    name: str
+    email: str
+    status: str
+    role: str
+    expiresAt: int | None = None
+    isAccepted: bool
+    workspaceId: str | None = None
+    plan: str | None = "Free"
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class InvitableRoleResponse(BaseModel):
+    value: str
+    label: str
