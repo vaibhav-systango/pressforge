@@ -19,5 +19,5 @@ export async function POST(request: Request) {
     );
   }
 
-  return issueBackendAuthResponse(data);
+  return await issueBackendAuthResponse(data);
 }

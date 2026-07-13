@@ -10,4 +10,9 @@ class UserProfile(Base):
     primaryGoal = Column(String, nullable=False)
     contentThemes = Column(JSON, nullable=False, default=list)
     website = Column(String, nullable=True)
+    activeWorkspaceId = Column(
+        String(26),
+        ForeignKey("workspaces.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     createdAt = Column(BigInteger, nullable=False, default=generate_timestamp_ms)

@@ -2,6 +2,7 @@
 export const ACCESS_TOKEN_COOKIE = 'access_token';
 export const REFRESH_TOKEN_COOKIE = 'refresh_token';
 export const SESSION_COOKIE = 'pf_session';
+export const GUEST_SESSION_COOKIE = 'pf_guest_session';
 
 // Token lifetimes
 export const ACCESS_TOKEN_TTL_SECONDS = 900; // 15 min

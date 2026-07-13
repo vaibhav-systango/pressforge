@@ -22,4 +22,10 @@ class OrganizationMember(Base):
         index=True
     )
     invitedBy = Column(String(26), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    workspaceId = Column(
+        String(26),
+        ForeignKey("workspaces.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     joinedAt = Column(BigInteger, nullable=False, default=generate_timestamp_ms)

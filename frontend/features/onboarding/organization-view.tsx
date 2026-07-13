@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
-import type { Schedule } from '@/lib/types';
 import React, { useState } from 'react';
 
 import {
@@ -229,17 +228,6 @@ export function OrganizationView() {
         individualGoal === 'other' ? individualGoalCustom.trim() : individualGoal;
 
       updateState((prev) => {
-        const brandId = individualBrandName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-        const defaultWorkspace = {
-          id: brandId,
-          name: individualBrandName,
-          website: individualWebsite || '',
-          tone: 'casual' as const,
-          keywords: [] as string[],
-          rules: [] as string[],
-          schedules: [] as Schedule[],
-        };
-
         return {
           ...prev,
           accountType: 'individual',
@@ -249,8 +237,6 @@ export function OrganizationView() {
           individualWebsite,
           individualInstagramConnected: individualInstaConnected,
           individualInstagramUsername: individualInstaUser,
-          workspaces: [defaultWorkspace],
-          activeWorkspaceId: brandId,
           currentStep: 2,
         };
       });

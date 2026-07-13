@@ -1,15 +1,22 @@
 import { NextResponse } from 'next/server';
 
-import { setAuthCookies } from '@/lib/server/auth/cookies';
-import { REFRESH_TOKEN_TTL_SECONDS } from '@/lib/server/auth/constants';
+import { callBackend } from '@/lib/server/backend-client';
 import { mapBackendUser, mapBackendUserType } from '@/lib/server/map-backend-user';
 import { ensureSession, updateSession } from '@/lib/server/mock-store';
+import {
+  finalizeGuestMigrationResponse,
+  migrateGuestWorkspacesToBackend,
+} from '@/lib/server/migrate-guest-workspaces';
+import { setAuthCookies } from '@/lib/server/auth/cookies';
+import { REFRESH_TOKEN_TTL_SECONDS } from '@/lib/server/auth/constants';
 import type { BackendTokenResponse } from '@/lib/types/api';
 
 export const ORGANIZATION_ID_COOKIE = 'organization_id';
 
 /** Set auth cookies from a backend Token response and return a client-safe JSON body. */
-export function issueBackendAuthResponse(tokenData: BackendTokenResponse): NextResponse {
+export async function issueBackendAuthResponse(
+  tokenData: BackendTokenResponse,
+): Promise<NextResponse> {
   const mapped = mapBackendUser(tokenData.user);
   const organizationId = tokenData.user.organizationId ?? tokenData.organizationId ?? null;
   const onboardingCompleted = tokenData.user.onboardingStatus === 'COMPLETED';
@@ -37,6 +44,12 @@ export function issueBackendAuthResponse(tokenData: BackendTokenResponse): NextR
     currentUserName: mapped.name,
   });
 
+  try {
+    await migrateGuestWorkspacesToBackend(tokenData.accessToken, mapped.userId);
+  } catch (error) {
+    console.error('Guest workspace migration failed:', error);
+  }
+
   const response = NextResponse.json({
     user: {
       ...mapped,
@@ -51,12 +64,14 @@ export function issueBackendAuthResponse(tokenData: BackendTokenResponse): NextR
   const withAuthCookies = setAuthCookies(response, tokenData.accessToken, tokenData.refreshToken);
 
   if (organizationId) {
-    const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-    withAuthCookies.headers.append(
-      'Set-Cookie',
-      `${ORGANIZATION_ID_COOKIE}=${organizationId}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${REFRESH_TOKEN_TTL_SECONDS}${secure}`,
-    );
+    withAuthCookies.cookies.set(ORGANIZATION_ID_COOKIE, organizationId, {
+      httpOnly: true,
+      path: '/',
+      sameSite: 'lax',
+      maxAge: REFRESH_TOKEN_TTL_SECONDS,
+      secure: process.env.NODE_ENV === 'production',
+    });
   }
 
-  return withAuthCookies;
+  return finalizeGuestMigrationResponse(withAuthCookies);
 }

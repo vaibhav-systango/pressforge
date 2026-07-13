@@ -8,42 +8,59 @@ import {
   SESSION_COOKIE,
 } from '@/lib/server/auth/constants';
 
-const COOKIE_BASE = 'HttpOnly; Path=/; SameSite=Lax';
+const ORGANIZATION_ID_COOKIE = 'organization_id';
 
-function cookieMaxAge(ttl: number) {
-  return `Max-Age=${ttl}`;
+function cookieOptions(maxAge: number) {
+  return {
+    path: '/' as const,
+    sameSite: 'lax' as const,
+    maxAge,
+    secure: process.env.NODE_ENV === 'production',
+  };
 }
 
 /** Attach access_token, refresh_token and pf_session cookies to a response. */
-export function setAuthCookies<T extends { headers: { append(key: string, value: string): void } }>(
-  response: T,
+export function setAuthCookies(
+  response: NextResponse,
   accessToken: string,
   refreshToken: string,
-): T {
-  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-
-  response.headers.append(
-    'Set-Cookie',
-    `${ACCESS_TOKEN_COOKIE}=${accessToken}; ${COOKIE_BASE}; ${cookieMaxAge(ACCESS_TOKEN_TTL_SECONDS)}${secure}`,
-  );
-  response.headers.append(
-    'Set-Cookie',
-    `${REFRESH_TOKEN_COOKIE}=${refreshToken}; ${COOKIE_BASE}; ${cookieMaxAge(REFRESH_TOKEN_TTL_SECONDS)}${secure}`,
-  );
-  response.headers.append(
-    'Set-Cookie',
-    `${SESSION_COOKIE}=1; Path=/; SameSite=Lax; ${cookieMaxAge(REFRESH_TOKEN_TTL_SECONDS)}${secure}`,
-  );
+): NextResponse {
+  response.cookies.set(ACCESS_TOKEN_COOKIE, accessToken, {
+    ...cookieOptions(ACCESS_TOKEN_TTL_SECONDS),
+    httpOnly: true,
+  });
+  response.cookies.set(REFRESH_TOKEN_COOKIE, refreshToken, {
+    ...cookieOptions(REFRESH_TOKEN_TTL_SECONDS),
+    httpOnly: true,
+  });
+  response.cookies.set(SESSION_COOKIE, '1', {
+    ...cookieOptions(REFRESH_TOKEN_TTL_SECONDS),
+    httpOnly: false,
+  });
 
   return response;
 }
 
-/** Return Set-Cookie strings that clear all auth cookies. */
+/** Clear all auth cookies on a response. */
+export function clearAuthCookies(response: NextResponse): NextResponse {
+  for (const name of [
+    ACCESS_TOKEN_COOKIE,
+    REFRESH_TOKEN_COOKIE,
+    SESSION_COOKIE,
+    ORGANIZATION_ID_COOKIE,
+  ]) {
+    response.cookies.set(name, '', { path: '/', maxAge: 0 });
+  }
+
+  return response;
+}
+
+/** @deprecated Use clearAuthCookies instead. */
 export function clearAuthCookieHeaders(): string[] {
   return [
     `${ACCESS_TOKEN_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`,
     `${REFRESH_TOKEN_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`,
     `${SESSION_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`,
-    `organization_id=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`,
+    `${ORGANIZATION_ID_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`,
   ];
 }
