@@ -287,20 +287,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </NavLink>
 
                 <NavLink
-                  href="/app/workspaces"
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
-                      isActive
-                        ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
-                        : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-                    }`
-                  }
-                >
-                  <Building className="w-4 h-4" />
-                  <span>Workspace Profile</span>
-                </NavLink>
-
-                <NavLink
                   href="/app/settings"
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
@@ -313,13 +299,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Settings className="w-4 h-4" />
                   <span>Account Settings</span>
                 </NavLink>
-              </>
-            ) : (
-              // Agency / Full navigation view
-              <>
+
                 <NavLink
-                  href="/app"
-                  end
+                  href="/app/workspaces"
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
                       isActive
@@ -328,10 +310,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     }`
                   }
                 >
-                  <LayoutDashboard className="w-4 h-4" />
-                  <span>Dashboard</span>
+                  <Building className="w-4 h-4" />
+                  <span>Workspace Profile</span>
                 </NavLink>
-
+              </>
+            ) : (
+              // Agency / Full navigation view
+              <>
                 <NavLink
                   href="/app/content"
                   className={({ isActive }) =>
@@ -396,9 +381,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <span>Analytics</span>
                 </NavLink>
 
-                {!isIndividual && (
+                <div className="border-t border-border-primary my-2 pt-2 flex flex-col gap-1.5">
                   <NavLink
-                    href="/app/clients"
+                    href="/app"
+                    end
                     className={({ isActive }) =>
                       `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
                         isActive
@@ -407,26 +393,40 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       }`
                     }
                   >
-                    <Users className="w-4 h-4" />
-                    <span>Client Portals</span>
+                    <LayoutDashboard className="w-4 h-4" />
+                    <span>Dashboard</span>
                   </NavLink>
-                )}
 
-                <NavLink
-                  href="/app/workspaces"
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
-                      isActive
-                        ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
-                        : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-                    }`
-                  }
-                >
-                  <Building className="w-4 h-4" />
-                  <span>Workspaces</span>
-                </NavLink>
+                  {!isIndividual && (
+                    <NavLink
+                      href="/app/clients"
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
+                          isActive
+                            ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
+                            : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                        }`
+                      }
+                    >
+                      <Users className="w-4 h-4" />
+                      <span>Client Portals</span>
+                    </NavLink>
+                  )}
 
-                <div className="border-t border-border-primary my-2 pt-2">
+                  <NavLink
+                    href="/app/workspaces"
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
+                        isActive
+                          ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
+                          : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                      }`
+                    }
+                  >
+                    <Building className="w-4 h-4" />
+                    <span>Workspaces</span>
+                  </NavLink>
+
                   <NavLink
                     href="/app/settings"
                     className={({ isActive }) =>
