@@ -352,6 +352,10 @@ class WorkspaceService:
 
         try:
             workspace_repository.soft_delete(db, workspace)
+            from app.models.organization_member import MemberWorkspace
+            db.query(MemberWorkspace).filter(
+                MemberWorkspace.workspaceId == workspace_id
+            ).delete()
             db.query(OrganizationMember).filter(
                 OrganizationMember.workspaceId == workspace_id
             ).update({"workspaceId": None}, synchronize_session=False)

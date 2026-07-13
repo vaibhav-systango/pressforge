@@ -4,8 +4,8 @@ import { NavLink } from "@/components/navigation/nav-link";
 import { useRouter } from "next/navigation";
 import { useAppState } from "@/lib/queries/use-app-state";
 import { useAuth } from "@/lib/hooks/queries/use-auth";
-import React, { useState } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import React, { useState, useCallback } from "react";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { InfiniteScroll } from "@/components/common/infinite-scroll";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -33,7 +33,8 @@ import {
 } from "lucide-react";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { state, setActiveWorkspace, resetState, logout, updateState } = useAppState();
+  const { state, setActiveWorkspace, resetState, logout, updateState, refetch } = useAppState();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const router = useRouter();
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
@@ -55,6 +56,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       const queryParams = new URLSearchParams();
       if (debouncedClientSearch) queryParams.set("search", debouncedClientSearch);
       queryParams.set("status_filter", "active");
+      queryParams.set("role_filter", "client");
       queryParams.set("skip", String(pageParam));
       queryParams.set("limit", "10");
 
@@ -74,13 +76,42 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const activeClients = clientsData ? clientsData.pages.flatMap((page) => page) : [];
 
-  const handleClientSelect = (c: any) => {
-    updateState({ activeClientId: c.id });
-    if (c.workspaceId) {
-      setActiveWorkspace(c.workspaceId);
-    }
+  const handleClientSelect = useCallback(async (c: any) => {
     setShowClientMenu(false);
-  };
+
+    // 1. Set the activeClientId in session state
+    await updateState({ activeClientId: c.id });
+
+    // 2. Fetch workspaces filtered by this client from backend
+    try {
+      const res = await fetch(`/api/workspaces?clientId=${encodeURIComponent(c.id)}`);
+      if (res.ok) {
+        const wsData = await res.json() as { workspaces: any[]; activeWorkspaceId: string | null };
+        const clientWorkspaces = wsData.workspaces || [];
+
+        // 3. Update the app-state cache with client-filtered workspaces
+        queryClient.setQueryData(['app-state'], (old: any) => ({
+          state: {
+            ...(old?.state ?? {}),
+            activeClientId: c.id,
+            workspaces: clientWorkspaces,
+            activeWorkspaceId: clientWorkspaces[0]?.id ?? null,
+          },
+        }));
+
+        // 4. Set the first workspace as active on backend
+        if (clientWorkspaces.length > 0) {
+          await setActiveWorkspace(clientWorkspaces[0].id);
+        } else {
+          await setActiveWorkspace(null);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch workspaces for client:', err);
+      // Fallback: set the client's single workspace if available
+      await setActiveWorkspace(c.workspaceId || null);
+    }
+  }, [updateState, setActiveWorkspace, queryClient]);
 
   const isClient =
     user?.userType === "client" || state.currentUserType === "client";
@@ -103,21 +134,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       : formatAccountTypeLabel(user.accountType)
     : (isClient ? "Client Reviewer" : "Brand Manager");
 
+  // When a client is selected, state.workspaces is already filtered by that client
+  // (set by handleClientSelect or mergeBackendWorkspaces in state API).
+  // So we just use state.workspaces directly.
+  const filteredWorkspaces = state.workspaces;
+
   // Get active workspace details
   const activeWorkspace =
-    state.workspaces.find((w) => w.id === state.activeWorkspaceId) ||
-    state.workspaces[0];
+    filteredWorkspaces.find((w) => w.id === state.activeWorkspaceId) ||
+    filteredWorkspaces[0];
 
   // Get active client details if any
   const currentClient = isClient
     ? state.clients.find((c) => c.id === state.activeClientId)
     : null;
 
-  // Selected client for organization header dropdown based on active workspace or activeClientId
+  // Selected client for organization header dropdown based on activeClientId
   const selectedClient =
-    activeClients.find((c) => c.id === state.activeClientId) ||
     state.clients.find((c) => c.id === state.activeClientId) ||
-    state.clients.find((c) => c.workspaceId === activeWorkspace?.id);
+    activeClients.find((c) => c.id === state.activeClientId);
 
   // Calculate pending approvals count
   const pendingApprovalsCount = state.drafts.filter(
@@ -126,9 +161,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       d.status === "pending_approval",
   ).length;
 
-  const handleWorkspaceChange = (id: string) => {
+  const handleWorkspaceChange = async (id: string) => {
     if (isClient) return; // Clients cannot change workspaces
-    setActiveWorkspace(id);
+    await setActiveWorkspace(id);
     setShowWorkspaceMenu(false);
   };
 
@@ -180,24 +215,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             {showWorkspaceMenu && !isClient && (
               <div className="absolute top-full left-0 right-0 mt-1.5 bg-bg-card border border-border-primary rounded-xl shadow-lg z-20 py-1.5 transition-colors duration-200">
-                {state.workspaces.map((ws) => (
-                  <button
-                    key={ws.id}
-                    onClick={() => handleWorkspaceChange(ws.id)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-bg-hover transition duration-150 ${
-                      ws.id === state.activeWorkspaceId
-                        ? "bg-bg-app font-medium"
-                        : ""
-                    }`}
-                  >
-                    <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-text-secondary text-xs font-bold">
-                      {ws.name.charAt(0)}
-                    </div>
-                    <span className="text-sm text-text-primary truncate">
-                      {ws.name}
-                    </span>
-                  </button>
-                ))}
+                {filteredWorkspaces.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-text-secondary text-center">
+                    No workspaces assigned to client
+                  </div>
+                ) : (
+                  filteredWorkspaces.map((ws) => (
+                    <button
+                      key={ws.id}
+                      onClick={() => handleWorkspaceChange(ws.id)}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-bg-hover transition duration-150 ${
+                        ws.id === state.activeWorkspaceId
+                          ? "bg-bg-app font-medium"
+                          : ""
+                      }`}
+                    >
+                      <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-text-secondary text-xs font-bold">
+                        {ws.name.charAt(0)}
+                      </div>
+                      <span className="text-sm text-text-primary truncate">
+                        {ws.name}
+                      </span>
+                    </button>
+                  ))
+                )}
                 <div className="border-t border-border-primary mt-1.5 pt-1.5 px-3">
                   <NavLink
                     href="/app/workspaces?new=true"

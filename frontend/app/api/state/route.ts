@@ -21,7 +21,9 @@ import type { AppState } from '@/lib/types';
 import { ORGANIZATION_ID_COOKIE } from '@/lib/server/issue-backend-auth';
 
 async function mergeBackendWorkspaces(state: AppState, accessToken: string): Promise<AppState> {
-  const { data } = await callBackend<WorkspaceListResponse>('/workspaces', { accessToken });
+  const clientId = state.activeClientId;
+  const query = clientId ? `?clientId=${encodeURIComponent(clientId)}` : '';
+  const { data } = await callBackend<WorkspaceListResponse>(`/workspaces${query}`, { accessToken });
   if (!data) {
     return state;
   }
@@ -65,7 +67,7 @@ export async function GET() {
             const activeClients = clientsData
               .filter((c) => {
                 const isExpired = c.status === 'expired' || (c.expiresAt && new Date(c.expiresAt) < new Date());
-                return c.status === 'active' && !isExpired;
+                return c.status === 'active' && !isExpired && c.role?.toUpperCase() === 'CLIENT';
               })
               .map((c, index) => {
                 const ws = mergedState.workspaces.length > 0
@@ -76,8 +78,9 @@ export async function GET() {
                   name: c.name || c.fullName,
                   email: c.email,
                   status: 'active' as const,
-                  role: c.role || 'Client Reviewer',
-                  workspaceId: c.workspaceId || ws?.id || '',
+                  role: c.role || 'CLIENT',
+                  workspaceId: c.workspaceId || '',
+                  workspaceIds: c.workspaceIds || (c.workspaceId ? [c.workspaceId] : []),
                 };
               });
 

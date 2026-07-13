@@ -3,7 +3,7 @@ from app.database.database import Base
 from app.models.user import User
 from app.models.organization import Organization
 from app.models.organization_kyc import OrganizationKyc
-from app.models.organization_member import OrganizationMember
+from app.models.organization_member import OrganizationMember, MemberWorkspace
 from app.models.role import Role
 from app.models.permission import Permission
 from app.models.role_permission import RolePermission
@@ -19,6 +19,7 @@ __all__ = [
     "Organization",
     "OrganizationKyc",
     "OrganizationMember",
+    "MemberWorkspace",
     "Role",
     "Permission",
     "RolePermission",

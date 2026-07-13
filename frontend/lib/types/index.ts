@@ -66,6 +66,7 @@ export interface ClientUser {
   name: string;
   email: string;
   workspaceId: string;
+  workspaceIds?: string[];
   status: 'active' | 'pending' | 'inactive' | 'expired';
   role?: string;
   password?: string;

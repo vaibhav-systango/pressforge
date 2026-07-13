@@ -4,10 +4,12 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Building, Plus, Trash2, Edit3, Save, X, 
   Users, ArrowRight, ShieldCheck, HelpCircle, 
-  Layers, ExternalLink, Globe, FileText, Calendar, Clock, Repeat
+  Layers, ExternalLink, Globe, FileText, Calendar, Clock, Repeat,
+  ChevronDown
 } from 'lucide-react';
 import type { Workspace, ClientUser, Schedule } from '@/lib/types';
 import { Select } from '@/components/common/select';
@@ -25,16 +27,48 @@ export function WorkspacesView() {
     updateClient,
     addWorkspaceSchedule, 
     updateWorkspaceSchedule, 
-    deleteWorkspaceSchedule 
+    deleteWorkspaceSchedule,
+    setActiveWorkspace
   } = useAppState();
   const isClient = state.currentUserType === 'client';
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(true);
 
-  // If Client, default to their assigned workspace. Otherwise default to activeWorkspaceId or first workspace
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>(
-    isClient 
-      ? (state.activeWorkspaceId || state.workspaces[0]?.id || '')
-      : (state.activeWorkspaceId || state.workspaces[0]?.id || '')
-  );
+  // Workspace selection state
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>('');
+
+  const initialLoadDone = React.useRef(false);
+
+  const fetchWorkspaces = React.useCallback(async () => {
+    try {
+      // Only show full-page loader on initial fetch, not on refetches
+      if (!initialLoadDone.current) {
+        setIsLoadingWorkspaces(true);
+      }
+      // Always fetch ALL workspaces for the organization — no client filtering
+      const res = await fetch(`/api/workspaces`);
+      if (res.ok) {
+        const data = await res.json();
+        setWorkspaces(data.workspaces || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch workspaces:', err);
+    } finally {
+      setIsLoadingWorkspaces(false);
+      initialLoadDone.current = true;
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchWorkspaces();
+  }, [fetchWorkspaces]);
+
+  // Initialize local selection to the first workspace once loaded — purely local, never syncs from global state
+  React.useEffect(() => {
+    if (workspaces.length > 0 && !selectedWorkspaceId) {
+      setSelectedWorkspaceId(workspaces[0].id);
+    }
+  }, [workspaces, selectedWorkspaceId]);
 
   const pathname = usePathname();
   const router = useRouter();
@@ -55,7 +89,7 @@ export function WorkspacesView() {
   const [newWorkspaceTone, setNewWorkspaceTone] = useState('professional');
   
   // Selected workspace values
-  const currentWorkspace = state.workspaces.find((w) => w.id === selectedWorkspaceId) || state.workspaces[0];
+  const currentWorkspace = workspaces.find((w) => w.id === selectedWorkspaceId) || workspaces[0];
   
   // Edit state
   const [brandName, setBrandName] = useState(currentWorkspace?.name || '');
@@ -69,8 +103,9 @@ export function WorkspacesView() {
   // Input fields
   const [keywordInput, setKeywordInput] = useState('');
   const [ruleInput, setRuleInput] = useState('');
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isSavingWorkspace, setIsSavingWorkspace] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isDeletingWorkspace, setIsDeletingWorkspace] = useState(false);
 
   // Scheduler local form state
   const [newScheduleLabel, setNewScheduleLabel] = useState('');
@@ -81,6 +116,100 @@ export function WorkspacesView() {
 
   // Client allocation state
   const [selectedClientToAllocate, setSelectedClientToAllocate] = useState<string>('');
+  const [isAddingClient, setIsAddingClient] = useState(false);
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+
+  // Modal client selector states
+  const [selectedModalClientId, setSelectedModalClientId] = useState('');
+  const [showModalClientDropdown, setShowModalClientDropdown] = useState(false);
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
+  const [visibleClientsCount, setVisibleClientsCount] = useState(10);
+  const [isLoadingMoreClients, setIsLoadingMoreClients] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const modalRef = React.useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (deleteConfirmId && !isDeletingWorkspace) {
+          setDeleteConfirmId(null);
+        } else if (isCreating) {
+          setIsCreating(false);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isCreating, deleteConfirmId, isDeletingWorkspace]);
+
+  React.useEffect(() => {
+    if (isCreating || deleteConfirmId) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isCreating, deleteConfirmId]);
+
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
+      setIsCreating(false);
+    }
+  };
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowModalClientDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (isCreating) {
+      setSelectedModalClientId(state.activeClientId || '');
+      setClientSearchQuery('');
+      setVisibleClientsCount(10);
+      setIsLoadingMoreClients(false);
+      setShowModalClientDropdown(false);
+      setValidationError(null);
+    }
+  }, [isCreating, state.activeClientId]);
+
+  const filteredClients = (state.clients || []).filter(c => 
+    (c.name || '').toLowerCase().includes(clientSearchQuery.toLowerCase()) || 
+    (c.email || '').toLowerCase().includes(clientSearchQuery.toLowerCase())
+  );
+
+  const handleDropdownScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 10) {
+      if (visibleClientsCount < filteredClients.length && !isLoadingMoreClients) {
+        setIsLoadingMoreClients(true);
+        setTimeout(() => {
+          setVisibleClientsCount(prev => Math.min(prev + 10, filteredClients.length));
+          setIsLoadingMoreClients(false);
+        }, 300);
+      }
+    }
+  };
+
+  const selectedClientObj = state.clients.find(c => c.id === selectedModalClientId);
 
   // Sync state when selection changes
   React.useEffect(() => {
@@ -90,7 +219,6 @@ export function WorkspacesView() {
       setTone((currentWorkspace.tone as ToneOption) ?? 'professional');
       setKeywords(currentWorkspace.keywords || []);
       setRules(currentWorkspace.rules || []);
-      setSaveSuccess(false);
       // reset scheduler inputs when workspace changes
       setNewScheduleLabel('');
       setNewScheduleDatetime('');
@@ -101,55 +229,102 @@ export function WorkspacesView() {
   }, [selectedWorkspaceId, currentWorkspace]);
 
   // Handle updates
-  const handleUpdateWorkspace = (e: React.FormEvent) => {
+  const handleUpdateWorkspace = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentWorkspace) return;
+    if (!currentWorkspace || isSavingWorkspace) return;
 
-    const updated: Workspace = {
-      ...currentWorkspace,
-      name: brandName,
-      website: website,
-      tone: tone as any,
-      keywords: keywords,
-      rules: rules
-    };
+    setIsSavingWorkspace(true);
+    try {
+      const updated: Workspace = {
+        ...currentWorkspace,
+        name: brandName,
+        website: website,
+        tone: tone as any,
+        keywords: keywords,
+        rules: rules
+      };
 
-    updateWorkspace(updated);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+      await updateWorkspace(updated);
+      fetchWorkspaces();
+    } finally {
+      setIsSavingWorkspace(false);
+    }
   };
 
   // Handle create
-  const handleCreateWorkspace = (e: React.FormEvent) => {
+  const handleCreateWorkspace = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newWorkspaceName.trim() || !newWorkspaceWebsite.trim()) return;
+    setValidationError(null);
+
+    if (!newWorkspaceName.trim()) {
+      setValidationError('Workspace / Brand Name is required.');
+      return;
+    }
+
+    if (state.currentUserType !== 'individual' && !selectedModalClientId) {
+      // In organization flow, a client must be selected
+      setValidationError('Please select a client to assign this workspace.');
+      return;
+    }
+
+    setIsCreatingWorkspace(true);
 
     const newId = `workspace-${Date.now()}`;
     const newWs: Workspace = {
       id: newId,
       name: newWorkspaceName,
-      website: newWorkspaceWebsite,
+      website: newWorkspaceWebsite || undefined,
       tone: newWorkspaceTone as any,
       keywords: ['press', 'news'],
       rules: ['Write clearly and concisely.'],
       schedules: []
     };
 
-    addWorkspace(newWs);
-    setSelectedWorkspaceId(newId);
-    setIsCreating(false);
-    setNewWorkspaceName('');
-    setNewWorkspaceWebsite('');
-    setNewWorkspaceTone('professional');
+    try {
+      const createdWs = await addWorkspace(newWs);
+      const wsId = createdWs?.workspace?.id || newId;
+
+      if (state.currentUserType !== 'individual' && selectedModalClientId) {
+        const client = state.clients.find(c => c.id === selectedModalClientId);
+        if (client) {
+          await updateClient({
+            ...client,
+            workspaceId: wsId
+          });
+          await updateState({ activeClientId: selectedModalClientId });
+        }
+      }
+
+      await setActiveWorkspace(wsId);
+      setSelectedWorkspaceId(wsId);
+      setIsCreating(false);
+      setNewWorkspaceName('');
+      setNewWorkspaceWebsite('');
+      setNewWorkspaceTone('professional');
+      setSelectedModalClientId('');
+      fetchWorkspaces();
+    } catch (err: any) {
+      console.error(err);
+      setValidationError(err.message || 'Failed to create workspace. Please try again.');
+    } finally {
+      setIsCreatingWorkspace(false);
+    }
   };
 
-  const handleDeleteWorkspace = (id: string) => {
-    const remaining = state.workspaces.filter((w) => w.id !== id);
-    if (selectedWorkspaceId === id) {
-      setSelectedWorkspaceId(remaining[0]?.id ?? '');
+  const handleDeleteWorkspace = async (id: string) => {
+    if (isDeletingWorkspace) return;
+    setIsDeletingWorkspace(true);
+    try {
+      const remaining = workspaces.filter((w) => w.id !== id);
+      if (selectedWorkspaceId === id) {
+        setSelectedWorkspaceId(remaining[0]?.id ?? '');
+      }
+      await deleteWorkspace(id);
+      setDeleteConfirmId(null);
+      fetchWorkspaces();
+    } finally {
+      setIsDeletingWorkspace(false);
     }
-    deleteWorkspace(id);
-    setDeleteConfirmId(null);
   };
 
   // Keywords CRUD
@@ -178,12 +353,13 @@ export function WorkspacesView() {
     setRules(rules.filter((r) => r !== rule));
   };
 
-  const handleRemoveSchedule = (id: string) => {
+  const handleRemoveSchedule = async (id: string) => {
     if (!currentWorkspace) return;
-    deleteWorkspaceSchedule(currentWorkspace.id, id);
+    await deleteWorkspaceSchedule(currentWorkspace.id, id);
+    fetchWorkspaces();
   };
 
-  const handleAddSchedule = () => {
+  const handleAddSchedule = async () => {
     if (!currentWorkspace) return;
     if (!newScheduleLabel.trim()) return;
 
@@ -197,7 +373,7 @@ export function WorkspacesView() {
       nextRun: newScheduleDatetime ? new Date(newScheduleDatetime).toISOString() : undefined,
     };
 
-    addWorkspaceSchedule(currentWorkspace.id, newSched);
+    await addWorkspaceSchedule(currentWorkspace.id, newSched);
 
     // Reset inputs
     setNewScheduleLabel('');
@@ -205,27 +381,36 @@ export function WorkspacesView() {
     setNewScheduleRecurrence('none');
     setNewSchedulePublishDraft(false);
     setNewScheduleEnabled(true);
+    fetchWorkspaces();
   };
 
-  // Remove Client Allocation (reset workspace to empty or default)
-  const handleDeallocateClient = (client: ClientUser) => {
-    const otherWorkspace = state.workspaces.find(w => w.id !== currentWorkspace.id);
-    const updatedClient: ClientUser = {
-      ...client,
-      workspaceId: otherWorkspace ? otherWorkspace.id : ''
-    };
-    updateClient(updatedClient);
+  // Remove Client Allocation (remove this workspace from client's assigned list)
+  const handleDeallocateClient = async (client: ClientUser) => {
+    if (currentWorkspace) {
+      await updateClient(client, { action: 'remove', workspaceId: currentWorkspace.id });
+      fetchWorkspaces();
+    }
   };
 
   // Get allocated clients for current workspace
-  const allocatedClients = (state.clients || []).filter(
-    (c) => c.workspaceId === currentWorkspace?.id
-  );
+  const allocatedClients = (state.clients || []).filter((c) => {
+    const wsIds = c.workspaceIds || (c.workspaceId ? [c.workspaceId] : []);
+    return wsIds.includes(currentWorkspace?.id);
+  });
 
   // Get clients eligible for allocation (not currently in this workspace)
-  const unallocatedClients = (state.clients || []).filter(
-    (c) => c.workspaceId !== currentWorkspace?.id
-  );
+  const unallocatedClients = (state.clients || []).filter((c) => {
+    const wsIds = c.workspaceIds || (c.workspaceId ? [c.workspaceId] : []);
+    return !wsIds.includes(currentWorkspace?.id);
+  });
+
+  if (isLoadingWorkspaces) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-instagram-pink"></div>
+      </div>
+    );
+  }
 
   if (isClient) {
     // Client View: Read-Only Workspace details and tone profile
@@ -407,9 +592,15 @@ export function WorkspacesView() {
       </div>
 
       {/* Create Workspace Panel Modal/Overlay */}
-      {isCreating && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-bg-card border border-border-primary w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-scale-up">
+      {isCreating && mounted && createPortal(
+        <div 
+          onClick={handleBackdropClick}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        >
+          <div 
+            ref={modalRef}
+            className="bg-bg-card border border-border-primary w-full max-w-md rounded-2xl shadow-xl animate-scale-up"
+          >
             <div className="flex items-center justify-between p-5 border-b border-border-primary">
               <div className="flex items-center gap-2">
                 <Building className="w-4 h-4 text-instagram-pink" />
@@ -437,16 +628,101 @@ export function WorkspacesView() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-text-secondary">Website URL</label>
+                <label className="text-xs font-bold text-text-secondary">Website URL (Optional)</label>
                 <input
                   type="url"
-                  required
                   placeholder="https://ecolife.co"
                   value={newWorkspaceWebsite}
                   onChange={(e) => setNewWorkspaceWebsite(e.target.value)}
                   className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition"
                 />
               </div>
+
+              {state.currentUserType !== 'individual' && (
+                <div className="flex flex-col gap-1.5 relative" ref={dropdownRef}>
+                  <label className="text-xs font-bold text-text-secondary">Assign to Client</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowModalClientDropdown(!showModalClientDropdown)}
+                    className={`flex items-center justify-between border bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs hover:border-border-hover transition outline-none text-left w-full cursor-pointer ${
+                      validationError && !selectedModalClientId ? 'border-red-500 focus:border-red-500' : 'border-border-primary'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <Users className="w-4 h-4 text-text-secondary shrink-0" />
+                      <span className="truncate">
+                        {selectedClientObj 
+                          ? `${selectedClientObj.name} (${selectedClientObj.email})`
+                          : "Select Client"
+                        }
+                      </span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 text-text-secondary transition-transform ${showModalClientDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {showModalClientDropdown && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-bg-card border border-border-primary rounded-xl shadow-lg z-50 p-2 space-y-2 animate-scale-up max-h-60 flex flex-col">
+                      {/* Search Input */}
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Search active clients..."
+                          value={clientSearchQuery}
+                          onChange={(e) => {
+                            setClientSearchQuery(e.target.value);
+                            setVisibleClientsCount(10);
+                          }}
+                          className="w-full border border-border-primary bg-bg-app text-text-primary rounded-lg pl-8 pr-3 py-1.5 text-xs focus:border-instagram-pink outline-none transition"
+                        />
+                        <Users className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
+                      </div>
+
+                      {/* Client List Container with scroll and simulated infinite scroll */}
+                      <div 
+                        onScroll={handleDropdownScroll}
+                        className="overflow-y-auto flex-1 max-h-40 pr-1 select-none custom-scrollbar flex flex-col gap-1"
+                      >
+                        {filteredClients.length === 0 ? (
+                          <div className="py-4 text-center text-xs text-text-secondary">
+                            No clients found
+                          </div>
+                        ) : (
+                          filteredClients.slice(0, visibleClientsCount).map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedModalClientId(c.id);
+                                setShowModalClientDropdown(false);
+                                setValidationError(null);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-xs rounded-lg transition flex items-center justify-between cursor-pointer ${
+                                selectedModalClientId === c.id 
+                                  ? 'bg-instagram-pink/10 text-instagram-pink font-semibold' 
+                                  : 'text-text-primary hover:bg-bg-hover'
+                              }`}
+                            >
+                              <div className="flex flex-col min-w-0">
+                                <span className="font-semibold truncate">{c.name}</span>
+                                <span className="text-[10px] text-text-secondary truncate">{c.email}</span>
+                              </div>
+                              {selectedModalClientId === c.id && (
+                                <ShieldCheck className="w-4 h-4 text-instagram-pink shrink-0 ml-2" />
+                              )}
+                            </button>
+                          ))
+                        )}
+                        {isLoadingMoreClients && (
+                          <div className="py-2 text-center text-[10px] text-text-secondary flex items-center justify-center gap-1">
+                            <span className="w-1.5 h-1.5 bg-instagram-pink rounded-full animate-ping"></span>
+                            Loading more...
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="flex flex-col gap-2">
                 <Select
@@ -458,15 +734,82 @@ export function WorkspacesView() {
                 />
               </div>
 
+              {validationError && (
+                <div className="text-xs text-red-500 font-semibold mt-2 text-center bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 py-2.5 rounded-xl">
+                  {validationError}
+                </div>
+              )}
+
               <button
                 type="submit"
-                className="w-full bg-text-primary text-bg-card hover:opacity-90 py-2.5 rounded-xl text-xs font-bold transition mt-6"
+                disabled={isCreatingWorkspace}
+                className={`w-full bg-text-primary text-bg-card hover:opacity-90 py-2.5 rounded-xl text-xs font-bold transition mt-6 flex items-center justify-center gap-2 ${isCreatingWorkspace ? 'opacity-60 cursor-not-allowed' : ''}`}
               >
-                Create Workspace
+                {isCreatingWorkspace && (
+                  <span className="w-4 h-4 border-2 border-bg-card/30 border-t-bg-card rounded-full animate-spin" />
+                )}
+                {isCreatingWorkspace ? 'Creating...' : 'Create Workspace'}
               </button>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && mounted && createPortal(
+        <div 
+          onClick={() => { if (!isDeletingWorkspace) setDeleteConfirmId(null); }}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-bg-card border border-border-primary w-full max-w-sm rounded-2xl shadow-xl animate-scale-up"
+          >
+            <div className="flex items-center gap-3 p-5 border-b border-border-primary">
+              <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-950/20 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <h3 className="font-bold text-text-primary text-sm">Delete Workspace</h3>
+                <p className="text-xs text-text-secondary mt-0.5">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <p className="text-xs text-text-secondary">
+                Are you sure you want to delete <strong className="text-text-primary">{workspaces.find(w => w.id === deleteConfirmId)?.name}</strong>? All associated data will be permanently removed.
+              </p>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  disabled={isDeletingWorkspace}
+                  onClick={() => setDeleteConfirmId(null)}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold border border-border-primary text-text-primary hover:bg-bg-hover transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeletingWorkspace}
+                  onClick={() => handleDeleteWorkspace(deleteConfirmId)}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold text-white transition flex items-center justify-center gap-2 ${isDeletingWorkspace ? 'bg-red-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600 cursor-pointer'}`}
+                >
+                  {isDeletingWorkspace ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Main Grid */}
@@ -475,20 +818,23 @@ export function WorkspacesView() {
         {/* Left Column: Workspace selector list */}
         <div className="lg:col-span-3 bg-bg-card border border-border-primary rounded-2xl p-4 shadow-sm space-y-3">
           <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider border-b border-border-primary pb-2 block">
-            Workspaces ({state.workspaces.length})
+            Workspaces ({workspaces.length})
           </span>
 
           <div className="flex flex-col gap-1.5 max-h-[400px] overflow-y-auto pr-1">
-            {state.workspaces.map((ws) => {
+            {workspaces.map((ws) => {
               const isSelected = ws.id === selectedWorkspaceId;
-              const wsClients = (state.clients || []).filter(c => c.workspaceId === ws.id);
+              const wsClients = (state.clients || []).filter(c => {
+                const wsIds = c.workspaceIds || (c.workspaceId ? [c.workspaceId] : []);
+                return wsIds.includes(ws.id);
+              });
 
               return (
                 <div key={ws.id} className="relative group/item">
                   <button
                     onClick={() => {
+                      // Only update local page selection — do NOT change global active workspace
                       setSelectedWorkspaceId(ws.id);
-                      updateState({ activeWorkspaceId: ws.id });
                     }}
                     className={`w-full flex items-center justify-between p-3 rounded-xl border text-left transition ${
                       isSelected 
@@ -510,32 +856,15 @@ export function WorkspacesView() {
                   </button>
 
                   {/* Delete button shown on hover/select */}
-                  {state.workspaces.length > 1 && (
+                  {workspaces.length > 1 && (
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/item:opacity-100 focus-within:opacity-100 transition duration-150">
-                      {deleteConfirmId === ws.id ? (
-                        <div className="flex items-center bg-bg-card border border-red-500 rounded-lg p-1 gap-1 text-[9px] font-bold shadow-md">
-                          <button
-                            onClick={() => handleDeleteWorkspace(ws.id)}
-                            className="bg-red-500 hover:opacity-90 text-white px-1.5 py-0.5 rounded"
-                          >
-                            Yes
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(null)}
-                            className="bg-slate-200 hover:bg-slate-100 text-text-primary px-1.5 py-0.5 rounded"
-                          >
-                            No
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setDeleteConfirmId(ws.id)}
-                          title="Delete Workspace"
-                          className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-600 rounded-lg transition"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      <button
+                        onClick={() => setDeleteConfirmId(ws.id)}
+                        title="Delete Workspace"
+                        className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-600 rounded-lg transition"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   )}
                 </div>
@@ -556,7 +885,7 @@ export function WorkspacesView() {
                   </div>
                   <div>
                     <h2 className="text-lg font-bold text-text-primary">{brandName} Profile Details</h2>
-                    <p className="text-xs text-text-secondary">Workspace ID: {currentWorkspace.id}</p>
+
                   </div>
                 </div>
 
@@ -605,12 +934,11 @@ export function WorkspacesView() {
                     {/* Website */}
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-text-secondary" htmlFor="website">
-                        Website URL
+                        Website URL (Optional)
                       </label>
                       <input
                         id="website"
                         type="url"
-                        required
                         value={website}
                         onChange={(e) => setWebsite(e.target.value)}
                         className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition"
@@ -638,19 +966,18 @@ export function WorkspacesView() {
                       </div>
                     </div>
 
-                    {saveSuccess ? (
-                      <div className="flex items-center justify-center gap-1.5 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 text-green-700 dark:text-green-400 py-3 rounded-xl text-xs font-bold transition">
-                        <ShieldCheck className="w-4 h-4" /> Workspace updated successfully
-                      </div>
-                    ) : (
-                      <button
-                        type="submit"
-                        className="w-full flex items-center justify-center gap-1.5 bg-text-primary hover:opacity-90 text-bg-card py-2.5 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
-                      >
+                    <button
+                      type="submit"
+                      disabled={isSavingWorkspace}
+                      className={`w-full flex items-center justify-center gap-1.5 bg-text-primary hover:opacity-90 text-bg-card py-2.5 rounded-xl text-xs font-bold transition shadow-sm ${isSavingWorkspace ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      {isSavingWorkspace ? (
+                        <span className="w-4 h-4 border-2 border-bg-card/30 border-t-bg-card rounded-full animate-spin" />
+                      ) : (
                         <Save className="w-4 h-4" />
-                        <span>Save Workspace settings</span>
-                      </button>
-                    )}
+                      )}
+                      <span>{isSavingWorkspace ? 'Saving...' : 'Save Workspace settings'}</span>
+                    </button>
                   </form>
                 </div>
 
@@ -739,6 +1066,90 @@ export function WorkspacesView() {
                         </li>
                       ))}
                     </ul>
+                  </div>
+                </div>
+
+                {/* Portal Members & Client Allocation */}
+                <div className="md:col-span-12 bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
+                  <h3 className="text-sm font-bold text-text-primary border-b border-border-primary pb-2 flex items-center gap-1.5">
+                    <Users className="w-4 h-4 text-instagram-pink" />
+                    <span>Client Portal Access</span>
+                  </h3>
+                  <p className="text-[11px] text-text-secondary">
+                    Manage client portal accounts that have access to this brand workspace. A workspace can be assigned to multiple clients.
+                  </p>
+
+                  {/* Add Client dropdown */}
+                  {unallocatedClients.length > 0 ? (
+                    <div className="flex gap-2">
+                      <select
+                        value={selectedClientToAllocate}
+                        onChange={(e) => setSelectedClientToAllocate(e.target.value)}
+                        className="flex-1 border border-border-primary bg-bg-app text-text-primary rounded-xl px-3 py-1.5 text-xs outline-none focus:border-instagram-pink"
+                      >
+                        <option value="">Select client to add...</option>
+                        {unallocatedClients.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} ({c.email})
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        disabled={isAddingClient}
+                        onClick={async () => {
+                          if (!selectedClientToAllocate || isAddingClient) return;
+                          setIsAddingClient(true);
+                          try {
+                            const client = state.clients.find(c => c.id === selectedClientToAllocate);
+                            if (client && currentWorkspace) {
+                              await updateClient(client, { action: 'add', workspaceId: currentWorkspace.id });
+                              setSelectedClientToAllocate('');
+                              fetchWorkspaces();
+                            }
+                          } finally {
+                            setIsAddingClient(false);
+                          }
+                        }}
+                        className={`bg-instagram-pink hover:opacity-90 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 min-w-[52px] justify-center ${isAddingClient ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                      >
+                        {isAddingClient ? (
+                          <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          'Add'
+                        )}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-text-secondary italic">All active clients are assigned to this workspace.</p>
+                  )}
+
+                  {/* List of allocated clients */}
+                  <div className="space-y-2 pt-2">
+                    <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">
+                      Assigned Clients ({allocatedClients.length})
+                    </span>
+                    {allocatedClients.length === 0 ? (
+                      <p className="text-xs text-text-secondary italic">No clients assigned to this workspace.</p>
+                    ) : (
+                      <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1">
+                        {allocatedClients.map((client) => (
+                          <div key={client.id} className="flex items-center justify-between p-2 bg-bg-app/40 rounded-xl border border-border-primary text-xs">
+                            <div className="min-w-0">
+                              <p className="font-bold text-text-primary truncate">{client.name}</p>
+                              <p className="text-text-secondary text-[10px] truncate">{client.email}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleDeallocateClient(client)}
+                              className="text-red-500 hover:text-red-600 font-semibold text-[10px]"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 

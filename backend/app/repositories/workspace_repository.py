@@ -83,12 +83,17 @@ class WorkspaceRepository:
         organization_id: str,
         client_user_id: str,
     ) -> list[Workspace]:
+        from app.models.organization_member import MemberWorkspace
         return (
             db.query(Workspace)
             .options(joinedload(Workspace.schedules))
             .join(
+                MemberWorkspace,
+                MemberWorkspace.workspaceId == Workspace.id,
+            )
+            .join(
                 OrganizationMember,
-                OrganizationMember.workspaceId == Workspace.id,
+                OrganizationMember.id == MemberWorkspace.memberId,
             )
             .filter(
                 Workspace.organizationId == organization_id,
@@ -100,6 +105,7 @@ class WorkspaceRepository:
             .order_by(Workspace.createdAt.asc())
             .all()
         )
+
 
     def list_by_guest_session(self, db: Session, guest_session_id: str) -> list[Workspace]:
         return (
