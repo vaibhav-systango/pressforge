@@ -87,6 +87,10 @@ export function WorkspacesView() {
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [newWorkspaceWebsite, setNewWorkspaceWebsite] = useState('');
   const [newWorkspaceTone, setNewWorkspaceTone] = useState('professional');
+  const [newKeywords, setNewKeywords] = useState<string[]>([]);
+  const [newRules, setNewRules] = useState<string[]>([]);
+  const [newKeywordInput, setNewKeywordInput] = useState('');
+  const [newRuleInput, setNewRuleInput] = useState('');
   
   // Selected workspace values
   const currentWorkspace = workspaces.find((w) => w.id === selectedWorkspaceId) || workspaces[0];
@@ -275,8 +279,8 @@ export function WorkspacesView() {
       name: newWorkspaceName,
       website: newWorkspaceWebsite || undefined,
       tone: newWorkspaceTone as any,
-      keywords: ['press', 'news'],
-      rules: ['Write clearly and concisely.'],
+      keywords: newKeywords.length > 0 ? newKeywords : [],
+      rules: newRules.length > 0 ? newRules : [],
       schedules: []
     };
 
@@ -301,6 +305,10 @@ export function WorkspacesView() {
       setNewWorkspaceName('');
       setNewWorkspaceWebsite('');
       setNewWorkspaceTone('professional');
+      setNewKeywords([]);
+      setNewRules([]);
+      setNewKeywordInput('');
+      setNewRuleInput('');
       setSelectedModalClientId('');
       fetchWorkspaces();
     } catch (err: any) {
@@ -599,9 +607,9 @@ export function WorkspacesView() {
         >
           <div 
             ref={modalRef}
-            className="bg-bg-card border border-border-primary w-full max-w-md rounded-2xl shadow-xl animate-scale-up"
+            className="bg-bg-card border border-border-primary w-full max-w-lg rounded-2xl shadow-xl animate-scale-up max-h-[90vh] flex flex-col"
           >
-            <div className="flex items-center justify-between p-5 border-b border-border-primary">
+            <div className="flex items-center justify-between p-5 border-b border-border-primary shrink-0">
               <div className="flex items-center gap-2">
                 <Building className="w-4 h-4 text-instagram-pink" />
                 <span className="font-bold text-text-primary">Create Brand Workspace</span>
@@ -614,7 +622,8 @@ export function WorkspacesView() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateWorkspace} className="p-5 space-y-4">
+            <form onSubmit={handleCreateWorkspace} className="p-5 space-y-4 overflow-y-auto flex-1">
+              {/* ── Workspace Details ── */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-text-secondary">Workspace / Brand Name</label>
                 <input
@@ -724,14 +733,126 @@ export function WorkspacesView() {
                 </div>
               )}
 
-              <div className="flex flex-col gap-2">
-                <Select
-                  label="Active Tone"
-                  value={newWorkspaceTone}
-                  onChange={(e) => setNewWorkspaceTone(e.target.value)}
-                  options={TONES.map(t => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) }))}
-                  className="py-2.5 text-xs"
-                />
+              {/* ── Brand Voice ── */}
+              <div className="border-t border-border-primary pt-4 mt-2">
+                <h4 className="text-xs font-bold text-text-primary flex items-center gap-1.5 mb-3">
+                  <Layers className="w-3.5 h-3.5 text-instagram-pink" />
+                  <span>Brand Voice</span>
+                </h4>
+
+                <div className="flex flex-col gap-2 mb-3">
+                  <Select
+                    label="Active Tone"
+                    value={newWorkspaceTone}
+                    onChange={(e) => setNewWorkspaceTone(e.target.value)}
+                    options={TONES.map(t => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) }))}
+                    className="py-2.5 text-xs"
+                  />
+                </div>
+
+                {/* Keywords */}
+                <div className="flex flex-col gap-1.5 mb-3">
+                  <label className="text-xs font-bold text-text-secondary">Brand Keywords</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Add keyword"
+                      value={newKeywordInput}
+                      onChange={(e) => setNewKeywordInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const clean = newKeywordInput.trim().toLowerCase();
+                          if (clean && !newKeywords.includes(clean)) {
+                            setNewKeywords([...newKeywords, clean]);
+                            setNewKeywordInput('');
+                          }
+                        }
+                      }}
+                      className="flex-1 border border-border-primary bg-bg-app text-text-primary rounded-xl px-3 py-1.5 text-xs focus:border-instagram-pink outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const clean = newKeywordInput.trim().toLowerCase();
+                        if (clean && !newKeywords.includes(clean)) {
+                          setNewKeywords([...newKeywords, clean]);
+                          setNewKeywordInput('');
+                        }
+                      }}
+                      className="bg-bg-hover hover:bg-slate-200 border border-border-primary px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  {newKeywords.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {newKeywords.map((kw) => (
+                        <span
+                          key={kw}
+                          className="inline-flex items-center gap-1 bg-bg-app border border-border-primary rounded-full px-2.5 py-0.5 text-xs text-text-primary"
+                        >
+                          <span>#{kw}</span>
+                          <button type="button" onClick={() => setNewKeywords(newKeywords.filter(k => k !== kw))}>
+                            <X className="w-3 h-3 text-text-secondary hover:text-text-primary" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Rules */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-text-secondary">Writing Prompt Rules</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. Always capitalize PR title"
+                      value={newRuleInput}
+                      onChange={(e) => setNewRuleInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const clean = newRuleInput.trim();
+                          if (clean && !newRules.includes(clean)) {
+                            setNewRules([...newRules, clean]);
+                            setNewRuleInput('');
+                          }
+                        }
+                      }}
+                      className="flex-1 border border-border-primary bg-bg-app text-text-primary rounded-xl px-3 py-1.5 text-xs focus:border-instagram-pink outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const clean = newRuleInput.trim();
+                        if (clean && !newRules.includes(clean)) {
+                          setNewRules([...newRules, clean]);
+                          setNewRuleInput('');
+                        }
+                      }}
+                      className="bg-bg-hover hover:bg-slate-200 border border-border-primary px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  {newRules.length > 0 && (
+                    <ul className="flex flex-col gap-1.5 mt-1.5">
+                      {newRules.map((rule) => (
+                        <li
+                          key={rule}
+                          className="flex items-center justify-between bg-bg-app border border-border-primary rounded-xl px-3 py-1.5 text-xs text-text-primary"
+                        >
+                          <span className="truncate pr-2">{rule}</span>
+                          <button type="button" onClick={() => setNewRules(newRules.filter(r => r !== rule))} className="shrink-0">
+                            <X className="w-3.5 h-3.5 text-text-secondary hover:text-text-primary" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
 
               {validationError && (
