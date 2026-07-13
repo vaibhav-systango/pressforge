@@ -3,7 +3,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { ApiError } from '@/lib/utils/api-errors';
-import { fetchMe } from '@/lib/hooks/queries/use-auth';
 import type { LoginRequest, LoginResponse, SignupRequest, SignupResponse } from '@/lib/types/api';
 
 // ── Login ─────────────────────────────────────────────────────────────────────
@@ -32,9 +31,9 @@ export function useLoginMutation() {
 
   return useMutation({
     mutationFn: loginFn,
-    onSuccess: async () => {
-      await queryClient.fetchQuery({ queryKey: ['me'], queryFn: fetchMe });
-      queryClient.invalidateQueries({ queryKey: ['app-state'] });
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['me'] });
+      void queryClient.invalidateQueries({ queryKey: ['app-state'] });
     },
   });
 }
@@ -65,9 +64,9 @@ export function useSignupMutation() {
 
   return useMutation({
     mutationFn: signupFn,
-    onSuccess: async () => {
-      await queryClient.fetchQuery({ queryKey: ['me'], queryFn: fetchMe });
-      queryClient.invalidateQueries({ queryKey: ['app-state'] });
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['me'] });
+      void queryClient.invalidateQueries({ queryKey: ['app-state'] });
     },
   });
 }

@@ -41,6 +41,31 @@ export async function signRefreshToken(payload: RefreshTokenPayload): Promise<st
     .sign(secret);
 }
 
+export interface BackendAccessTokenPayload {
+  sub: string;
+  email?: string;
+  role?: string;
+}
+
+const backendSecret = new TextEncoder().encode(
+  process.env.BACKEND_JWT_SECRET ?? process.env.JWT_SECRET ?? '',
+);
+
+export async function verifyBackendAccessToken(
+  token: string,
+): Promise<BackendAccessTokenPayload> {
+  const { payload } = await jwtVerify(token, backendSecret);
+  const sub = payload.sub as string | undefined;
+  if (!sub) {
+    throw new Error('Missing sub claim');
+  }
+  return {
+    sub,
+    email: payload.email as string | undefined,
+    role: payload.role as string | undefined,
+  };
+}
+
 export async function verifyAccessToken(token: string): Promise<AccessTokenPayload> {
   const { payload } = await jwtVerify(token, secret);
   return payload as unknown as AccessTokenPayload;

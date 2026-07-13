@@ -1,71 +1,108 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-import { ApiError, withAuth } from '@/lib/server/auth/with-auth';
-import { ensureSession, resetSession, updateSession } from '@/lib/server/mock-store';
-import { parseJsonBody } from '@/lib/server/validate-payload';
-import type { AppState } from '@/lib/types';
-import { getAccessToken } from '@/lib/server/auth/get-access-token';
+import { ApiError, jsonError, withAuth } from '@/lib/server/auth/with-auth';
 import { callBackend } from '@/lib/server/backend-client';
+import {
+  ensureGuestSession,
+  ensureSession,
+  getSessionState,
+  resetSession,
+  updateSession,
+} from '@/lib/server/mock-store';
+import { parseJsonBody } from '@/lib/server/validate-payload';
+import { mapWorkspaceResponse } from '@/lib/workspaces/map-workspace';
+import {
+  applyGuestSessionCookie,
+  resolveRequestSession,
+} from '@/lib/server/resolve-request-session';
+import type { WorkspaceListResponse } from '@/lib/types/api';
+import type { AppState } from '@/lib/types';
 import { ORGANIZATION_ID_COOKIE } from '@/lib/server/issue-backend-auth';
 
-export async function GET() {
-  const result = await withAuth(async (auth) => {
-    const state = ensureSession(auth.sessionId, {
-      userId: auth.userId,
-      userType: auth.userType,
-      email: auth.email,
-      name: auth.email,
-    });
-
-    try {
-      const cookieStore = await cookies();
-      const orgId = cookieStore.get(ORGANIZATION_ID_COOKIE)?.value;
-      const accessToken = await getAccessToken();
-
-      if (orgId && accessToken) {
-        const { data: clientsData } = await callBackend<any[]>(
-          `/organizations/${orgId}/clients`,
-          {
-            method: 'GET',
-            accessToken,
-          }
-        );
-
-        if (clientsData && Array.isArray(clientsData)) {
-          const activeClients = clientsData
-            .filter((c) => {
-              const isExpired = c.status === 'expired' || (c.expiresAt && new Date(c.expiresAt) < new Date());
-              return c.status === 'active' && !isExpired;
-            })
-            .map((c, index) => {
-              const ws = state.workspaces[index % state.workspaces.length];
-              return {
-                id: c.id,
-                name: c.name || c.fullName,
-                email: c.email,
-                status: 'active' as const,
-                role: c.role || 'Client Reviewer',
-                workspaceId: c.workspaceId || ws?.id || '',
-              };
-            });
-
-          state.clients = activeClients;
-          updateSession(auth.sessionId, { clients: activeClients });
-        }
-      }
-    } catch (e) {
-      console.error('Failed to sync backend clients to app state', e);
-    }
-
-    return { state };
-  });
-
-  if (result instanceof NextResponse) {
-    return result;
+async function mergeBackendWorkspaces(state: AppState, accessToken: string): Promise<AppState> {
+  const { data } = await callBackend<WorkspaceListResponse>('/workspaces', { accessToken });
+  if (!data) {
+    return state;
   }
 
-  return NextResponse.json(result);
+  return {
+    ...state,
+    workspaces: data.workspaces.map(mapWorkspaceResponse),
+    activeWorkspaceId: data.activeWorkspaceId ?? state.activeWorkspaceId,
+  };
+}
+
+export async function GET() {
+  const session = await resolveRequestSession();
+
+  if (session.isAuthenticated && session.accessToken) {
+    const result = await withAuth(async (auth) => {
+      const state = ensureSession(auth.sessionId, {
+        userId: auth.userId,
+        userType: auth.userType,
+        email: auth.email,
+        name: auth.email,
+      });
+
+      const mergedState = await mergeBackendWorkspaces(state, session.accessToken!);
+
+      try {
+        const cookieStore = await cookies();
+        const orgId = cookieStore.get(ORGANIZATION_ID_COOKIE)?.value;
+        const accessToken = session.accessToken;
+
+        if (orgId && accessToken) {
+          const { data: clientsData } = await callBackend<any[]>(
+            `/organizations/${orgId}/clients`,
+            {
+              method: 'GET',
+              accessToken,
+            }
+          );
+
+          if (clientsData && Array.isArray(clientsData)) {
+            const activeClients = clientsData
+              .filter((c) => {
+                const isExpired = c.status === 'expired' || (c.expiresAt && new Date(c.expiresAt) < new Date());
+                return c.status === 'active' && !isExpired;
+              })
+              .map((c, index) => {
+                const ws = mergedState.workspaces.length > 0
+                  ? mergedState.workspaces[index % mergedState.workspaces.length]
+                  : undefined;
+                return {
+                  id: c.id,
+                  name: c.name || c.fullName,
+                  email: c.email,
+                  status: 'active' as const,
+                  role: c.role || 'Client Reviewer',
+                  workspaceId: c.workspaceId || ws?.id || '',
+                };
+              });
+
+            mergedState.clients = activeClients;
+            updateSession(auth.sessionId, { clients: activeClients });
+          }
+        }
+      } catch (e) {
+        console.error('Failed to sync backend clients to app state', e);
+      }
+
+      return { state: mergedState };
+    });
+
+    if (result instanceof NextResponse) return result;
+    return NextResponse.json(result);
+  }
+
+  ensureGuestSession(session.sessionId);
+  const state = getSessionState(session.sessionId);
+  const response = NextResponse.json({ state });
+  if (session.guestId) {
+    applyGuestSessionCookie(response, session.guestId, session.isNewGuest);
+  }
+  return response;
 }
 
 export async function PATCH(request: Request) {
@@ -74,25 +111,45 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, { status: 400 });
   }
 
-  const result = await withAuth(async (auth) => {
-    ensureSession(auth.sessionId, {
-      userId: auth.userId,
-      userType: auth.userType,
-      email: auth.email,
-      name: auth.email,
-    });
-    if (!body.merge) {
-      return NextResponse.json({ error: 'merge required', code: 'BAD_REQUEST' }, { status: 400 });
-    }
-    const state = updateSession(auth.sessionId, (prev) => ({ ...prev, ...body.merge }));
-    return { state };
-  });
+  const session = await resolveRequestSession();
 
-  if (result instanceof NextResponse) {
-    return result;
+  if (session.isAuthenticated && session.accessToken) {
+    const result = await withAuth(async (auth) => {
+      ensureSession(auth.sessionId, {
+        userId: auth.userId,
+        userType: auth.userType,
+        email: auth.email,
+        name: auth.email,
+      });
+      if (!body.merge) {
+        return NextResponse.json({ error: 'merge required', code: 'BAD_REQUEST' }, { status: 400 });
+      }
+
+      const { workspaces: _workspaces, activeWorkspaceId: _activeWorkspaceId, ...sessionMerge } =
+        body.merge;
+
+      const state = updateSession(auth.sessionId, (prev) => ({ ...prev, ...sessionMerge }));
+      const mergedState = await mergeBackendWorkspaces(state, session.accessToken!);
+      return { state: mergedState };
+    });
+
+    if (result instanceof NextResponse) return result;
+    return NextResponse.json(result);
   }
 
-  return NextResponse.json(result);
+  if (!body.merge) {
+    return NextResponse.json({ error: 'merge required', code: 'BAD_REQUEST' }, { status: 400 });
+  }
+
+  ensureGuestSession(session.sessionId);
+  const { workspaces: _workspaces, activeWorkspaceId: _activeWorkspaceId, ...sessionMerge } =
+    body.merge;
+  const state = updateSession(session.sessionId, (prev) => ({ ...prev, ...sessionMerge }));
+  const response = NextResponse.json({ state });
+  if (session.guestId) {
+    applyGuestSessionCookie(response, session.guestId, session.isNewGuest);
+  }
+  return response;
 }
 
 export async function POST(request: Request) {
@@ -101,17 +158,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, { status: 400 });
   }
 
-  const result = await withAuth(async (auth) => {
-    if (body.action === 'reset') {
-      const state = resetSession(auth.sessionId);
-      return { state };
-    }
-    throw new ApiError('Unknown action', 400, 'BAD_REQUEST');
-  });
+  const session = await resolveRequestSession();
 
-  if (result instanceof NextResponse) {
-    return result;
+  if (session.isAuthenticated) {
+    const result = await withAuth(async (auth) => {
+      if (body.action === 'reset') {
+        const state = resetSession(auth.sessionId);
+        if (session.accessToken) {
+          const mergedState = await mergeBackendWorkspaces(state, session.accessToken);
+          return { state: mergedState };
+        }
+        return { state };
+      }
+      throw new ApiError('Unknown action', 400, 'BAD_REQUEST');
+    });
+
+    if (result instanceof NextResponse) return result;
+    return NextResponse.json(result);
   }
 
-  return NextResponse.json(result);
+  if (body.action === 'reset') {
+    ensureGuestSession(session.sessionId);
+    const state = resetSession(session.sessionId);
+    const response = NextResponse.json({ state });
+    if (session.guestId) {
+      applyGuestSessionCookie(response, session.guestId, session.isNewGuest);
+    }
+    return response;
+  }
+
+  return jsonError('Unknown action', 400, 'BAD_REQUEST');
 }

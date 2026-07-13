@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
-import { clearAuthCookieHeaders } from '@/lib/server/auth/cookies';
+import { clearAuthCookies } from '@/lib/server/auth/cookies';
 import { REFRESH_TOKEN_COOKIE } from '@/lib/server/auth/constants';
 import { verifyRefreshToken } from '@/lib/server/auth/tokens';
 import { withAuth } from '@/lib/server/auth/with-auth';
@@ -9,10 +9,7 @@ import { clearRefreshToken, logoutUser } from '@/lib/server/mock-store';
 
 function buildLogoutResponse() {
   const response = NextResponse.json({ success: true });
-  clearAuthCookieHeaders().forEach((cookie) => {
-    response.headers.append('Set-Cookie', cookie);
-  });
-  return response;
+  return clearAuthCookies(response);
 }
 
 async function revokeSession(sessionId: string) {

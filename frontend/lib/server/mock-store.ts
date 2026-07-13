@@ -165,6 +165,33 @@ export function ensureSession(
   return sessionStore.get(sessionId)!.state;
 }
 
+/** Create or return an anonymous individual guest session. */
+export function ensureGuestSession(sessionId: string): AppState {
+  if (!sessionStore.has(sessionId)) {
+    const storedUser: StoredUser = {
+      userId: sessionId,
+      userType: 'individual',
+      email: '',
+      name: 'Guest',
+    };
+
+    sessionStore.set(sessionId, {
+      userId: sessionId,
+      user: storedUser,
+      state: {
+        ...buildFreshUserState(storedUser),
+        accountType: 'individual',
+        currentUserType: 'individual',
+      },
+      refreshTokenId: null,
+    });
+  }
+
+  return sessionStore.get(sessionId)!.state;
+}
+
+export { sessionStore };
+
 export function setRefreshTokenId(sessionId: string, tokenId: string): void {
   const session = sessionStore.get(sessionId);
   if (session) session.refreshTokenId = tokenId;

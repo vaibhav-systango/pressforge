@@ -50,17 +50,23 @@ export function LandingPage() {
 
         <div className="flex flex-wrap items-center justify-center gap-4 mt-10">
           <Link
-            href="/auth/signup"
+            href="/workspace/new"
             className="bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white px-8 py-3.5 rounded-full text-base font-bold hover:opacity-95 transition shadow-md flex items-center gap-2"
           >
-            <span>Get Started Now</span>
+            <span>Create New Workspace</span>
             <ArrowRight className="w-5 h-5" />
           </Link>
           <Link
-            href="/auth/login"
-            className="bg-white border border-[#EFEFEF] text-[#262626] hover:bg-slate-50 px-8 py-3.5 rounded-full text-base font-bold transition shadow-sm"
+            href="/auth/signup"
+            className="bg-white border border-[#EFEFEF] text-[#262626] hover:bg-slate-50 px-8 py-3.5 rounded-full text-base font-bold transition shadow-sm flex items-center gap-2"
           >
-            Go to App Dashboard
+            <span>Get Started</span>
+          </Link>
+          <Link
+            href="/auth/login"
+            className="text-[#737373] hover:text-[#262626] px-4 py-3.5 rounded-full text-base font-semibold transition"
+          >
+            Log In
           </Link>
         </div>
 
