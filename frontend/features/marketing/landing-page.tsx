@@ -174,9 +174,9 @@ export function LandingPage() {
               <div className="w-12 h-12 bg-pink-50 text-instagram-pink rounded-xl flex items-center justify-center">
                 <BarChart3 className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-[#262626]">6. Engagement & Loop Optimization</h3>
+              <h3 className="text-lg font-bold text-[#262626]">6. Engagement & Analytics</h3>
               <p className="text-sm text-[#737373] leading-relaxed">
-                Monitor online mentions with sentiment detection. Track posts analytics and generate health insights to improve future briefs.
+                Track post analytics and generate key performance insights to optimize your future marketing and PR briefs.
               </p>
             </div>
           </div>

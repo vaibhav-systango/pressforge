@@ -453,7 +453,7 @@ export function DashboardView() {
               <div className="flex items-start gap-2 bg-red-50 text-red-700 p-2.5 rounded-xl border border-red-100 text-left text-[11px] leading-relaxed">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>
-                  High Risk: Brand Voice tone rules conflicts with negative Twitter sentiments. Update tone rules in settings.
+                  High Risk: Low overall brand engagement and schedule gaps. Update publication frequency in settings.
                 </span>
               </div>
             )}
