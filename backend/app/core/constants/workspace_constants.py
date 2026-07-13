@@ -6,6 +6,7 @@ class WorkspaceErrorCodes:
     INVALID_WORKSPACE_NAME = "INVALID_WORKSPACE_NAME"
     GUEST_SESSION_REQUIRED = "GUEST_SESSION_REQUIRED"
     WORKSPACE_NAME_CONFLICT = "WORKSPACE_NAME_CONFLICT"
+    CLIENT_NOT_FOUND = "CLIENT_NOT_FOUND"
 
 
 class WorkspaceErrorMessages:
@@ -16,3 +17,4 @@ class WorkspaceErrorMessages:
     INVALID_WORKSPACE_NAME = "Workspace name is required."
     GUEST_SESSION_REQUIRED = "X-Guest-Session-Id header is required when creating a workspace without authentication."
     WORKSPACE_NAME_CONFLICT = "You already have a workspace with a similar name."
+    CLIENT_NOT_FOUND = "Client not found in this organization."

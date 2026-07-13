@@ -60,11 +60,13 @@ export async function issueBackendAuthResponse(
   const withAuthCookies = setAuthCookies(response, tokenData.accessToken, tokenData.refreshToken);
 
   if (organizationId) {
-    const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-    withAuthCookies.headers.append(
-      'Set-Cookie',
-      `${ORGANIZATION_ID_COOKIE}=${organizationId}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${REFRESH_TOKEN_TTL_SECONDS}${secure}`,
-    );
+    withAuthCookies.cookies.set(ORGANIZATION_ID_COOKIE, organizationId, {
+      httpOnly: true,
+      path: '/',
+      sameSite: 'lax',
+      maxAge: REFRESH_TOKEN_TTL_SECONDS,
+      secure: process.env.NODE_ENV === 'production',
+    });
   }
 
   return finalizeGuestMigrationResponse(withAuthCookies);

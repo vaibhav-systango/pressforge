@@ -43,12 +43,14 @@ function guestSessionHeaders(guestId: string): HeadersInit {
   return { 'X-Guest-Session-Id': guestId };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await resolveRequestSession();
+  const clientId = new URL(request.url).searchParams.get('clientId');
+  const query = clientId ? `?clientId=${encodeURIComponent(clientId)}` : '';
 
   if (session.isAuthenticated && session.accessToken) {
     const { data, errorMessage, response } = await callBackend<WorkspaceListResponse>(
-      '/workspaces',
+      `/workspaces${query}`,
       { accessToken: session.accessToken },
     );
 

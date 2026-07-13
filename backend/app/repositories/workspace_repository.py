@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.organization_member import OrganizationMember, OrganizationRole
 from app.models.workspace import Workspace
 from app.models.workspace_schedule import WorkspaceSchedule
 
@@ -71,6 +72,30 @@ class WorkspaceRepository:
             .filter(
                 Workspace.organizationId == organization_id,
                 Workspace.isActive.is_(True),
+            )
+            .order_by(Workspace.createdAt.asc())
+            .all()
+        )
+
+    def list_by_organization_and_client(
+        self,
+        db: Session,
+        organization_id: str,
+        client_user_id: str,
+    ) -> list[Workspace]:
+        return (
+            db.query(Workspace)
+            .options(joinedload(Workspace.schedules))
+            .join(
+                OrganizationMember,
+                OrganizationMember.workspaceId == Workspace.id,
+            )
+            .filter(
+                Workspace.organizationId == organization_id,
+                Workspace.isActive.is_(True),
+                OrganizationMember.organizationId == organization_id,
+                OrganizationMember.userId == client_user_id,
+                OrganizationMember.role == OrganizationRole.CLIENT.value,
             )
             .order_by(Workspace.createdAt.asc())
             .all()

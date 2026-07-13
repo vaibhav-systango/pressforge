@@ -245,7 +245,7 @@ class InvitationService:
                     "role": member.role,
                     "expiresAt": None,
                     "isAccepted": True,
-                    "workspaceId": None,
+                    "workspaceId": member.workspaceId,
                     "plan": "Free"
                 })
 

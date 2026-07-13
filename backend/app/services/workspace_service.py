@@ -3,7 +3,7 @@ import logging
 from sqlalchemy.orm import Session
 
 from app.core.constants.workspace_constants import WorkspaceErrorCodes
-from app.models.organization_member import OrganizationMember
+from app.models.organization_member import OrganizationMember, OrganizationRole
 from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.models.workspace import Workspace
@@ -127,10 +127,44 @@ class WorkspaceService:
     def _resolve_organization_id(self, db: Session, user: User) -> str | None:
         return organization_repository.get_organization_id_for_user(db, user.id)
 
-    def list_workspaces(self, db: Session, user: User) -> dict:
+    def _get_org_role(self, db: Session, user_id: str, organization_id: str) -> str | None:
+        return organization_repository.get_role_for_user(db, user_id, organization_id)
+
+    def _assert_org_client(
+        self, db: Session, organization_id: str, client_user_id: str
+    ) -> None:
+        member = organization_repository.get_member(
+            db,
+            organization_id=organization_id,
+            user_id=client_user_id,
+        )
+        if not member or member.role != OrganizationRole.CLIENT.value:
+            raise ValueError(WorkspaceErrorCodes.CLIENT_NOT_FOUND)
+
+    def list_workspaces(
+        self, db: Session, user: User, *, client_id: str | None = None
+    ) -> dict:
         org_id = self._resolve_organization_id(db, user)
         if org_id:
-            workspaces = workspace_repository.list_by_organization(db, org_id)
+            role = self._get_org_role(db, user.id, org_id)
+            if role in (
+                OrganizationRole.OWNER.value,
+                OrganizationRole.ADMIN.value,
+                OrganizationRole.MEMBER.value,
+            ):
+                if client_id:
+                    self._assert_org_client(db, org_id, client_id)
+                    workspaces = workspace_repository.list_by_organization_and_client(
+                        db, org_id, client_id
+                    )
+                else:
+                    workspaces = workspace_repository.list_by_organization(db, org_id)
+            elif role == OrganizationRole.CLIENT.value:
+                workspaces = workspace_repository.list_by_organization_and_client(
+                    db, org_id, user.id
+                )
+            else:
+                workspaces = workspace_repository.list_by_owner(db, user.id)
         else:
             workspaces = workspace_repository.list_by_owner(db, user.id)
 

@@ -53,6 +53,10 @@ _WORKSPACE_ERROR_MAP = {
         status.HTTP_409_CONFLICT,
         WorkspaceErrorMessages.WORKSPACE_NAME_CONFLICT,
     ),
+    WorkspaceErrorCodes.CLIENT_NOT_FOUND: (
+        status.HTTP_404_NOT_FOUND,
+        WorkspaceErrorMessages.CLIENT_NOT_FOUND,
+    ),
 }
 
 
@@ -71,15 +75,22 @@ def _raise_workspace_error(code: str) -> None:
     "",
     response_model=WorkspaceListResponse,
     summary="List workspaces for the current user or guest session",
+    description=(
+        "Organization owners, admins, and members receive all workspaces in their organization by default. "
+        "Pass `clientId` to filter workspaces assigned to a specific client user."
+    ),
 )
 async def list_workspaces(
+    clientId: str | None = None,
     db: Session = Depends(get_db),
     current_user: User | None = Depends(get_optional_current_user),
     x_guest_session_id: Annotated[str | None, Header()] = None,
 ):
     try:
         if current_user:
-            return workspace_service.list_workspaces(db, current_user)
+            return workspace_service.list_workspaces(
+                db, current_user, client_id=clientId
+            )
         if not x_guest_session_id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
