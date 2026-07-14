@@ -29,7 +29,7 @@ class Settings(BaseSettings):
         description="Access Token lifespan in minutes"
     )
     REFRESH_TOKEN_EXPIRE_DAYS: int = Field(
-        default=7,
+        default=1,
         description="Refresh Token lifespan in days"
     )
     INVITE_TOKEN_SECRET: str = Field(

@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 import { setAuthCookies } from '@/lib/server/auth/cookies';
-import { REFRESH_TOKEN_COOKIE } from '@/lib/server/auth/constants';
+import { ACCESS_TOKEN_TTL_SECONDS, REFRESH_TOKEN_COOKIE } from '@/lib/server/auth/constants';
 import {
   createTokenId,
   signAccessToken,
@@ -41,7 +41,8 @@ export async function POST() {
       signRefreshToken({ sessionId: payload.sessionId, tokenId: newTokenId }),
     ]);
 
-    const response = NextResponse.json({ success: true, expiresIn: 900 });
+    const response = NextResponse.json({ success: true, expiresIn: ACCESS_TOKEN_TTL_SECONDS });
+
     return setAuthCookies(response, accessToken, newRefreshToken);
   } catch {
     return jsonError('Refresh token expired', 401, 'REFRESH_EXPIRED');

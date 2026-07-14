@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { setAuthCookies } from '@/lib/server/auth/cookies';
+import { ACCESS_TOKEN_TTL_SECONDS } from '@/lib/server/auth/constants';
 import { createTokenId, signAccessToken, signRefreshToken } from '@/lib/server/auth/tokens';
 import { createSession, setRefreshTokenId } from '@/lib/server/mock-store';
 
@@ -37,9 +38,10 @@ export async function issueAuthResponse(
 
   const response = NextResponse.json({
     user: { ...user, id: user.userId },
-    expiresIn: 900,
+    expiresIn: ACCESS_TOKEN_TTL_SECONDS,
     ...extra,
   });
 
   return setAuthCookies(response, accessToken, refreshToken);
 }
+

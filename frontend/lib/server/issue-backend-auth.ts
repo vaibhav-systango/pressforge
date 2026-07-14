@@ -8,7 +8,7 @@ import {
   migrateGuestWorkspacesToBackend,
 } from '@/lib/server/migrate-guest-workspaces';
 import { setAuthCookies } from '@/lib/server/auth/cookies';
-import { REFRESH_TOKEN_TTL_SECONDS } from '@/lib/server/auth/constants';
+import { ACCESS_TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS } from '@/lib/server/auth/constants';
 import type { BackendTokenResponse } from '@/lib/types/api';
 
 export const ORGANIZATION_ID_COOKIE = 'organization_id';
@@ -58,10 +58,11 @@ export async function issueBackendAuthResponse(
       accountType: tokenData.user.accountType,
       organizationId,
     },
-    expiresIn: 3600,
+    expiresIn: ACCESS_TOKEN_TTL_SECONDS,
   });
 
   const withAuthCookies = setAuthCookies(response, tokenData.accessToken, tokenData.refreshToken);
+
 
   if (organizationId) {
     withAuthCookies.cookies.set(ORGANIZATION_ID_COOKIE, organizationId, {

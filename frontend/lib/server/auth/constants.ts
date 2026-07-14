@@ -5,5 +5,5 @@ export const SESSION_COOKIE = 'pf_session';
 export const GUEST_SESSION_COOKIE = 'pf_guest_session';
 
 // Token lifetimes
-export const ACCESS_TOKEN_TTL_SECONDS = 900; // 15 min
-export const REFRESH_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
+export const ACCESS_TOKEN_TTL_SECONDS = 60 * 60; // 1 hour
+export const REFRESH_TOKEN_TTL_SECONDS = 60 * 60 * 24; // 1 day
