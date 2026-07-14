@@ -16,14 +16,11 @@ import {
   applyGuestSessionCookie,
   resolveRequestSession,
 } from '@/lib/server/resolve-request-session';
-import type { WorkspaceListResponse } from '@/lib/types/api';
+import type { BackendUserResponse, WorkspaceListResponse } from '@/lib/types/api';
 import type { AppState } from '@/lib/types';
 import { ORGANIZATION_ID_COOKIE } from '@/lib/server/issue-backend-auth';
 
-async function mergeBackendWorkspaces(state: AppState, accessToken: string): Promise<AppState> {
-  const clientId = state.activeClientId;
-  const query = clientId ? `?clientId=${encodeURIComponent(clientId)}` : '';
-  const { data } = await callBackend<WorkspaceListResponse>(`/workspaces${query}`, { accessToken });
+function applyWorkspaceData(state: AppState, data: WorkspaceListResponse | null | undefined): AppState {
   if (!data) {
     return state;
   }
@@ -33,6 +30,32 @@ async function mergeBackendWorkspaces(state: AppState, accessToken: string): Pro
     workspaces: data.workspaces.map(mapWorkspaceResponse),
     activeWorkspaceId: data.activeWorkspaceId ?? state.activeWorkspaceId,
   };
+}
+
+function applyProfileData(
+  state: AppState,
+  data: BackendUserResponse | null | undefined,
+): { state: AppState; patch: Partial<AppState> } {
+  if (!data) {
+    return { state, patch: {} };
+  }
+
+  const patch: Partial<AppState> = {
+    currentUserName: data.fullName || state.currentUserName,
+    currentUserEmail: data.email || state.currentUserEmail,
+    ...(data.organizationName !== undefined && data.organizationName !== null
+      ? { organizationName: data.organizationName }
+      : {}),
+  };
+
+  return { state: { ...state, ...patch }, patch };
+}
+
+async function mergeBackendWorkspaces(state: AppState, accessToken: string): Promise<AppState> {
+  const clientId = state.activeClientId;
+  const query = clientId ? `?clientId=${encodeURIComponent(clientId)}` : '';
+  const { data } = await callBackend<WorkspaceListResponse>(`/workspaces${query}`, { accessToken });
+  return applyWorkspaceData(state, data);
 }
 
 export async function GET() {
@@ -47,14 +70,27 @@ export async function GET() {
         name: auth.email,
       });
 
-      const mergedState = await mergeBackendWorkspaces(state, session.accessToken!);
+      const accessToken = session.accessToken!;
+      const clientId = state.activeClientId;
+      const workspacesQuery = clientId ? `?clientId=${encodeURIComponent(clientId)}` : '';
 
+      const [profileResult, workspacesResult] = await Promise.all([
+        callBackend<BackendUserResponse>('/auth/me', { accessToken }),
+        callBackend<WorkspaceListResponse>(`/workspaces${workspacesQuery}`, { accessToken }),
+      ]);
+
+      const { state: profileState, patch: profilePatch } = applyProfileData(state, profileResult.data);
+      if (Object.keys(profilePatch).length > 0) {
+        updateSession(auth.sessionId, profilePatch);
+      }
+      const profileMerged = applyWorkspaceData(profileState, workspacesResult.data);
+
+      let clients: AppState['clients'] | undefined;
       try {
         const cookieStore = await cookies();
         const orgId = cookieStore.get(ORGANIZATION_ID_COOKIE)?.value;
-        const accessToken = session.accessToken;
 
-        if (orgId && accessToken) {
+        if (orgId) {
           const { data: clientsData } = await callBackend<any[]>(
             `/organizations/${orgId}/clients`,
             {
@@ -64,33 +100,29 @@ export async function GET() {
           );
 
           if (clientsData && Array.isArray(clientsData)) {
-            const activeClients = clientsData
+            clients = clientsData
               .filter((c) => {
                 const isExpired = c.status === 'expired' || (c.expiresAt && new Date(c.expiresAt) < new Date());
                 return c.status === 'active' && !isExpired && c.role?.toUpperCase() === 'CLIENT';
               })
-              .map((c, index) => {
-                const ws = mergedState.workspaces.length > 0
-                  ? mergedState.workspaces[index % mergedState.workspaces.length]
-                  : undefined;
-                return {
-                  id: c.id,
-                  name: c.name || c.fullName,
-                  email: c.email,
-                  status: 'active' as const,
-                  role: c.role || 'CLIENT',
-                  workspaceId: c.workspaceId || '',
-                  workspaceIds: c.workspaceIds || (c.workspaceId ? [c.workspaceId] : []),
-                };
-              });
+              .map((c) => ({
+                id: c.id,
+                name: c.name || c.fullName,
+                email: c.email,
+                status: 'active' as const,
+                role: c.role || 'CLIENT',
+                workspaceId: c.workspaceId || '',
+                workspaceIds: c.workspaceIds || (c.workspaceId ? [c.workspaceId] : []),
+              }));
 
-            mergedState.clients = activeClients;
-            updateSession(auth.sessionId, { clients: activeClients });
+            updateSession(auth.sessionId, { clients });
           }
         }
       } catch (e) {
         console.error('Failed to sync backend clients to app state', e);
       }
+
+      const mergedState = clients ? { ...profileMerged, clients } : profileMerged;
 
       return { state: mergedState };
     });

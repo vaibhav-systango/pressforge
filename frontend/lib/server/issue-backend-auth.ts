@@ -42,6 +42,9 @@ export async function issueBackendAuthResponse(
     accountType,
     currentUserEmail: mapped.email,
     currentUserName: mapped.name,
+    ...(tokenData.user.organizationName
+      ? { organizationName: tokenData.user.organizationName }
+      : {}),
   });
 
   try {
@@ -57,6 +60,7 @@ export async function issueBackendAuthResponse(
       onboardingStatus: tokenData.user.onboardingStatus,
       accountType: tokenData.user.accountType,
       organizationId,
+      organizationName: tokenData.user.organizationName ?? null,
     },
     expiresIn: ACCESS_TOKEN_TTL_SECONDS,
   });

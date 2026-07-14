@@ -14,24 +14,37 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _build_auth_response(db: Session, access_token: str, refresh_token: str, user: User) -> dict:
+def _build_user_response(db: Session, user: User) -> dict:
     organization_id = organization_repository.get_organization_id_for_user(db, user.id)
+    organization_role = (
+        organization_repository.get_role_for_user(db, user.id, organization_id)
+        if organization_id
+        else None
+    )
+    org = organization_repository.get_by_id(db, organization_id) if organization_id else None
+    return {
+        "id": user.id,
+        "fullName": user.fullName,
+        "email": user.email,
+        "accountType": user.accountType,
+        "onboardingStatus": user.onboardingStatus,
+        "isActive": user.isActive,
+        "lastLogin": user.lastLogin,
+        "createdAt": user.createdAt,
+        "updatedAt": user.updatedAt,
+        "organizationId": organization_id,
+        "organizationRole": organization_role,
+        "organizationName": org.name if org else None,
+    }
+
+
+def _build_auth_response(db: Session, access_token: str, refresh_token: str, user: User) -> dict:
+    user_payload = _build_user_response(db, user)
     return {
         "accessToken": access_token,
         "refreshToken": refresh_token,
-        "user": {
-            "id": user.id,
-            "fullName": user.fullName,
-            "email": user.email,
-            "accountType": user.accountType,
-            "onboardingStatus": user.onboardingStatus,
-            "isActive": user.isActive,
-            "lastLogin": user.lastLogin,
-            "createdAt": user.createdAt,
-            "updatedAt": user.updatedAt,
-            "organizationId": organization_id,
-        },
-        "organizationId": organization_id,
+        "user": user_payload,
+        "organizationId": user_payload["organizationId"],
     }
 
 
@@ -134,25 +147,7 @@ async def get_me(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    organization_id = organization_repository.get_organization_id_for_user(db, current_user.id)
-    organization_role = (
-        organization_repository.get_role_for_user(db, current_user.id, organization_id)
-        if organization_id
-        else None
-    )
-    return {
-        "id": current_user.id,
-        "fullName": current_user.fullName,
-        "email": current_user.email,
-        "accountType": current_user.accountType,
-        "onboardingStatus": current_user.onboardingStatus,
-        "isActive": current_user.isActive,
-        "lastLogin": current_user.lastLogin,
-        "createdAt": current_user.createdAt,
-        "updatedAt": current_user.updatedAt,
-        "organizationId": organization_id,
-        "organizationRole": organization_role,
-    }
+    return _build_user_response(db, current_user)
 
 @router.put(
     "/me",
@@ -167,25 +162,7 @@ async def update_me(
 ):
     from app.repositories.user_repository import user_repository
     updated_user = user_repository.update_profile(db, current_user, fullName=profile_data.fullName)
-    organization_id = organization_repository.get_organization_id_for_user(db, updated_user.id)
-    organization_role = (
-        organization_repository.get_role_for_user(db, updated_user.id, organization_id)
-        if organization_id
-        else None
-    )
-    return {
-        "id": updated_user.id,
-        "fullName": updated_user.fullName,
-        "email": updated_user.email,
-        "accountType": updated_user.accountType,
-        "onboardingStatus": updated_user.onboardingStatus,
-        "isActive": updated_user.isActive,
-        "lastLogin": updated_user.lastLogin,
-        "createdAt": updated_user.createdAt,
-        "updatedAt": updated_user.updatedAt,
-        "organizationId": organization_id,
-        "organizationRole": organization_role,
-    }
+    return _build_user_response(db, updated_user)
 
 @router.put(
     "/change-password",

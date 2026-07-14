@@ -53,9 +53,11 @@ export async function POST(request: Request) {
       onboardingCompleted: true,
       currentUserType: mapBackendUserType(data.accountType),
       accountType: body.accountType === 'ORGANIZATION' ? 'organization' : 'individual',
-      ...(body.accountType === 'ORGANIZATION' && body.organizationDetails
+      ...(body.accountType === 'ORGANIZATION' && body.organizationDetails?.name
         ? { organizationName: body.organizationDetails.name }
-        : {}),
+        : data.organizationName
+          ? { organizationName: data.organizationName }
+          : {}),
     });
 
     return { ok: true };
