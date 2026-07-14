@@ -69,6 +69,36 @@ export function ContentNewView() {
 
   const activeWorkspace = state.workspaces.find((w) => w.id === state.activeWorkspaceId) || state.workspaces[0];
 
+  // Local Brand/Workspace Guideline States (edited only locally for this content generation run)
+  const [localBrandName, setLocalBrandName] = useState('');
+  const [localWebsite, setLocalWebsite] = useState('');
+  const [localTargetAudience, setLocalTargetAudience] = useState('');
+  const [localBrandVoice, setLocalBrandVoice] = useState('');
+  const [localTone, setLocalTone] = useState<Workspace['tone']>('professional');
+  const [localKeywords, setLocalKeywords] = useState<string[]>([]);
+  const [localRules, setLocalRules] = useState<string[]>([]);
+
+  // Synchronize local states when activeWorkspace changes
+  React.useEffect(() => {
+    if (activeWorkspace) {
+      setLocalBrandName(activeWorkspace.name || '');
+      setLocalWebsite(activeWorkspace.website || '');
+      setLocalTargetAudience(activeWorkspace.targetAudience || '');
+      setLocalBrandVoice(activeWorkspace.brandVoice || '');
+      setLocalTone(activeWorkspace.tone || 'professional');
+      setLocalKeywords(activeWorkspace.keywords || []);
+      setLocalRules(activeWorkspace.rules || []);
+    } else {
+      setLocalBrandName('');
+      setLocalWebsite('');
+      setLocalTargetAudience('');
+      setLocalBrandVoice('');
+      setLocalTone('professional');
+      setLocalKeywords([]);
+      setLocalRules([]);
+    }
+  }, [activeWorkspace?.id, activeWorkspace]);
+
   // Primary Prompt & Preferences
   const [prompt, setPrompt] = useState('');
   const [goal, setGoal] = useState('Product Spotlight');
@@ -86,6 +116,7 @@ export function ContentNewView() {
 
   // Brand Voice Active Guidelines
   const [keywordInput, setKeywordInput] = useState('');
+  const [ruleInput, setRuleInput] = useState('');
 
   // Generation & State
   const [generating, setGenerating] = useState(false);
@@ -148,33 +179,37 @@ export function ContentNewView() {
 
   // Active Tone Change
   const handleToneChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    if (!activeWorkspace) return;
-    updateWorkspace({
-      ...activeWorkspace,
-      tone: e.target.value as Workspace['tone'],
-    });
+    setLocalTone(e.target.value as Workspace['tone']);
   };
 
   // Add workspace keyword
   const handleAddKeyword = () => {
-    if (!activeWorkspace || !keywordInput.trim()) return;
+    if (!keywordInput.trim()) return;
     const clean = keywordInput.trim().toLowerCase();
-    if (!activeWorkspace.keywords?.includes(clean)) {
-      updateWorkspace({
-        ...activeWorkspace,
-        keywords: [...(activeWorkspace.keywords ?? []), clean]
-      });
+    if (!localKeywords.includes(clean)) {
+      setLocalKeywords([...localKeywords, clean]);
     }
     setKeywordInput('');
   };
 
   // Remove workspace keyword
   const handleRemoveKeyword = (kw: string) => {
-    if (!activeWorkspace) return;
-    updateWorkspace({
-      ...activeWorkspace,
-      keywords: (activeWorkspace.keywords ?? []).filter(k => k !== kw)
-    });
+    setLocalKeywords(localKeywords.filter(k => k !== kw));
+  };
+
+  // Add local rule
+  const handleAddRule = () => {
+    if (!ruleInput.trim()) return;
+    const clean = ruleInput.trim();
+    if (!localRules.includes(clean)) {
+      setLocalRules([...localRules, clean]);
+    }
+    setRuleInput('');
+  };
+
+  // Remove local rule
+  const handleRemoveRule = (rule: string) => {
+    setLocalRules(localRules.filter(r => r !== rule));
   };
 
   // Helper to generate variations
@@ -350,7 +385,7 @@ export function ContentNewView() {
       
       // Inject workspace keywords into tags
       const updatedVars = generatedVars.map(v => {
-        const keywordsToAdd = activeWorkspace?.keywords || [];
+        const keywordsToAdd = localKeywords;
         const combinedHashtags = [...v.hashtags];
         const combinedLiHashtags = [...v.liHashtags];
         
@@ -823,16 +858,65 @@ export function ContentNewView() {
 
                 {activeWorkspace ? (
                   <div className="bg-bg-app border border-border-primary rounded-xl p-3.5 space-y-3 text-xs">
+                    {/* Brand Name */}
+                    <div className="flex flex-col gap-1">
+                      <label className="font-semibold text-text-secondary">Brand Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Acme Corp"
+                        value={localBrandName}
+                        onChange={(e) => setLocalBrandName(e.target.value)}
+                        className="border border-border-primary bg-bg-card text-text-primary rounded-xl px-2.5 py-1.5 text-xs focus:border-instagram-pink outline-none"
+                      />
+                    </div>
+
+                    {/* Website */}
+                    <div className="flex flex-col gap-1">
+                      <label className="font-semibold text-text-secondary">Website URL</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. https://example.com"
+                        value={localWebsite}
+                        onChange={(e) => setLocalWebsite(e.target.value)}
+                        className="border border-border-primary bg-bg-card text-text-primary rounded-xl px-2.5 py-1.5 text-xs focus:border-instagram-pink outline-none"
+                      />
+                    </div>
+
+                    {/* Target Audience */}
+                    <div className="flex flex-col gap-1">
+                      <label className="font-semibold text-text-secondary">Target Audience</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Eco-conscious millennials"
+                        value={localTargetAudience}
+                        onChange={(e) => setLocalTargetAudience(e.target.value)}
+                        className="border border-border-primary bg-bg-card text-text-primary rounded-xl px-2.5 py-1.5 text-xs focus:border-instagram-pink outline-none"
+                      />
+                    </div>
+
+                    {/* Brand Voice / Description */}
+                    <div className="flex flex-col gap-1">
+                      <label className="font-semibold text-text-secondary">Brand Voice Description</label>
+                      <textarea
+                        placeholder="Describe the overall personality and style..."
+                        value={localBrandVoice}
+                        onChange={(e) => setLocalBrandVoice(e.target.value)}
+                        className="border border-border-primary bg-bg-card text-text-primary rounded-xl px-2.5 py-1.5 text-xs focus:border-instagram-pink outline-none min-h-[60px] resize-y"
+                      />
+                    </div>
+
+                    {/* Active Tone */}
                     <div className="flex flex-col gap-1">
                       <Select
                         label="Active Tone"
-                        value={activeWorkspace.tone}
+                        value={localTone}
                         onChange={handleToneChange}
                         options={TONES.map(t => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) }))}
                         className="py-1.5 text-xs"
                       />
                     </div>
 
+                    {/* Active Keywords */}
                     <div className="flex flex-col gap-1">
                       <label className="font-semibold text-text-secondary">Active Keywords</label>
                       <div className="flex gap-2">
@@ -857,19 +941,63 @@ export function ContentNewView() {
                           Add
                         </button>
                       </div>
-                      <div className="flex flex-wrap gap-1 mt-1.5 max-h-[80px] overflow-y-auto pr-1">
-                        {(activeWorkspace.keywords ?? []).map((kw) => (
-                          <span
-                            key={kw}
-                            className="inline-flex items-center gap-0.5 bg-bg-card border border-border-primary rounded-full px-2 py-0.5 text-[10px] text-text-primary"
-                          >
-                            <span>#{kw}</span>
-                            <button type="button" onClick={() => handleRemoveKeyword(kw)}>
-                              <X className="w-2.5 h-2.5 text-text-secondary hover:text-text-primary" />
-                            </button>
-                          </span>
-                        ))}
+                      {localKeywords.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5 max-h-[80px] overflow-y-auto pr-1">
+                          {localKeywords.map((kw) => (
+                            <span
+                              key={kw}
+                              className="inline-flex items-center gap-0.5 bg-bg-card border border-border-primary rounded-full px-2 py-0.5 text-[10px] text-text-primary"
+                            >
+                              <span>#{kw}</span>
+                              <button type="button" onClick={() => handleRemoveKeyword(kw)}>
+                                <X className="w-2.5 h-2.5 text-text-secondary hover:text-text-primary" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Writing Rules */}
+                    <div className="flex flex-col gap-1">
+                      <label className="font-semibold text-text-secondary">Writing Rules</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="e.g. No passive voice"
+                          value={ruleInput}
+                          onChange={(e) => setRuleInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddRule();
+                            }
+                          }}
+                          className="flex-1 border border-border-primary bg-bg-card text-text-primary rounded-xl px-2.5 py-1 text-xs focus:border-instagram-pink outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddRule}
+                          className="bg-bg-hover hover:bg-slate-200 border border-border-primary px-3 py-1 rounded-xl text-xs font-bold cursor-pointer"
+                        >
+                          Add
+                        </button>
                       </div>
+                      {localRules.length > 0 && (
+                        <div className="flex flex-col gap-1.5 mt-1.5 max-h-[100px] overflow-y-auto pr-1">
+                          {localRules.map((rule, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between gap-1.5 bg-bg-card border border-border-primary rounded-lg px-2.5 py-1 text-[10px] text-text-primary"
+                            >
+                              <span className="truncate">{rule}</span>
+                              <button type="button" onClick={() => handleRemoveRule(rule)}>
+                                <X className="w-2.5 h-2.5 text-text-secondary hover:text-text-primary shrink-0" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -971,10 +1099,10 @@ export function ContentNewView() {
                   <div className="flex items-center justify-between p-3 border-b border-border-primary">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] flex items-center justify-center text-white font-black text-[10px]">
-                        {activeWorkspace?.name?.charAt(0) || 'W'}
+                        {localBrandName?.charAt(0) || 'W'}
                       </div>
                       <div>
-                        <p className="text-[11px] font-bold text-text-primary">{activeWorkspace?.name || 'Brand Name'}</p>
+                        <p className="text-[11px] font-bold text-text-primary">{localBrandName || 'Brand Name'}</p>
                         <p className="text-[9px] text-text-secondary">Sponsored • AI Mockup</p>
                       </div>
                     </div>
@@ -1000,7 +1128,7 @@ export function ContentNewView() {
 
                   <div className="px-3 pb-3 space-y-1 text-[11px] text-text-primary">
                     <p className="leading-relaxed">
-                      <span className="font-bold mr-1">{activeWorkspace?.name || 'brand'}</span>
+                      <span className="font-bold mr-1">{localBrandName || 'brand'}</span>
                       {caption}
                     </p>
                     <p className="text-instagram-pink font-semibold">
@@ -1015,11 +1143,11 @@ export function ContentNewView() {
                   <div className="flex items-start justify-between">
                     <div className="flex gap-2">
                       <div className="w-8 h-8 rounded-sm bg-blue-600 flex items-center justify-center text-white font-extrabold text-xs">
-                        {activeWorkspace?.name?.charAt(0) || 'W'}
+                        {localBrandName?.charAt(0) || 'W'}
                       </div>
                       <div>
                         <p className="font-bold text-text-primary text-xs leading-snug flex items-center gap-1">
-                          <span>{activeWorkspace?.name || 'Brand Name'}</span>
+                          <span>{localBrandName || 'Brand Name'}</span>
                           <span className="text-[9px] font-normal text-text-secondary bg-bg-app border border-border-primary px-1 rounded-sm">2nd</span>
                         </p>
                         <p className="text-[10px] text-text-secondary leading-none mt-0.5">15,240 followers</p>
@@ -1045,7 +1173,9 @@ export function ContentNewView() {
                       <img src={generatedImageUrl} alt="Attachment" className="w-full object-cover max-h-56" />
                       <div className="p-2 border-t border-border-primary">
                         <p className="font-bold text-[10px] truncate text-text-primary">{goal} Update</p>
-                        <p className="text-[9px] text-text-secondary truncate">{activeWorkspace?.name || 'brand'}.com</p>
+                        <p className="text-[9px] text-text-secondary truncate">
+                          {localWebsite ? localWebsite.replace(/^https?:\/\/(www\.)?/, '') : (localBrandName || 'brand').toLowerCase().replace(/\s+/g, '') + '.com'}
+                        </p>
                       </div>
                     </div>
                   )}

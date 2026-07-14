@@ -11,6 +11,9 @@ import {
 } from '@/lib/server/auth/tokens';
 import { jsonError } from '@/lib/server/auth/with-auth';
 import { getMe, setRefreshTokenId, validateRefreshToken } from '@/lib/server/mock-store';
+import { callBackend } from '@/lib/server/backend-client';
+import { issueBackendAuthResponse } from '@/lib/server/issue-backend-auth';
+import type { BackendTokenResponse } from '@/lib/types/api';
 
 export async function POST() {
   const cookieStore = await cookies();
@@ -20,6 +23,7 @@ export async function POST() {
     return jsonError('Refresh token missing', 401, 'REFRESH_MISSING');
   }
 
+  // 1. Try local frontend-signed token first (mock/client flow)
   try {
     const payload = await verifyRefreshToken(refreshToken);
 
@@ -44,7 +48,25 @@ export async function POST() {
     const response = NextResponse.json({ success: true, expiresIn: ACCESS_TOKEN_TTL_SECONDS });
 
     return setAuthCookies(response, accessToken, newRefreshToken);
-  } catch {
-    return jsonError('Refresh token expired', 401, 'REFRESH_EXPIRED');
+  } catch (error) {
+    // 2. If frontend-signed token verification failed, try backend refresh flow
+    try {
+      const { data, errorMessage, response } = await callBackend<BackendTokenResponse>('/auth/refresh', {
+        method: 'POST',
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!data) {
+        return jsonError(
+          errorMessage ?? 'Invalid or expired refresh token',
+          response.status === 401 ? 401 : response.status,
+          'REFRESH_INVALID',
+        );
+      }
+
+      return await issueBackendAuthResponse(data);
+    } catch (backendError) {
+      return jsonError('Refresh token expired or invalid', 401, 'REFRESH_EXPIRED');
+    }
   }
 }
