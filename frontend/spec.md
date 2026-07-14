@@ -79,7 +79,7 @@ import Hero from '@/common/marketing/Hero';
 
 // Usage:
 <Hero />
-```
+```  
 
 ### FeatureCard (`src/common/marketing/FeatureCard.tsx`)
 Individual card blocks displaying features with custom background color-fade backdrops.
