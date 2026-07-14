@@ -29,3 +29,21 @@ class OrganizationMember(Base):
         index=True,
     )
     joinedAt = Column(BigInteger, nullable=False, default=generate_timestamp_ms)
+
+
+class MemberWorkspace(Base):
+    __tablename__ = "member_workspaces"
+
+    memberId = Column(
+        String(26),
+        ForeignKey("organization_members.id", ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
+    )
+    workspaceId = Column(
+        String(26),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
+    )
+

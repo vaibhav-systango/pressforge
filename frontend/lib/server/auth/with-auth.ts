@@ -70,7 +70,13 @@ export async function withAuth<T>(
     // Backend payload: { sub: userId, email, role, exp, iat }
     const userId = (raw.sub as string) ?? '';
     const email = (raw.email as string) ?? '';
-    const userType = (raw.role as string) ?? 'individual';
+    const rawRole = (raw.role as string) ?? 'INDIVIDUAL';
+    const userType =
+      rawRole === 'INDIVIDUAL'
+        ? 'individual'
+        : rawRole === 'ORG_CLIENT' || rawRole.endsWith('_CLIENT')
+          ? 'client'
+          : 'agency';
 
     if (!userId) {
       return jsonError('Token invalid or expired', 401, 'TOKEN_INVALID');

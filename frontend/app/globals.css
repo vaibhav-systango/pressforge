@@ -79,8 +79,8 @@ body {
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
@@ -88,12 +88,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #dbdbdb;
-  border-radius: 3px;
+  background: rgba(156, 163, 175, 0.35);
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a6a6a6;
+  background: rgba(156, 163, 175, 0.55);
 }
 
 @keyframes fadeIn {

@@ -157,6 +157,15 @@ class OrganizationRepository:
             )
         return query.all()
 
+    def update_organization(self, db: Session, organization: Organization, *, name: str) -> Organization:
+        """Update organization details."""
+        organization.name = name
+        db.add(organization)
+        db.commit()
+        db.refresh(organization)
+        return organization
+
 # Export a single repository instance
 organization_repository = OrganizationRepository()
+
 

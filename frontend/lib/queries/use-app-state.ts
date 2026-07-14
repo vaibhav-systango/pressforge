@@ -5,6 +5,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AppState, Workspace, ClientUser, Schedule, Draft, Campaign } from '@/lib/types';
 import { INITIAL_STATE } from '@/lib/data/mock-data';
 import { workspaceToCreateRequest, workspaceToUpdateRequest } from '@/lib/workspaces/map-workspace';
+import { useAuth } from '@/lib/hooks/queries/use-auth';
+
 
 // ── Fetcher ───────────────────────────────────────────────────────────────────
 
@@ -14,11 +16,12 @@ async function fetchAppState(): Promise<{ state: AppState }> {
   return res.json() as Promise<{ state: AppState }>;
 }
 
-async function fetchWorkspacesFromBackend(): Promise<{
+async function fetchWorkspacesFromBackend(clientId?: string): Promise<{
   workspaces: Workspace[];
   activeWorkspaceId: string | null;
 }> {
-  const res = await fetch('/api/workspaces');
+  const query = clientId ? `?clientId=${encodeURIComponent(clientId)}` : '';
+  const res = await fetch(`/api/workspaces${query}`);
   if (!res.ok) throw new Error('Failed to fetch workspaces');
   return res.json() as Promise<{ workspaces: Workspace[]; activeWorkspaceId: string | null }>;
 }
@@ -43,6 +46,7 @@ const EMPTY_STATE: AppState = {
 
 export function useAppState() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const query = useQuery({
     queryKey: ['app-state'],
@@ -52,7 +56,7 @@ export function useAppState() {
   });
 
   const syncWorkspacesInCache = async () => {
-    const workspaceData = await fetchWorkspacesFromBackend();
+    const workspaceData = await fetchWorkspacesFromBackend(state.activeClientId ?? undefined);
     queryClient.setQueryData(['app-state'], (old: { state: AppState } | undefined) => {
       const prevState = old?.state ?? EMPTY_STATE;
       return {
@@ -124,7 +128,14 @@ export function useAppState() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(workspaceToCreateRequest(workspace)),
     });
-    if (!res.ok) throw new Error('Failed to create workspace');
+    if (!res.ok) {
+      let errMsg = 'Failed to create workspace';
+      try {
+        const errData = await res.json();
+        errMsg = errData.error || errData.detail || errData.message || errMsg;
+      } catch {}
+      throw new Error(errMsg);
+    }
 
     const data = (await res.json()) as { workspace: Workspace };
     await syncWorkspacesInCache();
@@ -142,7 +153,14 @@ export function useAppState() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(workspaceToUpdateRequest(workspace)),
     });
-    if (!res.ok) throw new Error('Failed to update workspace');
+    if (!res.ok) {
+      let errMsg = 'Failed to update workspace';
+      try {
+        const errData = await res.json();
+        errMsg = errData.error || errData.detail || errData.message || errMsg;
+      } catch {}
+      throw new Error(errMsg);
+    }
 
     await syncWorkspacesInCache();
     return res.json() as Promise<{ workspace: Workspace }>;
@@ -170,9 +188,65 @@ export function useAppState() {
     }));
   };
 
-  const updateClient = async (client: ClientUser) => {
+  const updateClient = async (client: ClientUser, options?: { action?: 'add' | 'remove'; workspaceId?: string }) => {
+    const updatedClient = { ...client };
+    const targetWsId = options?.workspaceId !== undefined ? options.workspaceId : client.workspaceId;
+    const action = options?.action || 'add';
+
+    // Apply local state update preview/fallback
+    const currentWsIds = client.workspaceIds || (client.workspaceId ? [client.workspaceId] : []);
+    if (targetWsId) {
+      if (action === 'remove') {
+        updatedClient.workspaceIds = currentWsIds.filter(id => id !== targetWsId);
+      } else {
+        updatedClient.workspaceIds = currentWsIds.includes(targetWsId)
+          ? currentWsIds
+          : [...currentWsIds, targetWsId];
+      }
+      updatedClient.workspaceId = updatedClient.workspaceIds[0] || '';
+    } else {
+      updatedClient.workspaceIds = [];
+      updatedClient.workspaceId = '';
+    }
+
+    if (user?.organizationId) {
+      try {
+        const payload: any = {};
+        if (options?.workspaceId !== undefined) {
+          payload.workspaceId = options.workspaceId;
+        } else {
+          payload.workspaceId = client.workspaceId || null;
+        }
+        if (options?.action !== undefined) {
+          payload.action = options.action;
+        }
+
+        const res = await fetch(`/api/organizations/${user.organizationId}/clients/${client.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          let errMsg = 'Failed to update client workspace assignment on backend';
+          try {
+            const errData = await res.json();
+            errMsg = errData.error || errData.detail || errData.message || errMsg;
+          } catch {}
+          throw new Error(errMsg);
+        }
+        const data = await res.json();
+        if (data && data.workspaceIds) {
+          updatedClient.workspaceIds = data.workspaceIds;
+          updatedClient.workspaceId = data.workspaceId || '';
+        }
+        await syncWorkspacesInCache();
+      } catch (err) {
+        console.error('Error updating client workspace on backend:', err);
+      }
+    }
+
     return updateState((prev) => ({
-      clients: (prev.clients || []).map((c) => (c.id === client.id ? client : c)),
+      clients: (prev.clients || []).map((c) => (c.id === client.id ? updatedClient : c)),
     }));
   };
 

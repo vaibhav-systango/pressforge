@@ -242,3 +242,137 @@ async def get_mock_inbox(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
 
 
+from pydantic import BaseModel
+
+class AssignWorkspaceRequest(BaseModel):
+    workspaceId: str | None = None
+    workspaceIds: list[str] | None = None
+    action: str | None = None  # "add", "remove", or "set"
+
+@router.patch(
+    "/organizations/{org_id}/members/{member_user_id}/workspace",
+    status_code=status.HTTP_200_OK,
+    summary="Assign a workspace to an organization member",
+)
+async def assign_workspace(
+    org_id: str,
+    member_user_id: str,
+    body: AssignWorkspaceRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(permission_guard)
+):
+    try:
+        from app.models.workspace import Workspace
+        from app.models.organization_member import OrganizationMember, MemberWorkspace
+
+        # 1. Verify that current_user is OWNER or ADMIN of the organization
+        manager_member = db.query(OrganizationMember).filter(
+            OrganizationMember.organizationId == org_id,
+            OrganizationMember.userId == current_user.id
+        ).first()
+        if not manager_member or manager_member.role not in ["OWNER", "ADMIN"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only organization owners and admins can assign workspaces to members"
+            )
+
+        # 2. Find the member to be updated and verify their user record is active
+        member = db.query(OrganizationMember).join(
+            User, OrganizationMember.userId == User.id
+        ).filter(
+            OrganizationMember.organizationId == org_id,
+            OrganizationMember.userId == member_user_id,
+            User.isActive == True
+        ).first()
+        if not member:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Active member not found in organization"
+            )
+
+        # 3. If workspaceId is provided, verify it exists, belongs to the organization, and is active
+        if body.workspaceId:
+            workspace = db.query(Workspace).filter(
+                Workspace.id == body.workspaceId,
+                Workspace.organizationId == org_id,
+                Workspace.isActive == True
+            ).first()
+            if not workspace:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Workspace not found in organization"
+                )
+
+        # 4. Update the member's workspace mappings in member_workspaces
+        action = body.action or "add"
+
+        if body.workspaceIds is not None:
+            # Validate all workspaceIds in list belong to the organization and are active
+            if body.workspaceIds:
+                valid_count = db.query(Workspace).filter(
+                    Workspace.id.in_(body.workspaceIds),
+                    Workspace.organizationId == org_id,
+                    Workspace.isActive == True
+                ).count()
+                if valid_count != len(body.workspaceIds):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="One or more workspaces not found in organization"
+                    )
+            # Clear old mappings
+            db.query(MemberWorkspace).filter(MemberWorkspace.memberId == member.id).delete()
+            # Insert new mappings
+            for ws_id in body.workspaceIds:
+                db.add(MemberWorkspace(memberId=member.id, workspaceId=ws_id))
+            
+            # For backward compatibility, update the legacy single column
+            member.workspaceId = body.workspaceIds[0] if body.workspaceIds else None
+
+        elif body.workspaceId is not None:
+            if not body.workspaceId:
+                # If workspaceId is empty string or None, we clear all
+                db.query(MemberWorkspace).filter(MemberWorkspace.memberId == member.id).delete()
+                member.workspaceId = None
+            elif action == "remove":
+                # Remove this specific mapping
+                db.query(MemberWorkspace).filter(
+                    MemberWorkspace.memberId == member.id,
+                    MemberWorkspace.workspaceId == body.workspaceId
+                ).delete()
+                # Update legacy column
+                remaining = db.query(MemberWorkspace).filter(MemberWorkspace.memberId == member.id).all()
+                member.workspaceId = remaining[0].workspaceId if remaining else None
+            else:  # "add"
+                # Add relationship if it doesn't already exist
+                existing = db.query(MemberWorkspace).filter(
+                    MemberWorkspace.memberId == member.id,
+                    MemberWorkspace.workspaceId == body.workspaceId
+                ).first()
+                if not existing:
+                    db.add(MemberWorkspace(memberId=member.id, workspaceId=body.workspaceId))
+                # Update legacy column
+                member.workspaceId = body.workspaceId
+
+        db.commit()
+
+        # Query all active workspaceIds for response
+        ws_ids = [wm.workspaceId for wm in db.query(MemberWorkspace).filter(MemberWorkspace.memberId == member.id).all()]
+
+        return {
+            "status": "success",
+            "memberId": member.id,
+            "workspaceId": member.workspaceId,
+            "workspaceIds": ws_ids
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Unexpected error in assign_workspace: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred."
+        )
+
+
+

@@ -3,30 +3,34 @@
 import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
 import { useAuth } from '@/lib/hooks/queries/use-auth';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   formatAccountTypeLabel,
   formatMeTimestamp,
 } from '@/lib/auth/me-user';
 import { formatOrganizationRole } from '@/lib/invitations/role-hierarchy';
 import { PageLoader } from '@/components/common/page-loader';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  Settings, User, Lock, CreditCard, ShieldAlert, 
-  Check, ToggleLeft, ToggleRight, Trash2, RefreshCw, 
-  Building2, Sparkles, Users, Instagram, X
+  Settings, User, Lock, ShieldAlert, 
+  Check, ToggleLeft, ToggleRight, Trash2, 
+  Building2, Sparkles
 } from 'lucide-react';
 import { PasswordInput } from '@/components/common/password-input';
 import { DeleteModal } from '@/components/common/delete-modal';
-import { validatePassword } from '@/lib/utils/validation';
+import { ErrorMessage } from '@/components/common/error-message';
+import { validatePassword, validateFullName, validateOrganizationName } from '@/lib/utils/validation';
 
 export function SettingsView() {
-  const { state, updateState, resetState } = useAppState();
+  const { state, updateState } = useAppState();
   const { user, isLoading: isUserLoading } = useAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
+
   const isClient = user?.userType === 'client' || state.currentUserType === 'client';
+  const showSocialIntegrations = user?.userType === 'client' || state.currentUserType === 'client' || user?.userType === 'individual' || state.currentUserType === 'individual';
 
   // Modal confirm states
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Form states
@@ -40,136 +44,179 @@ export function SettingsView() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  // Validation errors
+  const [profileNameError, setProfileNameError] = useState<string | null>(null);
+  const [orgNameError, setOrgNameError] = useState<string | null>(null);
+  const [currentPasswordError, setCurrentPasswordError] = useState<string | null>(null);
+  const [newPasswordError, setNewPasswordError] = useState<string | null>(null);
+  const [confirmPasswordError, setConfirmPasswordError] = useState<string | null>(null);
+
+  // API Call errors
+  const [profileApiError, setProfileApiError] = useState<string>('');
+  const [orgApiError, setOrgApiError] = useState<string>('');
+  const [passwordApiError, setPasswordApiError] = useState<string>('');
   
   // UI indicators
   const [profileSaved, setProfileSaved] = useState(false);
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [orgSaved, setOrgSaved] = useState(false);
-  const [planSaved, setPlanSaved] = useState(false);
+
+  // Loading states
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSavingOrg, setIsSavingOrg] = useState(false);
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   // Integration toggles
   const [instagramConnected, setInstagramConnected] = useState(true);
   const [linkedinConnected, setLinkedinConnected] = useState(false);
 
-  // Selected billing plan (Agency only)
-  const [activePlan, setActivePlan] = useState<string>('growth');
+  // Sync state when user details load
+  useEffect(() => {
+    if (user?.name) {
+      setProfileName(user.name);
+    }
+    if (user?.email) {
+      setProfileEmail(user.email);
+    }
+  }, [user]);
 
-  // Instagram Auth modal states
-  const [showInstaModal, setShowInstaModal] = useState(false);
-  const [instaModalTarget, setInstaModalTarget] = useState<string | null>(null);
-  const [instaUsername, setInstaUsername] = useState('');
-  const [instaPassword, setInstaPassword] = useState('');
-  const [instaStep, setInstaStep] = useState<'login' | 'authorize' | 'loading'>('login');
+  // Sync state when organization name updates
+  useEffect(() => {
+    if (state.organizationName && state.organizationName !== 'Forge Agencies') {
+      setOrgName(state.organizationName);
+    }
+  }, [state.organizationName]);
 
-  const activeTeamMembers = (state.orgUsers || []).filter((member) => member.status !== 'pending');
-
-  const handleToggleWorkspace = (userId: string, workspaceId: string) => {
-    updateState((prev) => ({
-      ...prev,
-      orgUsers: (prev.orgUsers || []).map((u) => {
-        if (u.id === userId) {
-          const currentIds = u.workspaceIds || [];
-          const newIds = currentIds.includes(workspaceId)
-            ? currentIds.filter((id) => id !== workspaceId)
-            : [...currentIds, workspaceId];
-          return { ...u, workspaceIds: newIds };
-        }
-        return u;
-      })
-    }));
-  };
-
-  const openInstaModal = (userId: string) => {
-    setInstaModalTarget(userId);
-    setInstaUsername('');
-    setInstaPassword('');
-    setInstaStep('login');
-    setShowInstaModal(true);
-  };
-
-  const handleInstaSubmit = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    setInstaStep('loading');
-    setTimeout(() => {
-      setInstaStep('authorize');
-    }, 800);
-  };
-
-  const handleInstaAuthorize = () => {
-    setInstaStep('loading');
-    setTimeout(() => {
-      const finalUsername = instaUsername.startsWith('@') ? instaUsername.substring(1) : instaUsername;
-      updateState((prev) => ({
-        ...prev,
-        orgUsers: (prev.orgUsers || []).map((u) => 
-          u.id === instaModalTarget 
-            ? { ...u, instagramConnected: true, instagramUsername: finalUsername } 
-            : u
-        )
-      }));
-      setShowInstaModal(false);
-      setInstaModalTarget(null);
-    }, 1000);
-  };
-
-  const handleSaveProfile = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateState({
-      currentUserName: profileName,
-      currentUserEmail: profileEmail,
-    });
-    setProfileSaved(true);
-    setTimeout(() => setProfileSaved(false), 3000);
-  };
-
-  const handleSaveOrg = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!orgName.trim()) {
-      alert("Organization name cannot be empty.");
+    setProfileApiError('');
+    
+    const nameErr = validateFullName(profileName);
+    if (nameErr) {
+      setProfileNameError(nameErr);
       return;
     }
-    updateState({ organizationName: orgName });
-    setOrgSaved(true);
-    setTimeout(() => setOrgSaved(false), 3000);
-  };
 
-  const handleChangePassword = (e: React.FormEvent) => {
-    e.preventDefault();
-    const passError = validatePassword(newPassword);
-    if (passError) {
-      alert(passError);
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      alert("New passwords do not match!");
-      return;
-    }
-    setPasswordSaved(true);
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setTimeout(() => setPasswordSaved(false), 3000);
-  };
-
-  const handleUpdatePlan = (planId: string) => {
-    setActivePlan(planId);
-    setPlanSaved(true);
-    setTimeout(() => setPlanSaved(false), 3000);
-  };
-
-  const handleResetData = async () => {
+    setIsSavingProfile(true);
     try {
-      await resetState();
-      alert("Application state reset successfully.");
-      router.push('/app');
-    } catch (error) {
-      console.error("Failed to reset application state:", error);
-      alert("Failed to reset application state. Please try again.");
+      const res = await fetch('/api/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fullName: profileName }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update profile name');
+      }
+      
+      await updateState({
+        currentUserName: profileName,
+      });
+      await queryClient.invalidateQueries({ queryKey: ['me'] });
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 3000);
+    } catch (err: any) {
+      setProfileApiError(err.message || 'Failed to save profile');
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
-  const handleDeleteAccount = () => {
-    window.location.href = '/';
+  const handleSaveOrg = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setOrgApiError('');
+
+    const orgErr = validateOrganizationName(orgName);
+    if (orgErr) {
+      setOrgNameError(orgErr);
+      return;
+    }
+
+    setIsSavingOrg(true);
+    try {
+      const res = await fetch('/api/organization', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ organizationName: orgName }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update organization name');
+      }
+      
+      await updateState({ organizationName: orgName });
+      setOrgSaved(true);
+      setTimeout(() => setOrgSaved(false), 3000);
+    } catch (err: any) {
+      setOrgApiError(err.message || 'Failed to update organization');
+    } finally {
+      setIsSavingOrg(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordApiError('');
+
+    const curErr = currentPassword ? null : 'Current password is required';
+    const passErr = validatePassword(newPassword);
+    const confErr = newPassword === confirmPassword ? null : 'New passwords do not match';
+
+    if (curErr || passErr || confErr) {
+      setCurrentPasswordError(curErr);
+      setNewPasswordError(passErr);
+      setConfirmPasswordError(confErr);
+      return;
+    }
+    
+    setIsSavingPassword(true);
+    try {
+      const res = await fetch('/api/me/password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update password');
+      }
+      
+      setPasswordSaved(true);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setPasswordSaved(false), 3000);
+    } catch (err: any) {
+      setPasswordApiError(err.message || 'Failed to change password');
+    } finally {
+      setIsSavingPassword(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      const res = await fetch('/api/me', {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        throw new Error('Failed to delete account');
+      }
+      
+      // Perform client logout/redirect
+      await fetch('/api/auth/logout', { method: 'POST' });
+      setShowDeleteConfirm(false);
+      window.location.href = '/';
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete account');
+    } finally {
+      setIsDeletingAccount(false);
+    }
   };
 
   if (isUserLoading && !user) {
@@ -185,7 +232,7 @@ export function SettingsView() {
           <span>Account Settings</span>
         </h1>
         <p className="text-sm text-text-secondary mt-1">
-          Manage your personal profile, organization preferences, billing plans, and security integrations.
+          Manage your personal profile, organization preferences, and security integrations.
         </p>
       </div>
 
@@ -201,16 +248,32 @@ export function SettingsView() {
             </h3>
 
             <form onSubmit={handleSaveProfile} className="space-y-4">
+              <ErrorMessage message={profileApiError} />
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-text-secondary">Full Name</label>
                   <input
                     type="text"
                     required
+                    disabled={isSavingProfile}
                     value={profileName}
-                    onChange={(e) => setProfileName(e.target.value)}
-                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition"
+                    onChange={(e) => {
+                      setProfileName(e.target.value);
+                      if (profileNameError) {
+                        setProfileNameError(validateFullName(e.target.value));
+                      }
+                    }}
+                    onBlur={() => {
+                      setProfileNameError(validateFullName(profileName));
+                    }}
+                    className={`border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition ${
+                      profileNameError ? 'border-red-500 focus:border-red-500' : ''
+                    }`}
                   />
+                  {profileNameError && (
+                    <p className="text-[11px] text-red-500 font-medium">{profileNameError}</p>
+                  )}
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-text-secondary">Email Address</label>
@@ -271,9 +334,10 @@ export function SettingsView() {
                 ) : (
                   <button
                     type="submit"
-                    className="bg-text-primary text-bg-card hover:opacity-90 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
+                    disabled={isSavingProfile || !!profileNameError}
+                    className="bg-text-primary text-bg-card hover:opacity-90 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Save Profile
+                    {isSavingProfile ? 'Saving...' : 'Save Profile'}
                   </button>
                 )}
               </div>
@@ -289,15 +353,31 @@ export function SettingsView() {
               </h3>
 
               <form onSubmit={handleSaveOrg} className="space-y-4">
+                <ErrorMessage message={orgApiError} />
+
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-text-secondary">Organization / Agency Name</label>
                   <input
                     type="text"
                     required
+                    disabled={isSavingOrg}
                     value={orgName}
-                    onChange={(e) => setOrgName(e.target.value)}
-                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition"
+                    onChange={(e) => {
+                      setOrgName(e.target.value);
+                      if (orgNameError) {
+                        setOrgNameError(validateOrganizationName(e.target.value));
+                      }
+                    }}
+                    onBlur={() => {
+                      setOrgNameError(validateOrganizationName(orgName));
+                    }}
+                    className={`border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition ${
+                      orgNameError ? 'border-red-500 focus:border-red-500' : ''
+                    }`}
                   />
+                  {orgNameError && (
+                    <p className="text-[11px] text-red-500 font-medium">{orgNameError}</p>
+                  )}
                 </div>
 
                 <div className="flex justify-end">
@@ -308,95 +388,14 @@ export function SettingsView() {
                   ) : (
                     <button
                       type="submit"
-                      className="bg-text-primary text-bg-card hover:opacity-90 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
+                      disabled={isSavingOrg || !!orgNameError}
+                      className="bg-text-primary text-bg-card hover:opacity-90 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Update Organization
+                      {isSavingOrg ? 'Updating...' : 'Update Organization'}
                     </button>
                   )}
                 </div>
               </form>
-            </div>
-          )}
-
-          {!isClient && state.accountType === 'organization' && (
-            <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-6">
-              <h3 className="text-sm font-bold text-text-primary border-b border-border-primary pb-2.5 flex items-center gap-2">
-                <Users className="w-4.5 h-4.5 text-instagram-pink" />
-                <span>Team Members & Workspace Access</span>
-              </h3>
-
-              <p className="text-xs text-text-secondary">
-                Invite new users from Client Portals. Use this section to manage workspace access and Instagram
-                connections for active team members.
-              </p>
-
-              {/* Members List Table */}
-              <div className="border border-border-primary rounded-xl overflow-hidden bg-bg-card">
-                <table className="w-full text-left border-collapse text-xs text-text-primary">
-                  <thead>
-                    <tr className="bg-bg-app border-b border-border-primary text-text-secondary font-bold">
-                      <th className="p-3">User Details</th>
-                      <th className="p-3">Instagram Channel</th>
-                      <th className="p-3">Assigned Workspaces</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border-primary">
-                    {activeTeamMembers.map((user) => (
-                      <tr key={user.id} className="hover:bg-bg-app/20">
-                        <td className="p-3">
-                          <p className="font-bold text-text-primary">{user.name}</p>
-                          <p className="text-[10px] text-text-secondary font-mono mt-0.5">{user.email}</p>
-                        </td>
-                        <td className="p-3">
-                          {user.instagramConnected ? (
-                            <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-400 border border-green-200 dark:border-green-900 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                              <Instagram className="w-3 h-3 text-green-600" />
-                              <span>@{user.instagramUsername}</span>
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => openInstaModal(user.id)}
-                              className="text-[10px] text-instagram-pink hover:underline font-semibold flex items-center gap-0.5"
-                            >
-                              <Instagram className="w-3.5 h-3.5" />
-                              <span>Connect Instagram</span>
-                            </button>
-                          )}
-                        </td>
-                        <td className="p-3">
-                          <div className="flex flex-wrap gap-1">
-                            {state.workspaces.map((ws) => {
-                              const isAssigned = (user.workspaceIds || []).includes(ws.id);
-                              return (
-                                <button
-                                  key={ws.id}
-                                  type="button"
-                                  onClick={() => handleToggleWorkspace(user.id, ws.id)}
-                                  className={`text-[9px] px-2 py-0.5 rounded-full font-bold border transition ${
-                                    isAssigned
-                                      ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950/20 dark:border-blue-900 dark:text-blue-400'
-                                      : 'bg-transparent border-border-primary text-text-secondary hover:text-text-primary hover:border-slate-300 dark:hover:border-slate-800'
-                                  }`}
-                                >
-                                  {ws.name}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {activeTeamMembers.length === 0 && (
-                      <tr>
-                        <td colSpan={3} className="text-center p-6 text-text-secondary italic">
-                          No active team members yet. Invite users from Client Portals to get started.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
             </div>
           )}
 
@@ -408,13 +407,25 @@ export function SettingsView() {
             </h3>
 
             <form onSubmit={handleChangePassword} className="space-y-4">
+              <ErrorMessage message={passwordApiError} />
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <PasswordInput
                   id="current-password"
                   label="Current Password"
                   placeholder="••••••••"
+                  disabled={isSavingPassword}
                   value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  error={currentPasswordError || undefined}
+                  onChange={(e) => {
+                    setCurrentPassword(e.target.value);
+                    if (currentPasswordError) {
+                      setCurrentPasswordError(e.target.value ? null : 'Current password is required');
+                    }
+                  }}
+                  onBlur={() => {
+                    setCurrentPasswordError(currentPassword ? null : 'Current password is required');
+                  }}
                   className="text-xs py-2"
                   required
                 />
@@ -422,8 +433,21 @@ export function SettingsView() {
                   id="new-password"
                   label="New Password"
                   placeholder="••••••••"
+                  disabled={isSavingPassword}
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
+                  error={newPasswordError || undefined}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    if (newPasswordError) {
+                      setNewPasswordError(validatePassword(e.target.value));
+                    }
+                    if (confirmPassword) {
+                      setConfirmPasswordError(e.target.value === confirmPassword ? null : 'New passwords do not match');
+                    }
+                  }}
+                  onBlur={() => {
+                    setNewPasswordError(validatePassword(newPassword));
+                  }}
                   className="text-xs py-2"
                   required
                 />
@@ -431,8 +455,16 @@ export function SettingsView() {
                   id="confirm-password"
                   label="Confirm New Password"
                   placeholder="••••••••"
+                  disabled={isSavingPassword}
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  error={confirmPasswordError || undefined}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    setConfirmPasswordError(e.target.value === newPassword ? null : 'New passwords do not match');
+                  }}
+                  onBlur={() => {
+                    setConfirmPasswordError(confirmPassword === newPassword ? null : 'New passwords do not match');
+                  }}
                   className="text-xs py-2"
                   required
                 />
@@ -446,111 +478,15 @@ export function SettingsView() {
                 ) : (
                   <button
                     type="submit"
-                    className="bg-text-primary text-bg-card hover:opacity-90 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
+                    disabled={isSavingPassword || !!currentPasswordError || !!newPasswordError || !!confirmPasswordError}
+                    className="bg-text-primary text-bg-card hover:opacity-90 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Update Password
+                    {isSavingPassword ? 'Updating...' : 'Update Password'}
                   </button>
                 )}
               </div>
             </form>
           </div>
-
-          {/* Pricing Plans & Billing (Only for agency users) */}
-          {!isClient && (
-            <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-border-primary pb-2.5">
-                <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-text-secondary" />
-                  <span>Subscription Plan & Billing</span>
-                </h3>
-                {planSaved && (
-                  <span className="text-[10px] text-green-600 font-bold bg-green-50 dark:bg-green-950/20 px-2 py-0.5 rounded-md border border-green-200 dark:border-green-900">
-                    Plan Updated Successfully
-                  </span>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Plan 1 */}
-                <div className={`border rounded-xl p-4 flex flex-col justify-between gap-3 text-xs transition ${
-                  activePlan === 'starter' 
-                    ? 'border-instagram-pink bg-pink-50/10' 
-                    : 'border-border-primary hover:bg-bg-hover'
-                }`}>
-                  <div className="space-y-1">
-                    <p className="font-bold text-text-primary">Agency Starter</p>
-                    <p className="text-2xl font-black text-text-primary">$49<span className="text-[10px] font-normal">/mo</span></p>
-                    <p className="text-[10px] text-text-secondary leading-relaxed">
-                      Up to 3 workspaces, 5 clients, and standard AI completions.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleUpdatePlan('starter')}
-                    className={`w-full py-1.5 rounded-lg font-bold text-[10px] transition cursor-pointer ${
-                      activePlan === 'starter'
-                        ? 'bg-instagram-pink text-white'
-                        : 'bg-bg-app border border-border-primary text-text-primary hover:bg-bg-hover'
-                    }`}
-                  >
-                    {activePlan === 'starter' ? 'Active Plan' : 'Select Plan'}
-                  </button>
-                </div>
-
-                {/* Plan 2 */}
-                <div className={`border rounded-xl p-4 flex flex-col justify-between gap-3 text-xs transition relative ${
-                  activePlan === 'growth' 
-                    ? 'border-instagram-pink bg-pink-50/10' 
-                    : 'border-border-primary hover:bg-bg-hover'
-                }`}>
-                  <span className="absolute -top-2.5 right-3 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white text-[8px] font-extrabold uppercase px-2 py-0.5 rounded-full shadow">
-                    Popular
-                  </span>
-                  <div className="space-y-1">
-                    <p className="font-bold text-text-primary">Agency Growth</p>
-                    <p className="text-2xl font-black text-text-primary">$99<span className="text-[10px] font-normal">/mo</span></p>
-                    <p className="text-[10px] text-text-secondary leading-relaxed">
-                      Up to 10 workspaces, 20 clients, and premium custom AI rules.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleUpdatePlan('growth')}
-                    className={`w-full py-1.5 rounded-lg font-bold text-[10px] transition cursor-pointer ${
-                      activePlan === 'growth'
-                        ? 'bg-instagram-pink text-white'
-                        : 'bg-bg-app border border-border-primary text-text-primary hover:bg-bg-hover'
-                    }`}
-                  >
-                    {activePlan === 'growth' ? 'Active Plan' : 'Select Plan'}
-                  </button>
-                </div>
-
-                {/* Plan 3 */}
-                <div className={`border rounded-xl p-4 flex flex-col justify-between gap-3 text-xs transition ${
-                  activePlan === 'enterprise' 
-                    ? 'border-instagram-pink bg-pink-50/10' 
-                    : 'border-border-primary hover:bg-bg-hover'
-                }`}>
-                  <div className="space-y-1">
-                    <p className="font-bold text-text-primary">Enterprise</p>
-                    <p className="text-2xl font-black text-text-primary">$249<span className="text-[10px] font-normal">/mo</span></p>
-                    <p className="text-[10px] text-text-secondary leading-relaxed">
-                      Unlimited workspaces & clients, fine-tuned custom agent models.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleUpdatePlan('enterprise')}
-                    className={`w-full py-1.5 rounded-lg font-bold text-[10px] transition cursor-pointer ${
-                      activePlan === 'enterprise'
-                        ? 'bg-instagram-pink text-white'
-                        : 'bg-bg-app border border-border-primary text-text-primary hover:bg-bg-hover'
-                    }`}
-                  >
-                    {activePlan === 'enterprise' ? 'Active Plan' : 'Select Plan'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
         </div>
 
@@ -558,61 +494,63 @@ export function SettingsView() {
         <div className="lg:col-span-4 space-y-6">
           
           {/* Integrations Panel */}
-          <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-text-primary border-b border-border-primary pb-2 flex items-center gap-1.5">
-              <Sparkles className="w-4.5 h-4.5 text-instagram-pink" />
-              <span>Social Integrations</span>
-            </h3>
-            <p className="text-xs text-text-secondary">
-              Connect platform APIs to publish approved content automatically.
-            </p>
+          {showSocialIntegrations && (
+            <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
+              <h3 className="text-sm font-bold text-text-primary border-b border-border-primary pb-2 flex items-center gap-1.5">
+                <Sparkles className="w-4.5 h-4.5 text-instagram-pink" />
+                <span>Social Integrations</span>
+              </h3>
+              <p className="text-xs text-text-secondary">
+                Connect platform APIs to publish approved content automatically.
+              </p>
 
-            <div className="space-y-3.5 pt-1">
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-pink-500/10 text-pink-600 flex items-center justify-center font-bold">
-                    IG
+              <div className="space-y-3.5 pt-1">
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-pink-500/10 text-pink-600 flex items-center justify-center font-bold">
+                      IG
+                    </div>
+                    <div>
+                      <p className="font-bold text-text-primary">Instagram API</p>
+                      <p className="text-[9px] text-green-600 font-bold">Connected</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-bold text-text-primary">Instagram API</p>
-                    <p className="text-[9px] text-green-600 font-bold">Connected</p>
-                  </div>
+                  <button 
+                    onClick={() => setInstagramConnected(!instagramConnected)}
+                    className="text-text-secondary hover:text-text-primary transition"
+                  >
+                    {instagramConnected ? (
+                      <ToggleRight className="w-7 h-7 text-instagram-pink" />
+                    ) : (
+                      <ToggleLeft className="w-7 h-7" />
+                    )}
+                  </button>
                 </div>
-                <button 
-                  onClick={() => setInstagramConnected(!instagramConnected)}
-                  className="text-text-secondary hover:text-text-primary transition"
-                >
-                  {instagramConnected ? (
-                    <ToggleRight className="w-7 h-7 text-instagram-pink" />
-                  ) : (
-                    <ToggleLeft className="w-7 h-7" />
-                  )}
-                </button>
-              </div>
 
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-blue-600/10 text-blue-600 flex items-center justify-center font-bold">
-                    IN
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-blue-600/10 text-blue-600 flex items-center justify-center font-bold">
+                      IN
+                    </div>
+                    <div>
+                      <p className="font-bold text-text-primary">LinkedIn API</p>
+                      <p className="text-[9px] text-text-secondary">Disconnected</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-bold text-text-primary">LinkedIn API</p>
-                    <p className="text-[9px] text-text-secondary">Disconnected</p>
-                  </div>
+                  <button 
+                    onClick={() => setLinkedinConnected(!linkedinConnected)}
+                    className="text-text-secondary hover:text-text-primary transition"
+                  >
+                    {linkedinConnected ? (
+                      <ToggleRight className="w-7 h-7 text-instagram-pink" />
+                    ) : (
+                      <ToggleLeft className="w-7 h-7" />
+                    )}
+                  </button>
                 </div>
-                <button 
-                  onClick={() => setLinkedinConnected(!linkedinConnected)}
-                  className="text-text-secondary hover:text-text-primary transition"
-                >
-                  {linkedinConnected ? (
-                    <ToggleRight className="w-7 h-7 text-instagram-pink" />
-                  ) : (
-                    <ToggleLeft className="w-7 h-7" />
-                  )}
-                </button>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Danger Zone */}
           <div className="bg-bg-card border border-red-200 dark:border-red-950/40 rounded-2xl p-6 shadow-sm space-y-4">
@@ -623,20 +561,6 @@ export function SettingsView() {
             
             <div className="flex flex-col gap-3">
               <div className="space-y-1">
-                <p className="text-xs font-bold text-text-primary">Reset App Data</p>
-                <p className="text-[10px] text-text-secondary">
-                  Restores default settings, clear all custom workspaces and client invitations.
-                </p>
-                <button
-                  onClick={() => setShowResetConfirm(true)}
-                  className="w-full mt-1.5 border border-border-primary bg-bg-app hover:bg-red-50 dark:hover:bg-red-950/20 text-text-primary hover:text-red-500 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Reset App State</span>
-                </button>
-              </div>
-
-              <div className="space-y-1 pt-3 border-t border-border-primary">
                 <p className="text-xs font-bold text-text-primary">Delete Account</p>
                 <p className="text-[10px] text-text-secondary">
                   Permanently delete this account and all linked organization records.
@@ -654,159 +578,14 @@ export function SettingsView() {
         </div>
       </div>
 
-      {/* Instagram Authentication modal */}
-      {showInstaModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 animate-fade-in p-4">
-          <div className="bg-bg-card border border-border-primary rounded-3xl w-full max-w-sm p-6 shadow-xl animate-scale-up space-y-4 text-text-primary">
-            
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-border-primary pb-3">
-              <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
-                <Instagram className="w-4 h-4 text-instagram-pink" />
-                <span>Instagram Auth Bridge</span>
-              </span>
-              <button
-                onClick={() => {
-                  setShowInstaModal(false);
-                  setInstaModalTarget(null);
-                }}
-                className="p-1 text-text-secondary hover:bg-bg-hover rounded-lg hover:text-text-primary"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Loading State */}
-            {instaStep === 'loading' && (
-              <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
-                <div className="w-10 h-10 border-2 border-instagram-pink border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-xs text-text-secondary font-medium">Communicating with Meta API...</p>
-              </div>
-            )}
-
-            {/* Login State */}
-            {instaStep === 'login' && (
-              <form onSubmit={handleInstaSubmit} className="space-y-4">
-                <p className="text-[11px] text-text-secondary leading-normal">
-                  Connect your team member's Instagram Creator or Business profile to PressForge.
-                </p>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold uppercase text-text-secondary">Instagram Username</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="@username"
-                    value={instaUsername}
-                    onChange={(e) => setInstaUsername(e.target.value)}
-                    className="border border-border-primary bg-bg-app text-text-primary rounded-lg px-3 py-1.5 text-xs outline-none focus:border-instagram-pink"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="insta-password" className="text-[10px] font-bold uppercase text-text-secondary">Password</label>
-                  <PasswordInput
-                    id="insta-password"
-                    placeholder="••••••••"
-                    value={instaPassword}
-                    onChange={(e) => setInstaPassword(e.target.value)}
-                    className="border border-border-primary bg-bg-app text-text-primary rounded-lg text-xs py-1.5 focus:border-instagram-pink"
-                    required
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full bg-[#262626] text-white py-2 rounded-lg text-xs font-bold hover:bg-neutral-800 transition"
-                >
-                  Log In & Connect
-                </button>
-              </form>
-            )}
-
-            {/* Authorize State */}
-            {instaStep === 'authorize' && (
-              <div className="flex flex-col gap-4 text-center">
-                <div className="flex items-center justify-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-bg-app flex items-center justify-center text-text-primary">
-                    <Instagram className="w-5 h-5" />
-                  </div>
-                  <span className="text-text-secondary text-xs">↔</span>
-                  <div className="w-10 h-10 rounded-full bg-pink-500/10 text-instagram-pink flex items-center justify-center font-bold text-xs">
-                    PF
-                  </div>
-                </div>
-
-                <h3 className="font-extrabold text-sm text-text-primary mt-2">
-                  Authorize PressForge Integration
-                </h3>
-
-                <div className="bg-bg-app/50 border border-border-primary p-4 rounded-xl text-left space-y-2.5">
-                  <p className="text-[10px] text-text-secondary leading-normal">
-                    PressForge AI is requesting permission to access the following info for <span className="font-bold text-text-primary">@{instaUsername}</span>:
-                  </p>
-                  <ul className="text-[9px] text-text-secondary space-y-1.5 pl-1">
-                    <li className="flex items-start gap-1.5">
-                      <Check className="w-3 h-3 text-green-600 mt-0.5 shrink-0" />
-                      <span>Profile info and media files</span>
-                    </li>
-                    <li className="flex items-start gap-1.5">
-                      <Check className="w-3 h-3 text-green-600 mt-0.5 shrink-0" />
-                      <span>Publish scheduled posts, reels, and stories</span>
-                    </li>
-                    <li className="flex items-start gap-1.5">
-                      <Check className="w-3 h-3 text-green-600 mt-0.5 shrink-0" />
-                      <span>Read audience comments and insights</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="flex gap-2.5 mt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowInstaModal(false);
-                      setInstaModalTarget(null);
-                    }}
-                    className="flex-1 border border-border-primary hover:bg-bg-app text-text-secondary font-bold py-2 rounded-md text-xs transition"
-                  >
-                    Decline
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleInstaAuthorize}
-                    className="flex-1 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white font-bold py-2 rounded-md text-xs transition shadow-xs"
-                  >
-                    Allow Access
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Reset Confirmation Modal */}
-      <DeleteModal
-        isOpen={showResetConfirm}
-        onClose={() => setShowResetConfirm(false)}
-        onConfirm={async () => {
-          await handleResetData();
-          setShowResetConfirm(false);
-        }}
-        title="Reset Application Data"
-        description="Are you sure you want to reset all data to default settings? This will delete custom workspaces, drafts, and client portals."
-        confirmLabel="Reset Data"
-      />
-
       {/* Delete Account Confirmation Modal */}
       <DeleteModal
         isOpen={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
-        onConfirm={() => {
-          setShowDeleteConfirm(false);
-          handleDeleteAccount();
+        isPending={isDeletingAccount}
+        onClose={() => {
+          if (!isDeletingAccount) setShowDeleteConfirm(false);
         }}
+        onConfirm={handleDeleteAccount}
         title="Delete Account"
         description="Are you sure you want to delete your account? This action is irreversible."
         confirmLabel="Delete Account"
@@ -814,4 +593,3 @@ export function SettingsView() {
     </div>
   );
 }
-

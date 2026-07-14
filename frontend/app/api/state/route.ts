@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 import { ApiError, jsonError, withAuth } from '@/lib/server/auth/with-auth';
 import { callBackend } from '@/lib/server/backend-client';
@@ -17,9 +18,12 @@ import {
 } from '@/lib/server/resolve-request-session';
 import type { WorkspaceListResponse } from '@/lib/types/api';
 import type { AppState } from '@/lib/types';
+import { ORGANIZATION_ID_COOKIE } from '@/lib/server/issue-backend-auth';
 
 async function mergeBackendWorkspaces(state: AppState, accessToken: string): Promise<AppState> {
-  const { data } = await callBackend<WorkspaceListResponse>('/workspaces', { accessToken });
+  const clientId = state.activeClientId;
+  const query = clientId ? `?clientId=${encodeURIComponent(clientId)}` : '';
+  const { data } = await callBackend<WorkspaceListResponse>(`/workspaces${query}`, { accessToken });
   if (!data) {
     return state;
   }
@@ -42,7 +46,52 @@ export async function GET() {
         email: auth.email,
         name: auth.email,
       });
+
       const mergedState = await mergeBackendWorkspaces(state, session.accessToken!);
+
+      try {
+        const cookieStore = await cookies();
+        const orgId = cookieStore.get(ORGANIZATION_ID_COOKIE)?.value;
+        const accessToken = session.accessToken;
+
+        if (orgId && accessToken) {
+          const { data: clientsData } = await callBackend<any[]>(
+            `/organizations/${orgId}/clients`,
+            {
+              method: 'GET',
+              accessToken,
+            }
+          );
+
+          if (clientsData && Array.isArray(clientsData)) {
+            const activeClients = clientsData
+              .filter((c) => {
+                const isExpired = c.status === 'expired' || (c.expiresAt && new Date(c.expiresAt) < new Date());
+                return c.status === 'active' && !isExpired && c.role?.toUpperCase() === 'CLIENT';
+              })
+              .map((c, index) => {
+                const ws = mergedState.workspaces.length > 0
+                  ? mergedState.workspaces[index % mergedState.workspaces.length]
+                  : undefined;
+                return {
+                  id: c.id,
+                  name: c.name || c.fullName,
+                  email: c.email,
+                  status: 'active' as const,
+                  role: c.role || 'CLIENT',
+                  workspaceId: c.workspaceId || '',
+                  workspaceIds: c.workspaceIds || (c.workspaceId ? [c.workspaceId] : []),
+                };
+              });
+
+            mergedState.clients = activeClients;
+            updateSession(auth.sessionId, { clients: activeClients });
+          }
+        }
+      } catch (e) {
+        console.error('Failed to sync backend clients to app state', e);
+      }
+
       return { state: mergedState };
     });
 

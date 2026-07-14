@@ -233,10 +233,21 @@ class InvitationService:
                 search=search,
                 invited_by=invited_by_filter
             )
+            member_workspaces = {}
+            if members:
+                from app.models.organization_member import MemberWorkspace
+                from collections import defaultdict
+                member_ids = [m[0].id for m in members]
+                workspace_mappings = db.query(MemberWorkspace).filter(MemberWorkspace.memberId.in_(member_ids)).all()
+                member_workspaces = defaultdict(list)
+                for wm in workspace_mappings:
+                    member_workspaces[wm.memberId].append(wm.workspaceId)
+
             for member, user in members:
                 # Skip the requester themselves from the list
                 if user.id == current_user.id:
                     continue
+                ws_ids = member_workspaces.get(member.id, [])
                 clients.append({
                     "id": user.id,
                     "name": user.fullName,
@@ -245,9 +256,11 @@ class InvitationService:
                     "role": member.role,
                     "expiresAt": None,
                     "isAccepted": True,
-                    "workspaceId": member.workspaceId,
+                    "workspaceId": ws_ids[0] if ws_ids else "",
+                    "workspaceIds": ws_ids,
                     "plan": "Free"
                 })
+
 
         # 4. Fetch Pending/Expired Invitations
         if query_invites:

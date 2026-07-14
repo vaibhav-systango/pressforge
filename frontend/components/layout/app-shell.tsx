@@ -4,7 +4,10 @@ import { NavLink } from "@/components/navigation/nav-link";
 import { useRouter } from "next/navigation";
 import { useAppState } from "@/lib/queries/use-app-state";
 import { useAuth } from "@/lib/hooks/queries/use-auth";
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useDebounce } from "@/lib/hooks/use-debounce";
+import { InfiniteScroll } from "@/components/common/infinite-scroll";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { formatAccountTypeLabel } from "@/lib/auth/me-user";
 import { formatOrganizationRole } from "@/lib/invitations/role-hierarchy";
@@ -30,12 +33,85 @@ import {
 } from "lucide-react";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { state, setActiveWorkspace, resetState, logout } = useAppState();
+  const { state, setActiveWorkspace, resetState, logout, updateState, refetch } = useAppState();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const router = useRouter();
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [showOrgMenu, setShowOrgMenu] = useState(false);
   const [showClientMenu, setShowClientMenu] = useState(false);
+
+  const [clientSearch, setClientSearch] = useState("");
+  const debouncedClientSearch = useDebounce(clientSearch, 200);
+
+  const {
+    data: clientsData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["header-clients", user?.organizationId, debouncedClientSearch],
+    queryFn: async ({ pageParam = 0 }) => {
+      if (!user?.organizationId) return [];
+      const queryParams = new URLSearchParams();
+      if (debouncedClientSearch) queryParams.set("search", debouncedClientSearch);
+      queryParams.set("status_filter", "active");
+      queryParams.set("role_filter", "client");
+      queryParams.set("skip", String(pageParam));
+      queryParams.set("limit", "10");
+
+      const res = await fetch(`/api/organizations/${user.organizationId}/clients?${queryParams.toString()}`);
+      if (!res.ok) throw new Error("Failed to fetch clients");
+      return res.json() as Promise<any[]>;
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      const LIMIT = 10;
+      if (lastPage.length < LIMIT) return undefined;
+      const totalLoaded = allPages.reduce((sum, page) => sum + page.length, 0);
+      return totalLoaded;
+    },
+    enabled: Boolean(user?.organizationId),
+  });
+
+  const activeClients = clientsData ? clientsData.pages.flatMap((page) => page) : [];
+
+  const handleClientSelect = useCallback(async (c: any) => {
+    setShowClientMenu(false);
+
+    // 1. Set the activeClientId in session state
+    await updateState({ activeClientId: c.id });
+
+    // 2. Fetch workspaces filtered by this client from backend
+    try {
+      const res = await fetch(`/api/workspaces?clientId=${encodeURIComponent(c.id)}`);
+      if (res.ok) {
+        const wsData = await res.json() as { workspaces: any[]; activeWorkspaceId: string | null };
+        const clientWorkspaces = wsData.workspaces || [];
+
+        // 3. Update the app-state cache with client-filtered workspaces
+        queryClient.setQueryData(['app-state'], (old: any) => ({
+          state: {
+            ...(old?.state ?? {}),
+            activeClientId: c.id,
+            workspaces: clientWorkspaces,
+            activeWorkspaceId: clientWorkspaces[0]?.id ?? null,
+          },
+        }));
+
+        // 4. Set the first workspace as active on backend
+        if (clientWorkspaces.length > 0) {
+          await setActiveWorkspace(clientWorkspaces[0].id);
+        } else {
+          await setActiveWorkspace(null);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch workspaces for client:', err);
+      // Fallback: set the client's single workspace if available
+      await setActiveWorkspace(c.workspaceId || null);
+    }
+  }, [updateState, setActiveWorkspace, queryClient]);
 
   const isClient =
     user?.userType === "client" || state.currentUserType === "client";
@@ -58,20 +134,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       : formatAccountTypeLabel(user.accountType)
     : (isClient ? "Client Reviewer" : "Brand Manager");
 
+  // When a client is selected, state.workspaces is already filtered by that client
+  // (set by handleClientSelect or mergeBackendWorkspaces in state API).
+  // So we just use state.workspaces directly.
+  const filteredWorkspaces = state.workspaces;
+
   // Get active workspace details
   const activeWorkspace =
-    state.workspaces.find((w) => w.id === state.activeWorkspaceId) ||
-    state.workspaces[0];
+    filteredWorkspaces.find((w) => w.id === state.activeWorkspaceId) ||
+    filteredWorkspaces[0];
 
   // Get active client details if any
   const currentClient = isClient
     ? state.clients.find((c) => c.id === state.activeClientId)
     : null;
 
-  // Selected client for organization header dropdown based on active workspace
-  const selectedClient = state.clients.find(
-    (c) => c.workspaceId === activeWorkspace?.id,
-  );
+  // Selected client for organization header dropdown based on activeClientId
+  const selectedClient =
+    state.clients.find((c) => c.id === state.activeClientId) ||
+    activeClients.find((c) => c.id === state.activeClientId);
 
   // Calculate pending approvals count
   const pendingApprovalsCount = state.drafts.filter(
@@ -80,9 +161,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       d.status === "pending_approval",
   ).length;
 
-  const handleWorkspaceChange = (id: string) => {
+  const handleWorkspaceChange = async (id: string) => {
     if (isClient) return; // Clients cannot change workspaces
-    setActiveWorkspace(id);
+    await setActiveWorkspace(id);
     setShowWorkspaceMenu(false);
   };
 
@@ -134,24 +215,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             {showWorkspaceMenu && !isClient && (
               <div className="absolute top-full left-0 right-0 mt-1.5 bg-bg-card border border-border-primary rounded-xl shadow-lg z-20 py-1.5 transition-colors duration-200">
-                {state.workspaces.map((ws) => (
-                  <button
-                    key={ws.id}
-                    onClick={() => handleWorkspaceChange(ws.id)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-bg-hover transition duration-150 ${
-                      ws.id === state.activeWorkspaceId
-                        ? "bg-bg-app font-medium"
-                        : ""
-                    }`}
-                  >
-                    <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-text-secondary text-xs font-bold">
-                      {ws.name.charAt(0)}
-                    </div>
-                    <span className="text-sm text-text-primary truncate">
-                      {ws.name}
-                    </span>
-                  </button>
-                ))}
+                {filteredWorkspaces.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-text-secondary text-center">
+                    No workspaces assigned to client
+                  </div>
+                ) : (
+                  filteredWorkspaces.map((ws) => (
+                    <button
+                      key={ws.id}
+                      onClick={() => handleWorkspaceChange(ws.id)}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-bg-hover transition duration-150 ${
+                        ws.id === state.activeWorkspaceId
+                          ? "bg-bg-app font-medium"
+                          : ""
+                      }`}
+                    >
+                      <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-text-secondary text-xs font-bold">
+                        {ws.name.charAt(0)}
+                      </div>
+                      <span className="text-sm text-text-primary truncate">
+                        {ws.name}
+                      </span>
+                    </button>
+                  ))
+                )}
                 <div className="border-t border-border-primary mt-1.5 pt-1.5 px-3">
                   <NavLink
                     href="/app/workspaces?new=true"
@@ -241,20 +328,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </NavLink>
 
                 <NavLink
-                  href="/app/workspaces"
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
-                      isActive
-                        ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
-                        : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-                    }`
-                  }
-                >
-                  <Building className="w-4 h-4" />
-                  <span>Workspace Profile</span>
-                </NavLink>
-
-                <NavLink
                   href="/app/settings"
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
@@ -267,13 +340,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Settings className="w-4 h-4" />
                   <span>Account Settings</span>
                 </NavLink>
-              </>
-            ) : (
-              // Agency / Full navigation view
-              <>
+
                 <NavLink
-                  href="/app"
-                  end
+                  href="/app/workspaces"
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
                       isActive
@@ -282,10 +351,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     }`
                   }
                 >
-                  <LayoutDashboard className="w-4 h-4" />
-                  <span>Dashboard</span>
+                  <Building className="w-4 h-4" />
+                  <span>Workspace Profile</span>
                 </NavLink>
-
+              </>
+            ) : (
+              // Agency / Full navigation view
+              <>
                 <NavLink
                   href="/app/content"
                   className={({ isActive }) =>
@@ -335,19 +407,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <span>Publishing Queue</span>
                 </NavLink>
 
-                <NavLink
-                  href="/app/monitoring"
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
-                      isActive
-                        ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
-                        : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-                    }`
-                  }
-                >
-                  <Search className="w-4 h-4" />
-                  <span>Brand Monitor</span>
-                </NavLink>
 
                 <NavLink
                   href="/app/analytics"
@@ -363,9 +422,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <span>Analytics</span>
                 </NavLink>
 
-                {!isIndividual && (
+                <div className="border-t border-border-primary my-2 pt-2 flex flex-col gap-1.5">
                   <NavLink
-                    href="/app/clients"
+                    href="/app"
+                    end
                     className={({ isActive }) =>
                       `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
                         isActive
@@ -374,26 +434,40 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       }`
                     }
                   >
-                    <Users className="w-4 h-4" />
-                    <span>Client Portals</span>
+                    <LayoutDashboard className="w-4 h-4" />
+                    <span>Dashboard</span>
                   </NavLink>
-                )}
 
-                <NavLink
-                  href="/app/workspaces"
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
-                      isActive
-                        ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
-                        : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-                    }`
-                  }
-                >
-                  <Building className="w-4 h-4" />
-                  <span>Workspaces</span>
-                </NavLink>
+                  {!isIndividual && (
+                    <NavLink
+                      href="/app/clients"
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
+                          isActive
+                            ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
+                            : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                        }`
+                      }
+                    >
+                      <Users className="w-4 h-4" />
+                      <span>Client Portals</span>
+                    </NavLink>
+                  )}
 
-                <div className="border-t border-border-primary my-2 pt-2">
+                  <NavLink
+                    href="/app/workspaces"
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
+                        isActive
+                          ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
+                          : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                      }`
+                    }
+                  >
+                    <Building className="w-4 h-4" />
+                    <span>Workspaces</span>
+                  </NavLink>
+
                   <NavLink
                     href="/app/settings"
                     className={({ isActive }) =>
@@ -497,37 +571,54 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     >
                       <Users className="w-3.5 h-3.5 text-text-secondary" />
                       <span>
-                        {selectedClient ? selectedClient.name : "Select Client"}
+                        {selectedClient ? (selectedClient.name || selectedClient.fullName) : "Select Client"}
                       </span>
                       <ChevronDown className="w-3 h-3 text-text-secondary" />
                     </button>
 
                     {showClientMenu && (
-                      <div className="absolute top-full left-0 mt-1 bg-bg-card border border-border-primary rounded-lg shadow-lg z-20 py-1 w-48 transition-colors duration-200">
+                      <div className="absolute top-full left-0 mt-1 bg-bg-card border border-border-primary rounded-lg shadow-lg z-20 py-1 w-64 transition-colors duration-200">
                         <div className="px-3 py-1 text-[10px] text-text-secondary font-semibold tracking-wider uppercase">
                           Select Client
                         </div>
-                        {state.clients.map((c) => (
-                          <button
-                            key={c.id}
-                            onClick={() => {
-                              setActiveWorkspace(c.workspaceId);
-                              setShowClientMenu(false);
-                            }}
-                            className={`w-full text-left px-3 py-2 text-xs font-semibold text-text-primary hover:bg-bg-hover transition duration-150 ${
-                              activeWorkspace?.id === c.workspaceId
-                                ? "bg-bg-app font-medium"
-                                : ""
-                            }`}
+                        {/* Search Input */}
+                        <div className="px-3 py-1.5 border-b border-border-primary">
+                          <input
+                            type="text"
+                            placeholder="Search active clients..."
+                            value={clientSearch}
+                            onChange={(e) => setClientSearch(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-full px-2 py-1 border border-border-primary bg-bg-app text-text-primary rounded-md text-xs focus:border-instagram-pink outline-none"
+                          />
+                        </div>
+                        {/* Scrollable list */}
+                        <div className="max-h-60 overflow-y-auto mt-1">
+                          <InfiniteScroll
+                            hasMore={hasNextPage}
+                            onLoadMore={fetchNextPage}
+                            isLoading={isFetchingNextPage}
                           >
-                            {c.name}
-                          </button>
-                        ))}
-                        {state.clients.length === 0 && (
-                          <div className="px-3 py-2 text-xs text-text-secondary italic">
-                            No clients available
-                          </div>
-                        )}
+                            {activeClients.map((c) => (
+                              <button
+                                key={c.id}
+                                onClick={() => handleClientSelect(c)}
+                                className={`w-full text-left px-3 py-2 text-xs font-semibold text-text-primary hover:bg-bg-hover transition duration-150 ${
+                                  state.activeClientId === c.id || (c.workspaceId && activeWorkspace?.id === c.workspaceId)
+                                    ? "bg-bg-app font-bold text-instagram-pink"
+                                    : ""
+                                }`}
+                              >
+                                {c.name || c.fullName}
+                              </button>
+                            ))}
+                            {activeClients.length === 0 && (
+                              <div className="px-3 py-2 text-xs text-text-secondary italic">
+                                No clients available
+                              </div>
+                            )}
+                          </InfiniteScroll>
+                        </div>
                       </div>
                     )}
                   </div>

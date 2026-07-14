@@ -77,5 +77,33 @@ class UserRepository:
         db.flush()
         return user
 
+    def update_profile(self, db: Session, user: User, *, fullName: str) -> User:
+        """Update the user's profile details."""
+        user.fullName = fullName
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+
+    def update_password(self, db: Session, user: User, *, passwordHash: str) -> User:
+        """Update the user's password hash and update the passwordUpdatedAt timestamp."""
+        user.passwordHash = passwordHash
+        user.passwordUpdatedAt = generate_timestamp_ms()
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+
+    def delete_user(self, db: Session, user: User) -> User:
+        """Soft delete the user record."""
+        user.isDeleted = True
+        user.isActive = False
+        user.deletedAt = generate_timestamp_ms()
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+
 # Export a single repository instance to be imported across routers and services
 user_repository = UserRepository()
+

@@ -82,6 +82,11 @@ class AuthService:
         if not user.isActive:
             raise ValueError(AuthErrorCodes.INACTIVE_USER)
 
+        iat = payload.get("iat")
+        if iat and user.passwordUpdatedAt:
+            if iat * 1000 < user.passwordUpdatedAt - 1000:
+                raise ValueError(AuthErrorCodes.INVALID_REFRESH_TOKEN)
+
         new_payload = {"sub": user.id, "email": user.email, "role": user.accountType}
         access_token = create_access_token(data=new_payload)
         refresh_token = create_refresh_token(data=new_payload)

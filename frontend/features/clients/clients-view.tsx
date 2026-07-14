@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 export function ClientsView() {
-  const { state } = useAppState();
+  const { state, refetch: refetchAppState } = useAppState();
   const { user } = useAuth();
   const organizationId = user?.organizationId ?? null;
   const inviteMutation = useInviteMemberMutation(organizationId ?? '');
@@ -129,6 +129,7 @@ export function ClientsView() {
     onSuccess: () => {
       refetchClients();
       refetchAllClients();
+      refetchAppState();
       notifications.show({
         title: 'Invitation deleted',
         message: 'The pending invitation has been removed.',
@@ -169,6 +170,7 @@ export function ClientsView() {
 
       refetchClients();
       refetchAllClients();
+      refetchAppState();
       setInviteName('');
       setInviteEmail('');
       setInviteRole(invitableRoles[0]?.value ?? '');

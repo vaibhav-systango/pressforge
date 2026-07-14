@@ -18,9 +18,49 @@ function hasValidSession(request: NextRequest): boolean {
   return !!request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
 }
 
-export function middleware(request: NextRequest) {
+async function attemptTokenRefresh(request: NextRequest): Promise<{ success: boolean; cookies?: string[] }> {
+  const refreshToken = request.cookies.get('refresh_token')?.value;
+  if (!refreshToken) {
+    return { success: false };
+  }
+
+  try {
+    const refreshUrl = new URL('/api/auth/refresh', request.url);
+    const res = await fetch(refreshUrl, {
+      method: 'POST',
+      headers: {
+        'Cookie': request.headers.get('Cookie') ?? '',
+      },
+    });
+
+    if (res.ok) {
+      const setCookieHeaders = res.headers.getSetCookie();
+      if (setCookieHeaders && setCookieHeaders.length > 0) {
+        return { success: true, cookies: setCookieHeaders };
+      }
+    }
+  } catch (error) {
+    console.error('Middleware token refresh failed:', error);
+  }
+
+  return { success: false };
+}
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const hasSession = hasValidSession(request);
+  let hasSession = hasValidSession(request);
+  let newCookies: string[] | undefined;
+
+  const isRefreshPath = pathname === '/api/auth/refresh' || pathname === '/api/auth/refresh/';
+
+  // If session is expired/missing but refresh token exists, attempt refresh
+  if (!isRefreshPath && !hasSession && request.cookies.has('refresh_token')) {
+    const refreshResult = await attemptTokenRefresh(request);
+    if (refreshResult.success && refreshResult.cookies) {
+      hasSession = true;
+      newCookies = refreshResult.cookies;
+    }
+  }
 
   if (pathname.startsWith('/api/')) {
     const isPublicApi =
@@ -32,7 +72,33 @@ export function middleware(request: NextRequest) {
         { status: 401 },
       );
     }
-    return NextResponse.next();
+    
+    let response = NextResponse.next();
+    if (newCookies) {
+      // Modify request headers so that the downstream Next.js API route gets the new access token
+      const requestHeaders = new Headers(request.headers);
+      const accessTokenCookie = newCookies.find(c => c.startsWith('access_token='));
+      if (accessTokenCookie) {
+        const tokenValue = accessTokenCookie.split(';')[0].split('=')[1];
+        let cookieHeader = request.headers.get('Cookie') ?? '';
+        cookieHeader = cookieHeader.replace(/access_token=[^;]+/, `access_token=${tokenValue}`);
+        if (!cookieHeader.includes(`access_token=${tokenValue}`)) {
+          cookieHeader += `; access_token=${tokenValue}`;
+        }
+        requestHeaders.set('Cookie', cookieHeader);
+      }
+      
+      response = NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        }
+      });
+      
+      for (const cookie of newCookies) {
+        response.headers.append('Set-Cookie', cookie);
+      }
+    }
+    return response;
   }
 
   if (GUEST_ONLY_AUTH_PATHS.includes(pathname) && hasSession) {
@@ -41,7 +107,13 @@ export function middleware(request: NextRequest) {
       pathname === '/auth/accept-invite' && request.nextUrl.searchParams.has('token');
 
     if (!isAcceptInviteWithToken) {
-      return NextResponse.redirect(new URL('/app', request.url));
+      const response = NextResponse.redirect(new URL('/app', request.url));
+      if (newCookies) {
+        for (const cookie of newCookies) {
+          response.headers.append('Set-Cookie', cookie);
+        }
+      }
+      return response;
     }
   }
 
@@ -53,7 +125,13 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  if (newCookies) {
+    for (const cookie of newCookies) {
+      response.headers.append('Set-Cookie', cookie);
+    }
+  }
+  return response;
 }
 
 export const config = {
@@ -66,3 +144,4 @@ export const config = {
     '/auth/accept-invite',
   ],
 };
+

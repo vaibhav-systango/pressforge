@@ -9,7 +9,7 @@ import { FileUpload } from '@/components/common/file-upload';
 
 export function WorkspaceView() {
   const router = useRouter();
-  const { state, addWorkspace, updateWorkspace, updateState } = useAppState();
+  const { state, addWorkspace, updateWorkspace, updateState, setActiveWorkspace } = useAppState();
   
   const activeWs = state.workspaces.find((w) => w.id === state.activeWorkspaceId) || state.workspaces[0];
 
@@ -44,39 +44,42 @@ export function WorkspaceView() {
     setFileType(type);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!brandName.trim()) {
       alert('Please enter a workspace brand name.');
       return;
     }
- setIsSubmitting(true);
+    setIsSubmitting(true);
     try {
-    if (state.accountType === 'individual' && activeWs) {
-      updateWorkspace({
-        ...activeWs,
-        name: brandName,
-        website: website || 'https://example.com',
-        brandAsset: uploadedFile || undefined,
-      });
-      updateState({ activeWorkspaceId: activeWs.id, currentStep: 3 });
-    } else {
-      const newId = brandName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      addWorkspace({
-        id: newId,
-        name: brandName,
-        website: website || 'https://example.com',
-        tone: 'casual',
-        keywords: [],
-        rules: [],
-        schedules: [],
-        brandAsset: uploadedFile || undefined,
-      });
-      updateState({ activeWorkspaceId: newId, currentStep: 3 });
-    }
+      if (state.accountType === 'individual' && activeWs) {
+        const result = await updateWorkspace({
+          ...activeWs,
+          name: brandName,
+          website: website || undefined,
+          brandAsset: uploadedFile || undefined,
+        });
+        await setActiveWorkspace(result.workspace.id);
+        await updateState({ currentStep: 3 });
+      } else {
+        const newId = brandName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const result = await addWorkspace({
+          id: newId,
+          name: brandName,
+          website: website || undefined,
+          tone: 'casual',
+          keywords: [],
+          rules: [],
+          schedules: [],
+          brandAsset: uploadedFile || undefined,
+        });
+        await setActiveWorkspace(result.workspace.id);
+        await updateState({ currentStep: 3 });
+      }
 
       router.push('/onboarding/brand-voice');
-    } catch {
+    } catch (err) {
+      console.error(err);
       alert('Failed to save workspace. Please try again.');
     } finally {
       setIsSubmitting(false);
