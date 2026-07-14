@@ -4,7 +4,7 @@ import logging
 
 from app.database.database import get_db
 from app.models.user import User
-from app.schemas.auth import UserCreate, UserLogin, UserResponse, Token, TokenRefreshRequest
+from app.schemas.auth import UserCreate, UserLogin, UserResponse, Token, TokenRefreshRequest, ProfileUpdateRequest, PasswordUpdateRequest, OrganizationUpdateRequest
 from app.core.dependencies import get_current_user, permission_guard
 from app.services.auth_service import auth_service
 from app.repositories.organization_repository import organization_repository
@@ -153,3 +153,108 @@ async def get_me(
         "organizationId": organization_id,
         "organizationRole": organization_role,
     }
+
+@router.put(
+    "/me",
+    response_model=UserResponse,
+    summary="Update Active User Profile",
+    description="Update profile details (like fullName) of the currently logged-in user.",
+)
+async def update_me(
+    profile_data: ProfileUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from app.repositories.user_repository import user_repository
+    updated_user = user_repository.update_profile(db, current_user, fullName=profile_data.fullName)
+    organization_id = organization_repository.get_organization_id_for_user(db, updated_user.id)
+    organization_role = (
+        organization_repository.get_role_for_user(db, updated_user.id, organization_id)
+        if organization_id
+        else None
+    )
+    return {
+        "id": updated_user.id,
+        "fullName": updated_user.fullName,
+        "email": updated_user.email,
+        "accountType": updated_user.accountType,
+        "onboardingStatus": updated_user.onboardingStatus,
+        "isActive": updated_user.isActive,
+        "lastLogin": updated_user.lastLogin,
+        "createdAt": updated_user.createdAt,
+        "updatedAt": updated_user.updatedAt,
+        "organizationId": organization_id,
+        "organizationRole": organization_role,
+    }
+
+@router.put(
+    "/change-password",
+    summary="Change User Password",
+    description="Updates the password for the current authenticated user.",
+)
+async def change_password(
+    password_data: PasswordUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from app.repositories.user_repository import user_repository
+    from app.core.security import verify_password, get_password_hash
+    
+    if not current_user.passwordHash or not verify_password(password_data.currentPassword, current_user.passwordHash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect current password."
+        )
+    
+    hashed_password = get_password_hash(password_data.newPassword)
+    user_repository.update_password(db, current_user, passwordHash=hashed_password)
+    return {"message": "Password changed successfully."}
+
+@router.put(
+    "/organization",
+    summary="Update Organization Details",
+    description="Updates the organization name of the current authenticated owner.",
+)
+async def update_organization(
+    org_data: OrganizationUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    organization_id = organization_repository.get_organization_id_for_user(db, current_user.id)
+    if not organization_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found for current user."
+        )
+        
+    org = organization_repository.get_by_id(db, organization_id)
+    if not org:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found."
+        )
+        
+    # Check if the user is the owner/admin
+    role = organization_repository.get_role_for_user(db, current_user.id, organization_id)
+    if role != "OWNER" and role != "ADMIN":
+         raise HTTPException(
+             status_code=status.HTTP_403_FORBIDDEN,
+             detail="Only owners and admins can update organization details."
+         )
+         
+    organization_repository.update_organization(db, org, name=org_data.name)
+    return {"id": org.id, "name": org.name}
+
+@router.delete(
+    "/me",
+    summary="Delete User Account",
+    description="Permanently deletes (soft-deletes) the authenticated user's account.",
+)
+async def delete_me(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from app.repositories.user_repository import user_repository
+    user_repository.delete_user(db, current_user)
+    return {"message": "Account deleted successfully."}
+

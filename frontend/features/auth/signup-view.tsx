@@ -12,7 +12,7 @@ import { PasswordInput } from '@/components/common/password-input';
 import { getPostAuthRedirect } from '@/lib/auth/redirect';
 import { useSignupMutation } from '@/lib/hooks/mutations/use-auth';
 import { ApiError } from '@/lib/utils/api-errors';
-import { validateEmail, validatePassword } from '@/lib/utils/validation';
+import { validateEmail, validatePassword, validateFullName } from '@/lib/utils/validation';
 
 export function SignupView() {
   const router = useRouter();
@@ -27,11 +27,7 @@ export function SignupView() {
       terms: false,
     },
     validate: {
-      fullName: (value) => {
-        if (!value.trim()) return 'Full name is required';
-        if (value.length > 100) return 'Full name must be 100 characters or less';
-        return null;
-      },
+      fullName: validateFullName,
       email: validateEmail,
       password: validatePassword,
       terms: (value) => (value ? null : 'You must agree to the terms'),

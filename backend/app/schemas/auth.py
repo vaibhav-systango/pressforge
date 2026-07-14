@@ -44,3 +44,17 @@ class TokenRefreshRequest(BaseModel):
 class SetPasswordRequest(BaseModel):
     """Schema for setting a permanent password."""
     newPassword: str = Field(..., min_length=8, max_length=30)
+
+class ProfileUpdateRequest(BaseModel):
+    """Schema for updating user profile info."""
+    fullName: str = Field(..., min_length=1, max_length=100)
+
+class PasswordUpdateRequest(BaseModel):
+    """Schema for changing a user password."""
+    currentPassword: str
+    newPassword: str = Field(..., min_length=8, max_length=30)
+
+class OrganizationUpdateRequest(BaseModel):
+    """Schema for updating organization name."""
+    name: str = Field(..., min_length=1, max_length=100)
+

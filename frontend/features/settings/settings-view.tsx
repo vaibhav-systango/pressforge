@@ -3,13 +3,14 @@
 import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
 import { useAuth } from '@/lib/hooks/queries/use-auth';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   formatAccountTypeLabel,
   formatMeTimestamp,
 } from '@/lib/auth/me-user';
 import { formatOrganizationRole } from '@/lib/invitations/role-hierarchy';
 import { PageLoader } from '@/components/common/page-loader';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Settings, User, Lock, ShieldAlert, 
   Check, ToggleLeft, ToggleRight, Trash2, 
@@ -17,12 +18,15 @@ import {
 } from 'lucide-react';
 import { PasswordInput } from '@/components/common/password-input';
 import { DeleteModal } from '@/components/common/delete-modal';
-import { validatePassword } from '@/lib/utils/validation';
+import { ErrorMessage } from '@/components/common/error-message';
+import { validatePassword, validateFullName, validateOrganizationName } from '@/lib/utils/validation';
 
 export function SettingsView() {
   const { state, updateState } = useAppState();
   const { user, isLoading: isUserLoading } = useAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
+
   const isClient = user?.userType === 'client' || state.currentUserType === 'client';
   const showSocialIntegrations = user?.userType === 'client' || state.currentUserType === 'client' || user?.userType === 'individual' || state.currentUserType === 'individual';
 
@@ -40,57 +44,179 @@ export function SettingsView() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  // Validation errors
+  const [profileNameError, setProfileNameError] = useState<string | null>(null);
+  const [orgNameError, setOrgNameError] = useState<string | null>(null);
+  const [currentPasswordError, setCurrentPasswordError] = useState<string | null>(null);
+  const [newPasswordError, setNewPasswordError] = useState<string | null>(null);
+  const [confirmPasswordError, setConfirmPasswordError] = useState<string | null>(null);
+
+  // API Call errors
+  const [profileApiError, setProfileApiError] = useState<string>('');
+  const [orgApiError, setOrgApiError] = useState<string>('');
+  const [passwordApiError, setPasswordApiError] = useState<string>('');
   
   // UI indicators
   const [profileSaved, setProfileSaved] = useState(false);
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [orgSaved, setOrgSaved] = useState(false);
 
+  // Loading states
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSavingOrg, setIsSavingOrg] = useState(false);
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
   // Integration toggles
   const [instagramConnected, setInstagramConnected] = useState(true);
   const [linkedinConnected, setLinkedinConnected] = useState(false);
 
-  const handleSaveProfile = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateState({
-      currentUserName: profileName,
-      currentUserEmail: profileEmail,
-    });
-    setProfileSaved(true);
-    setTimeout(() => setProfileSaved(false), 3000);
-  };
+  // Sync state when user details load
+  useEffect(() => {
+    if (user?.name) {
+      setProfileName(user.name);
+    }
+    if (user?.email) {
+      setProfileEmail(user.email);
+    }
+  }, [user]);
 
-  const handleSaveOrg = (e: React.FormEvent) => {
+  // Sync state when organization name updates
+  useEffect(() => {
+    if (state.organizationName && state.organizationName !== 'Forge Agencies') {
+      setOrgName(state.organizationName);
+    }
+  }, [state.organizationName]);
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!orgName.trim()) {
-      alert("Organization name cannot be empty.");
+    setProfileApiError('');
+    
+    const nameErr = validateFullName(profileName);
+    if (nameErr) {
+      setProfileNameError(nameErr);
       return;
     }
-    updateState({ organizationName: orgName });
-    setOrgSaved(true);
-    setTimeout(() => setOrgSaved(false), 3000);
+
+    setIsSavingProfile(true);
+    try {
+      const res = await fetch('/api/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fullName: profileName }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update profile name');
+      }
+      
+      await updateState({
+        currentUserName: profileName,
+      });
+      await queryClient.invalidateQueries({ queryKey: ['me'] });
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 3000);
+    } catch (err: any) {
+      setProfileApiError(err.message || 'Failed to save profile');
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
-  const handleChangePassword = (e: React.FormEvent) => {
+  const handleSaveOrg = async (e: React.FormEvent) => {
     e.preventDefault();
-    const passError = validatePassword(newPassword);
-    if (passError) {
-      alert(passError);
+    setOrgApiError('');
+
+    const orgErr = validateOrganizationName(orgName);
+    if (orgErr) {
+      setOrgNameError(orgErr);
       return;
     }
-    if (newPassword !== confirmPassword) {
-      alert("New passwords do not match!");
-      return;
+
+    setIsSavingOrg(true);
+    try {
+      const res = await fetch('/api/organization', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ organizationName: orgName }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update organization name');
+      }
+      
+      await updateState({ organizationName: orgName });
+      setOrgSaved(true);
+      setTimeout(() => setOrgSaved(false), 3000);
+    } catch (err: any) {
+      setOrgApiError(err.message || 'Failed to update organization');
+    } finally {
+      setIsSavingOrg(false);
     }
-    setPasswordSaved(true);
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setTimeout(() => setPasswordSaved(false), 3000);
   };
 
-  const handleDeleteAccount = () => {
-    window.location.href = '/';
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordApiError('');
+
+    const curErr = currentPassword ? null : 'Current password is required';
+    const passErr = validatePassword(newPassword);
+    const confErr = newPassword === confirmPassword ? null : 'New passwords do not match';
+
+    if (curErr || passErr || confErr) {
+      setCurrentPasswordError(curErr);
+      setNewPasswordError(passErr);
+      setConfirmPasswordError(confErr);
+      return;
+    }
+    
+    setIsSavingPassword(true);
+    try {
+      const res = await fetch('/api/me/password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update password');
+      }
+      
+      setPasswordSaved(true);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setPasswordSaved(false), 3000);
+    } catch (err: any) {
+      setPasswordApiError(err.message || 'Failed to change password');
+    } finally {
+      setIsSavingPassword(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      const res = await fetch('/api/me', {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        throw new Error('Failed to delete account');
+      }
+      
+      // Perform client logout/redirect
+      await fetch('/api/auth/logout', { method: 'POST' });
+      setShowDeleteConfirm(false);
+      window.location.href = '/';
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete account');
+    } finally {
+      setIsDeletingAccount(false);
+    }
   };
 
   if (isUserLoading && !user) {
@@ -122,16 +248,32 @@ export function SettingsView() {
             </h3>
 
             <form onSubmit={handleSaveProfile} className="space-y-4">
+              <ErrorMessage message={profileApiError} />
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-text-secondary">Full Name</label>
                   <input
                     type="text"
                     required
+                    disabled={isSavingProfile}
                     value={profileName}
-                    onChange={(e) => setProfileName(e.target.value)}
-                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition"
+                    onChange={(e) => {
+                      setProfileName(e.target.value);
+                      if (profileNameError) {
+                        setProfileNameError(validateFullName(e.target.value));
+                      }
+                    }}
+                    onBlur={() => {
+                      setProfileNameError(validateFullName(profileName));
+                    }}
+                    className={`border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition ${
+                      profileNameError ? 'border-red-500 focus:border-red-500' : ''
+                    }`}
                   />
+                  {profileNameError && (
+                    <p className="text-[11px] text-red-500 font-medium">{profileNameError}</p>
+                  )}
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-text-secondary">Email Address</label>
@@ -192,9 +334,10 @@ export function SettingsView() {
                 ) : (
                   <button
                     type="submit"
-                    className="bg-text-primary text-bg-card hover:opacity-90 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
+                    disabled={isSavingProfile || !!profileNameError}
+                    className="bg-text-primary text-bg-card hover:opacity-90 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Save Profile
+                    {isSavingProfile ? 'Saving...' : 'Save Profile'}
                   </button>
                 )}
               </div>
@@ -210,15 +353,31 @@ export function SettingsView() {
               </h3>
 
               <form onSubmit={handleSaveOrg} className="space-y-4">
+                <ErrorMessage message={orgApiError} />
+
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-text-secondary">Organization / Agency Name</label>
                   <input
                     type="text"
                     required
+                    disabled={isSavingOrg}
                     value={orgName}
-                    onChange={(e) => setOrgName(e.target.value)}
-                    className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition"
+                    onChange={(e) => {
+                      setOrgName(e.target.value);
+                      if (orgNameError) {
+                        setOrgNameError(validateOrganizationName(e.target.value));
+                      }
+                    }}
+                    onBlur={() => {
+                      setOrgNameError(validateOrganizationName(orgName));
+                    }}
+                    className={`border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none transition ${
+                      orgNameError ? 'border-red-500 focus:border-red-500' : ''
+                    }`}
                   />
+                  {orgNameError && (
+                    <p className="text-[11px] text-red-500 font-medium">{orgNameError}</p>
+                  )}
                 </div>
 
                 <div className="flex justify-end">
@@ -229,9 +388,10 @@ export function SettingsView() {
                   ) : (
                     <button
                       type="submit"
-                      className="bg-text-primary text-bg-card hover:opacity-90 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
+                      disabled={isSavingOrg || !!orgNameError}
+                      className="bg-text-primary text-bg-card hover:opacity-90 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Update Organization
+                      {isSavingOrg ? 'Updating...' : 'Update Organization'}
                     </button>
                   )}
                 </div>
@@ -247,13 +407,25 @@ export function SettingsView() {
             </h3>
 
             <form onSubmit={handleChangePassword} className="space-y-4">
+              <ErrorMessage message={passwordApiError} />
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <PasswordInput
                   id="current-password"
                   label="Current Password"
                   placeholder="••••••••"
+                  disabled={isSavingPassword}
                   value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  error={currentPasswordError || undefined}
+                  onChange={(e) => {
+                    setCurrentPassword(e.target.value);
+                    if (currentPasswordError) {
+                      setCurrentPasswordError(e.target.value ? null : 'Current password is required');
+                    }
+                  }}
+                  onBlur={() => {
+                    setCurrentPasswordError(currentPassword ? null : 'Current password is required');
+                  }}
                   className="text-xs py-2"
                   required
                 />
@@ -261,8 +433,21 @@ export function SettingsView() {
                   id="new-password"
                   label="New Password"
                   placeholder="••••••••"
+                  disabled={isSavingPassword}
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
+                  error={newPasswordError || undefined}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    if (newPasswordError) {
+                      setNewPasswordError(validatePassword(e.target.value));
+                    }
+                    if (confirmPassword) {
+                      setConfirmPasswordError(e.target.value === confirmPassword ? null : 'New passwords do not match');
+                    }
+                  }}
+                  onBlur={() => {
+                    setNewPasswordError(validatePassword(newPassword));
+                  }}
                   className="text-xs py-2"
                   required
                 />
@@ -270,8 +455,16 @@ export function SettingsView() {
                   id="confirm-password"
                   label="Confirm New Password"
                   placeholder="••••••••"
+                  disabled={isSavingPassword}
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  error={confirmPasswordError || undefined}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    setConfirmPasswordError(e.target.value === newPassword ? null : 'New passwords do not match');
+                  }}
+                  onBlur={() => {
+                    setConfirmPasswordError(confirmPassword === newPassword ? null : 'New passwords do not match');
+                  }}
                   className="text-xs py-2"
                   required
                 />
@@ -285,9 +478,10 @@ export function SettingsView() {
                 ) : (
                   <button
                     type="submit"
-                    className="bg-text-primary text-bg-card hover:opacity-90 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
+                    disabled={isSavingPassword || !!currentPasswordError || !!newPasswordError || !!confirmPasswordError}
+                    className="bg-text-primary text-bg-card hover:opacity-90 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Update Password
+                    {isSavingPassword ? 'Updating...' : 'Update Password'}
                   </button>
                 )}
               </div>
@@ -384,18 +578,14 @@ export function SettingsView() {
         </div>
       </div>
 
-
-
-
-
       {/* Delete Account Confirmation Modal */}
       <DeleteModal
         isOpen={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
-        onConfirm={() => {
-          setShowDeleteConfirm(false);
-          handleDeleteAccount();
+        isPending={isDeletingAccount}
+        onClose={() => {
+          if (!isDeletingAccount) setShowDeleteConfirm(false);
         }}
+        onConfirm={handleDeleteAccount}
         title="Delete Account"
         description="Are you sure you want to delete your account? This action is irreversible."
         confirmLabel="Delete Account"
@@ -403,4 +593,3 @@ export function SettingsView() {
     </div>
   );
 }
-
