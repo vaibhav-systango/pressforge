@@ -11,6 +11,7 @@ export interface MeUser {
   accountType?: string;
   organizationId?: string | null;
   organizationRole?: string | null;
+  organizationName?: string | null;
   isActive?: boolean;
   lastLogin?: number | null;
   createdAt?: number;
@@ -40,6 +41,7 @@ export function mapBackendUserToMe(user: BackendUserResponse): MeUser {
     accountType: user.accountType,
     organizationId: user.organizationId ?? null,
     organizationRole: user.organizationRole ?? null,
+    organizationName: user.organizationName ?? null,
     isActive: user.isActive,
     lastLogin: user.lastLogin,
     createdAt: user.createdAt,

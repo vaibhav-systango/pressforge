@@ -26,6 +26,12 @@ async def onboard_user(
     try:
         updated_user = onboarding_service.onboard_user(db, current_user, request_data)
         organization_id = organization_repository.get_organization_id_for_user(db, updated_user.id)
+        organization_role = (
+            organization_repository.get_role_for_user(db, updated_user.id, organization_id)
+            if organization_id
+            else None
+        )
+        org = organization_repository.get_by_id(db, organization_id) if organization_id else None
         return {
             "id": updated_user.id,
             "fullName": updated_user.fullName,
@@ -37,6 +43,8 @@ async def onboard_user(
             "createdAt": updated_user.createdAt,
             "updatedAt": updated_user.updatedAt,
             "organizationId": organization_id,
+            "organizationRole": organization_role,
+            "organizationName": org.name if org else None,
         }
     except Exception as e:
         code = str(e)

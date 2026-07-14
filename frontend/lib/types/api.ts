@@ -21,6 +21,7 @@ export interface AuthUserResponse {
   onboardingStatus?: string;
   accountType?: string;
   organizationId?: string | null;
+  organizationName?: string | null;
 }
 
 export function authUserToMeQueryUser(user: AuthUserResponse) {
@@ -32,6 +33,7 @@ export function authUserToMeQueryUser(user: AuthUserResponse) {
     onboardingStatus: user.onboardingStatus,
     accountType: user.accountType,
     organizationId: user.organizationId ?? null,
+    organizationName: user.organizationName ?? null,
   };
 }
 
@@ -57,6 +59,7 @@ export interface BackendUserResponse {
   updatedAt: number;
   organizationId?: string | null;
   organizationRole?: string | null;
+  organizationName?: string | null;
 }
 
 export interface BackendTokenResponse {

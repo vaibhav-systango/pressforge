@@ -18,6 +18,12 @@ router = APIRouter()
 
 def _build_token_response(db: Session, access_token: str, refresh_token: str, user: User) -> dict:
     organization_id = organization_repository.get_organization_id_for_user(db, user.id)
+    organization_role = (
+        organization_repository.get_role_for_user(db, user.id, organization_id)
+        if organization_id
+        else None
+    )
+    org = organization_repository.get_by_id(db, organization_id) if organization_id else None
     return {
         "accessToken": access_token,
         "refreshToken": refresh_token,
@@ -32,6 +38,8 @@ def _build_token_response(db: Session, access_token: str, refresh_token: str, us
             "createdAt": user.createdAt,
             "updatedAt": user.updatedAt,
             "organizationId": organization_id,
+            "organizationRole": organization_role,
+            "organizationName": org.name if org else None,
         },
         "organizationId": organization_id,
     }

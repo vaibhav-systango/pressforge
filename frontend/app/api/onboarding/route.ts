@@ -55,7 +55,9 @@ export async function POST(request: Request) {
       accountType: body.accountType === 'ORGANIZATION' ? 'organization' : 'individual',
       ...(body.accountType === 'ORGANIZATION' && body.organizationDetails
         ? { organizationName: body.organizationDetails.name }
-        : {}),
+        : data.organizationName
+          ? { organizationName: data.organizationName }
+          : {}),
     });
 
     return { ok: true };

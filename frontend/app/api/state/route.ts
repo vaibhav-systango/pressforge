@@ -16,7 +16,7 @@ import {
   applyGuestSessionCookie,
   resolveRequestSession,
 } from '@/lib/server/resolve-request-session';
-import type { WorkspaceListResponse } from '@/lib/types/api';
+import type { BackendUserResponse, WorkspaceListResponse } from '@/lib/types/api';
 import type { AppState } from '@/lib/types';
 import { ORGANIZATION_ID_COOKIE } from '@/lib/server/issue-backend-auth';
 
@@ -35,6 +35,24 @@ async function mergeBackendWorkspaces(state: AppState, accessToken: string): Pro
   };
 }
 
+async function mergeBackendProfile(state: AppState, accessToken: string, sessionId: string): Promise<AppState> {
+  const { data } = await callBackend<BackendUserResponse>('/auth/me', { accessToken });
+  if (!data) {
+    return state;
+  }
+
+  const patch: Partial<AppState> = {
+    currentUserName: data.fullName || state.currentUserName,
+    currentUserEmail: data.email || state.currentUserEmail,
+    ...(data.organizationName !== undefined && data.organizationName !== null
+      ? { organizationName: data.organizationName }
+      : {}),
+  };
+
+  updateSession(sessionId, patch);
+  return { ...state, ...patch };
+}
+
 export async function GET() {
   const session = await resolveRequestSession();
 
@@ -47,7 +65,8 @@ export async function GET() {
         name: auth.email,
       });
 
-      const mergedState = await mergeBackendWorkspaces(state, session.accessToken!);
+      let mergedState = await mergeBackendProfile(state, session.accessToken!, auth.sessionId);
+      mergedState = await mergeBackendWorkspaces(mergedState, session.accessToken!);
 
       try {
         const cookieStore = await cookies();
