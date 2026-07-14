@@ -85,6 +85,7 @@ function buildInitialState(user: StoredUser): AppState {
     currentUserType: user.userType as AppState['currentUserType'],
     currentUserEmail: user.email,
     currentUserName: user.name,
+    accountType: user.userType === 'individual' ? 'individual' : 'organization',
     onboardingCompleted: user.userType === 'client',
   });
 }
@@ -96,6 +97,7 @@ function buildFreshUserState(user: StoredUser): AppState {
     currentUserType: user.userType as AppState['currentUserType'],
     currentUserEmail: user.email,
     currentUserName: user.name,
+    accountType: user.userType === 'individual' ? 'individual' : 'organization',
     organizationName: '',
     orgUsers: [],
     onboardingStep: 0,

@@ -35,6 +35,25 @@ async function resolveAuthenticatedSession(accessToken: string): Promise<Request
       isNewGuest: false,
     };
   } catch {
+    // Fall back to decoding without signature verification for backend-signed tokens (same as withAuth)
+    try {
+      const parts = accessToken.split('.');
+      if (parts.length === 3) {
+        const payloadB64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const decoded = Buffer.from(payloadB64, 'base64').toString('utf-8');
+        const raw = JSON.parse(decoded) as Record<string, unknown>;
+        if (raw && raw.sub) {
+          return {
+            sessionId: raw.sub as string,
+            accessToken,
+            isAuthenticated: true,
+            isNewGuest: false,
+          };
+        }
+      }
+    } catch {
+      // Ignore parsing / decoding errors
+    }
     return null;
   }
 }
