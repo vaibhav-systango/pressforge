@@ -245,7 +245,7 @@ export function ClientsView() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-bg-card border border-border-primary rounded-xl p-4 shadow-sm">
-          <span className="text-[10px] uppercase font-bold text-text-secondary">Total Clients</span>
+          <span className="text-[10px] uppercase font-bold text-text-secondary">Total Users</span>
           <p className="text-2xl font-extrabold text-text-primary mt-1">{allClients.length}</p>
         </div>
         <div className="bg-bg-card border border-border-primary rounded-xl p-4 shadow-sm">
@@ -339,7 +339,7 @@ export function ClientsView() {
           <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
             <h3 className="text-base font-bold text-text-primary border-b border-border-primary pb-2 flex items-center gap-1.5">
               <Users className="w-5 h-5 text-instagram-pink" />
-              <span>Registered Clients</span>
+              <span>Registered Users</span>
             </h3>
 
             <div className="max-h-[530px] overflow-y-auto pr-1">

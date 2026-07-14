@@ -31,7 +31,7 @@ export function ApprovalsListView() {
     <div className="flex flex-col gap-6 animate-fade-in">
       {/* Header */}
       <div className="border-b border-border-primary pb-5">
-        <h1 className="text-2xl font-bold tracking-tight text-text-primary">WhatsApp Client Approvals</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-text-primary"> Client Approvals</h1>
         <p className="text-sm text-text-secondary mt-1">
           Review posts currently sent to client phone preview, or inspect approvals history.
         </p>

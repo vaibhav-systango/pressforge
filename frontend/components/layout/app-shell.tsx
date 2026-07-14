@@ -43,7 +43,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const [clientSearch, setClientSearch] = useState("");
   const debouncedClientSearch = useDebounce(clientSearch, 200);
-
+console.log(state)
   const {
     data: clientsData,
     fetchNextPage,

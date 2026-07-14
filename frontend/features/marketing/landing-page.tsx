@@ -150,7 +150,7 @@ export function LandingPage() {
               <div className="w-12 h-12 bg-pink-50 text-instagram-pink rounded-xl flex items-center justify-center">
                 <BellRing className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-[#262626]">3. WhatsApp Client Approvals</h3>
+              <h3 className="text-lg font-bold text-[#262626]">3.Client Approvals</h3>
               <p className="text-sm text-[#737373] leading-relaxed">
                 Send posts directly to clients via a simulated WhatsApp link. Clients approve, reject, or comment.
               </p>
