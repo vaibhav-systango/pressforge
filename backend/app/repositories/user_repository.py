@@ -86,8 +86,9 @@ class UserRepository:
         return user
 
     def update_password(self, db: Session, user: User, *, passwordHash: str) -> User:
-        """Update the user's password hash."""
+        """Update the user's password hash and update the passwordUpdatedAt timestamp."""
         user.passwordHash = passwordHash
+        user.passwordUpdatedAt = generate_timestamp_ms()
         db.add(user)
         db.commit()
         db.refresh(user)

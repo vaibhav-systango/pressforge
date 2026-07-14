@@ -64,6 +64,15 @@ async def get_current_user(
             detail="User account is inactive"
         )
 
+    iat = payload.get("iat")
+    if iat and user.passwordUpdatedAt:
+        if iat * 1000 < user.passwordUpdatedAt - 1000:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token has been revoked due to password change",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
     return user
 
 
@@ -87,6 +96,11 @@ async def get_optional_current_user(
     user = user_repository.get_by_id(db, user_id)
     if not user or not user.isActive:
         return None
+
+    iat = payload.get("iat")
+    if iat and user.passwordUpdatedAt:
+        if iat * 1000 < user.passwordUpdatedAt - 1000:
+            return None
 
     return user
 

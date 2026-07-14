@@ -141,6 +141,11 @@ class WorkspaceService:
         if not member or member.role != OrganizationRole.CLIENT.value:
             raise ValueError(WorkspaceErrorCodes.CLIENT_NOT_FOUND)
 
+        # Verify that client user exists and is active
+        user = db.query(User).filter(User.id == client_user_id, User.isActive == True).first()
+        if not user:
+            raise ValueError(WorkspaceErrorCodes.CLIENT_NOT_FOUND)
+
     def list_workspaces(
         self, db: Session, user: User, *, client_id: str | None = None
     ) -> dict:

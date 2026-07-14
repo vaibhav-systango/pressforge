@@ -51,8 +51,10 @@ export async function middleware(request: NextRequest) {
   let hasSession = hasValidSession(request);
   let newCookies: string[] | undefined;
 
+  const isRefreshPath = pathname === '/api/auth/refresh' || pathname === '/api/auth/refresh/';
+
   // If session is expired/missing but refresh token exists, attempt refresh
-  if (pathname !== '/api/auth/refresh' && !hasSession && request.cookies.has('refresh_token')) {
+  if (!isRefreshPath && !hasSession && request.cookies.has('refresh_token')) {
     const refreshResult = await attemptTokenRefresh(request);
     if (refreshResult.success && refreshResult.cookies) {
       hasSession = true;

@@ -43,6 +43,7 @@ class User(Base):
     isActive = Column(Boolean, nullable=False, default=True, index=True)
     isDeleted = Column(Boolean, nullable=False, default=False, index=True)
     lastLogin = Column(BigInteger, nullable=True)
+    passwordUpdatedAt = Column(BigInteger, nullable=False, default=generate_timestamp_ms)
     createdAt = Column(BigInteger, nullable=False, default=generate_timestamp_ms)
     updatedAt = Column(BigInteger, nullable=False, default=generate_timestamp_ms, onupdate=generate_timestamp_ms)
     deletedAt = Column(BigInteger, nullable=True)

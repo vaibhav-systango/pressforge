@@ -153,6 +153,10 @@ export function WorkspacesView() {
   const [isLoadingMoreClients, setIsLoadingMoreClients] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [editValidationError, setEditValidationError] = useState<string | null>(null);
+  const [deleteWorkspaceError, setDeleteWorkspaceError] = useState<string | null>(null);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [deleteScheduleError, setDeleteScheduleError] = useState<string | null>(null);
+  const [clientAllocationError, setClientAllocationError] = useState<string | null>(null);
 
   // Edit Form Field Errors
   const [brandNameError, setBrandNameError] = useState<string | null>(null);
@@ -204,6 +208,18 @@ export function WorkspacesView() {
       document.body.style.overflow = '';
     };
   }, [isCreating, deleteConfirmId, scheduleDeleteConfirmId]);
+
+  React.useEffect(() => {
+    if (!deleteConfirmId) {
+      setDeleteWorkspaceError(null);
+    }
+  }, [deleteConfirmId]);
+
+  React.useEffect(() => {
+    if (!scheduleDeleteConfirmId) {
+      setDeleteScheduleError(null);
+    }
+  }, [scheduleDeleteConfirmId]);
 
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
@@ -269,6 +285,10 @@ export function WorkspacesView() {
       setNewScheduleRecurrence('none');
       setNewSchedulePublishDraft(false);
       setNewScheduleEnabled(true);
+      setDeleteWorkspaceError(null);
+      setScheduleError(null);
+      setDeleteScheduleError(null);
+      setClientAllocationError(null);
     }
   }, [selectedWorkspaceId, currentWorkspace]);
 
@@ -421,6 +441,7 @@ export function WorkspacesView() {
   const handleDeleteWorkspace = async (id: string) => {
     if (isDeletingWorkspace) return;
     setIsDeletingWorkspace(true);
+    setDeleteWorkspaceError(null);
     try {
       const remaining = workspaces.filter((w) => w.id !== id);
       if (selectedWorkspaceId === id) {
@@ -429,6 +450,9 @@ export function WorkspacesView() {
       await deleteWorkspace(id);
       setDeleteConfirmId(null);
       fetchWorkspaces();
+    } catch (err: any) {
+      console.error(err);
+      setDeleteWorkspaceError(err.message || 'Failed to delete workspace. Please try again.');
     } finally {
       setIsDeletingWorkspace(false);
     }
@@ -479,10 +503,14 @@ export function WorkspacesView() {
   const handleRemoveSchedule = async (id: string) => {
     if (!currentWorkspace || isDeletingSchedule) return;
     setIsDeletingSchedule(true);
+    setDeleteScheduleError(null);
     try {
       await deleteWorkspaceSchedule(currentWorkspace.id, id);
       setScheduleDeleteConfirmId(null);
       fetchWorkspaces();
+    } catch (err: any) {
+      console.error(err);
+      setDeleteScheduleError(err.message || 'Failed to remove schedule. Please try again.');
     } finally {
       setIsDeletingSchedule(false);
     }
@@ -493,6 +521,7 @@ export function WorkspacesView() {
     if (!newScheduleLabel.trim()) return;
 
     setIsAddingSchedule(true);
+    setScheduleError(null);
     try {
       const newSched: Schedule = {
         id: `schedule-${Date.now()}`,
@@ -513,6 +542,9 @@ export function WorkspacesView() {
       setNewSchedulePublishDraft(false);
       setNewScheduleEnabled(true);
       fetchWorkspaces();
+    } catch (err: any) {
+      console.error(err);
+      setScheduleError(err.message || 'Failed to add schedule. Please try again.');
     } finally {
       setIsAddingSchedule(false);
     }
@@ -522,9 +554,13 @@ export function WorkspacesView() {
   const handleDeallocateClient = async (client: ClientUser) => {
     if (!currentWorkspace || isDeallocatingClientId) return;
     setIsDeallocatingClientId(client.id);
+    setClientAllocationError(null);
     try {
       await updateClient(client, { action: 'remove', workspaceId: currentWorkspace.id });
       fetchWorkspaces();
+    } catch (err: any) {
+      console.error(err);
+      setClientAllocationError(err.message || 'Failed to remove client from workspace. Please try again.');
     } finally {
       setIsDeallocatingClientId(null);
     }
@@ -1221,6 +1257,12 @@ export function WorkspacesView() {
                 Are you sure you want to delete <strong className="text-text-primary">{workspaces.find(w => w.id === deleteConfirmId)?.name}</strong>? All associated data will be permanently removed.
               </p>
 
+              {deleteWorkspaceError && (
+                <div className="text-xs text-red-500 font-semibold text-center bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 py-2 rounded-xl">
+                  {deleteWorkspaceError}
+                </div>
+              )}
+
               <div className="flex items-center gap-2 pt-2">
                 <button
                   type="button"
@@ -1276,6 +1318,12 @@ export function WorkspacesView() {
               <p className="text-xs text-text-secondary">
                 Are you sure you want to remove the schedule <strong className="text-text-primary">{(currentWorkspace?.schedules || []).find(s => s.id === scheduleDeleteConfirmId)?.label}</strong>?
               </p>
+
+              {deleteScheduleError && (
+                <div className="text-xs text-red-500 font-semibold text-center bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 py-2 rounded-xl">
+                  {deleteScheduleError}
+                </div>
+              )}
 
               <div className="flex items-center gap-2 pt-2">
                 <button
@@ -1687,6 +1735,12 @@ export function WorkspacesView() {
                     Manage client portal accounts that have access to this brand workspace. A workspace can be assigned to multiple clients.
                   </p>
 
+                  {clientAllocationError && (
+                    <div className="text-xs text-red-500 font-semibold text-center bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 py-2.5 rounded-xl">
+                      {clientAllocationError}
+                    </div>
+                  )}
+
                   {/* Add Client dropdown */}
                   {unallocatedClients.length > 0 ? (
                     <div className="flex gap-2">
@@ -1708,6 +1762,7 @@ export function WorkspacesView() {
                         onClick={async () => {
                           if (!selectedClientToAllocate || isAddingClient) return;
                           setIsAddingClient(true);
+                          setClientAllocationError(null);
                           try {
                             const client = state.clients.find(c => c.id === selectedClientToAllocate);
                             if (client && currentWorkspace) {
@@ -1715,6 +1770,9 @@ export function WorkspacesView() {
                               setSelectedClientToAllocate('');
                               fetchWorkspaces();
                             }
+                          } catch (err: any) {
+                            console.error(err);
+                            setClientAllocationError(err.message || 'Failed to assign client to workspace. Please try again.');
                           } finally {
                             setIsAddingClient(false);
                           }
@@ -1788,6 +1846,12 @@ export function WorkspacesView() {
                     </p>
                   </div>
                 </div>
+
+                {scheduleError && (
+                  <div className="text-xs text-red-500 font-semibold text-center bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 py-2.5 rounded-xl">
+                    {scheduleError}
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   {(currentWorkspace.schedules || []).length === 0 && (

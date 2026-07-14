@@ -276,22 +276,26 @@ async def assign_workspace(
                 detail="Only organization owners and admins can assign workspaces to members"
             )
 
-        # 2. Find the member to be updated
-        member = db.query(OrganizationMember).filter(
+        # 2. Find the member to be updated and verify their user record is active
+        member = db.query(OrganizationMember).join(
+            User, OrganizationMember.userId == User.id
+        ).filter(
             OrganizationMember.organizationId == org_id,
-            OrganizationMember.userId == member_user_id
+            OrganizationMember.userId == member_user_id,
+            User.isActive == True
         ).first()
         if not member:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Member not found in organization"
+                detail="Active member not found in organization"
             )
 
-        # 3. If workspaceId is provided, verify it exists and belongs to the organization
+        # 3. If workspaceId is provided, verify it exists, belongs to the organization, and is active
         if body.workspaceId:
             workspace = db.query(Workspace).filter(
                 Workspace.id == body.workspaceId,
-                Workspace.organizationId == org_id
+                Workspace.organizationId == org_id,
+                Workspace.isActive == True
             ).first()
             if not workspace:
                 raise HTTPException(
@@ -303,11 +307,12 @@ async def assign_workspace(
         action = body.action or "add"
 
         if body.workspaceIds is not None:
-            # Validate all workspaceIds in list belong to the organization
+            # Validate all workspaceIds in list belong to the organization and are active
             if body.workspaceIds:
                 valid_count = db.query(Workspace).filter(
                     Workspace.id.in_(body.workspaceIds),
-                    Workspace.organizationId == org_id
+                    Workspace.organizationId == org_id,
+                    Workspace.isActive == True
                 ).count()
                 if valid_count != len(body.workspaceIds):
                     raise HTTPException(
