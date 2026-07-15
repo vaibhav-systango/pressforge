@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.routers import health, auth, onboarding, invitation, uploads, workspace
+from app.routers import health, auth, onboarding, invitation, uploads, workspace, content, drafts
 
 api_router = APIRouter()
 
@@ -10,3 +10,5 @@ api_router.include_router(onboarding.router, prefix="/onboarding", tags=["onboar
 api_router.include_router(invitation.router, tags=["invitations"])
 api_router.include_router(uploads.router, prefix="/uploads", tags=["uploads"])
 api_router.include_router(workspace.router, prefix="/workspaces", tags=["workspaces"])
+api_router.include_router(content.router, prefix="/content", tags=["content"])
+api_router.include_router(drafts.router, prefix="/drafts", tags=["drafts"])

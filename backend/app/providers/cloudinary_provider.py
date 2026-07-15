@@ -99,6 +99,23 @@ class CloudinaryProvider:
             error_log_label="brand asset key",
         )
 
+    def upload_generated_image(
+        self,
+        *,
+        file_bytes: bytes,
+        upload_key: str,
+        filename: str = "generated.png",
+        content_type: str = "image/png",
+    ) -> dict:
+        return self._upload_to_cloudinary(
+            file_bytes=file_bytes,
+            upload_key=upload_key,
+            filename=filename,
+            content_type=content_type,
+            folder=settings.CLOUDINARY_GENERATED_FOLDER,
+            error_log_label="generated image key",
+        )
+
     def get_secure_url(self, public_id: str, *, resource_type: str = "image") -> str:
         self._configure()
         url, _ = cloudinary_url(public_id, resource_type=resource_type, secure=True)

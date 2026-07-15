@@ -309,15 +309,43 @@ export function useAppState() {
   };
 
   const addDraft = async (draft: Draft) => {
-    return updateState((prev) => ({
-      drafts: [...(prev.drafts || []), draft],
-    }));
+    const res = await fetch('/api/drafts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(draft),
+    });
+    if (!res.ok) throw new Error('Failed to create draft');
+    const data = (await res.json()) as { draft: Draft };
+    queryClient.setQueryData(['app-state'], (old: { state: AppState } | undefined) => {
+      const prevState = old?.state ?? EMPTY_STATE;
+      return {
+        state: {
+          ...prevState,
+          drafts: [data.draft, ...(prevState.drafts || []).filter((d) => d.id !== data.draft.id)],
+        },
+      };
+    });
+    return data;
   };
 
   const updateDraft = async (draft: Draft) => {
-    return updateState((prev) => ({
-      drafts: (prev.drafts || []).map((d) => (d.id === draft.id ? draft : d)),
-    }));
+    const res = await fetch(`/api/drafts/${draft.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(draft),
+    });
+    if (!res.ok) throw new Error('Failed to update draft');
+    const data = (await res.json()) as { draft: Draft };
+    queryClient.setQueryData(['app-state'], (old: { state: AppState } | undefined) => {
+      const prevState = old?.state ?? EMPTY_STATE;
+      return {
+        state: {
+          ...prevState,
+          drafts: (prevState.drafts || []).map((d) => (d.id === data.draft.id ? data.draft : d)),
+        },
+      };
+    });
+    return data;
   };
 
   const addCampaign = async (campaign: Campaign) => {

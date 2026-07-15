@@ -71,9 +71,21 @@ export interface BackendTokenResponse {
 
 export interface AiGenerateRequest {
   prompt: string;
-  workspaceId?: string;
+  workspaceId: string;
+  platforms?: Array<'instagram' | 'linkedin'>;
+  goal?: string;
+  cta?: string;
+  visualStyle?: string;
+  referenceUrls?: string[];
+  referenceText?: string;
   platform?: string;
+  brandName?: string;
   tone?: string;
+  keywords?: string[];
+  targetAudience?: string;
+  brandVoice?: string;
+  description?: string;
+  rules?: string[];
 }
 
 export interface InviteUserRequest {

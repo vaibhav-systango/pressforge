@@ -54,10 +54,20 @@ export async function callBackend<T>(
   }
 
   const url = `${API_BASE_URL}${path}`;
-  const response = await fetch(url, {
-    ...rest,
-    headers,
-  });
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...rest,
+      headers,
+    });
+  } catch {
+    return {
+      data: null,
+      response: new Response(null, { status: 503, statusText: 'Service Unavailable' }),
+      errorMessage: 'Backend unavailable',
+    };
+  }
 
   if (!response.ok) {
     const body = await parseJsonResponse<unknown>(response);

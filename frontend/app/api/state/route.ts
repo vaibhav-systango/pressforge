@@ -17,7 +17,7 @@ import {
   resolveRequestSession,
 } from '@/lib/server/resolve-request-session';
 import type { BackendUserResponse, WorkspaceListResponse } from '@/lib/types/api';
-import type { AppState } from '@/lib/types';
+import type { AppState, Draft } from '@/lib/types';
 import { ORGANIZATION_ID_COOKIE } from '@/lib/server/issue-backend-auth';
 
 function applyWorkspaceData(state: AppState, data: WorkspaceListResponse | null | undefined): AppState {
@@ -58,6 +58,23 @@ async function mergeBackendWorkspaces(state: AppState, accessToken: string): Pro
   return applyWorkspaceData(state, data);
 }
 
+async function mergeBackendDrafts(state: AppState, accessToken: string): Promise<AppState> {
+  const { data } = await callBackend<{ drafts: Draft[] }>('/drafts', { accessToken });
+  if (!data) {
+    return state;
+  }
+
+  return {
+    ...state,
+    drafts: data.drafts,
+  };
+}
+
+async function mergeBackendState(state: AppState, accessToken: string): Promise<AppState> {
+  const withWorkspaces = await mergeBackendWorkspaces(state, accessToken);
+  return mergeBackendDrafts(withWorkspaces, accessToken);
+}
+
 export async function GET() {
   const session = await resolveRequestSession();
 
@@ -74,9 +91,10 @@ export async function GET() {
       const clientId = state.activeClientId;
       const workspacesQuery = clientId ? `?clientId=${encodeURIComponent(clientId)}` : '';
 
-      const [profileResult, workspacesResult] = await Promise.all([
+      const [profileResult, workspacesResult, draftsResult] = await Promise.all([
         callBackend<BackendUserResponse>('/auth/me', { accessToken }),
         callBackend<WorkspaceListResponse>(`/workspaces${workspacesQuery}`, { accessToken }),
+        callBackend<{ drafts: Draft[] }>('/drafts', { accessToken }),
       ]);
 
       const { state: profileState, patch: profilePatch } = applyProfileData(state, profileResult.data);
@@ -84,6 +102,9 @@ export async function GET() {
         updateSession(auth.sessionId, profilePatch);
       }
       const profileMerged = applyWorkspaceData(profileState, workspacesResult.data);
+      const draftsMerged = draftsResult.data
+        ? { ...profileMerged, drafts: draftsResult.data.drafts }
+        : profileMerged;
 
       let clients: AppState['clients'] | undefined;
       try {
@@ -122,7 +143,7 @@ export async function GET() {
         console.error('Failed to sync backend clients to app state', e);
       }
 
-      const mergedState = clients ? { ...profileMerged, clients } : profileMerged;
+      const mergedState = clients ? { ...draftsMerged, clients } : draftsMerged;
 
       return { state: mergedState };
     });
@@ -160,11 +181,15 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: 'merge required', code: 'BAD_REQUEST' }, { status: 400 });
       }
 
-      const { workspaces: _workspaces, activeWorkspaceId: _activeWorkspaceId, ...sessionMerge } =
-        body.merge;
+      const {
+        workspaces: _workspaces,
+        activeWorkspaceId: _activeWorkspaceId,
+        drafts: _drafts,
+        ...sessionMerge
+      } = body.merge;
 
       const state = updateSession(auth.sessionId, (prev) => ({ ...prev, ...sessionMerge }));
-      const mergedState = await mergeBackendWorkspaces(state, session.accessToken!);
+      const mergedState = await mergeBackendState(state, session.accessToken!);
       return { state: mergedState };
     });
 
@@ -177,7 +202,7 @@ export async function PATCH(request: Request) {
   }
 
   ensureGuestSession(session.sessionId);
-  const { workspaces: _workspaces, activeWorkspaceId: _activeWorkspaceId, ...sessionMerge } =
+  const { workspaces: _workspaces, activeWorkspaceId: _activeWorkspaceId, drafts: _drafts, ...sessionMerge } =
     body.merge;
   const state = updateSession(session.sessionId, (prev) => ({ ...prev, ...sessionMerge }));
   const response = NextResponse.json({ state });
@@ -200,7 +225,7 @@ export async function POST(request: Request) {
       if (body.action === 'reset') {
         const state = resetSession(auth.sessionId);
         if (session.accessToken) {
-          const mergedState = await mergeBackendWorkspaces(state, session.accessToken);
+          const mergedState = await mergeBackendState(state, session.accessToken);
           return { state: mergedState };
         }
         return { state };

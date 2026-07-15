@@ -12,6 +12,7 @@ from app.models.user_profile import UserProfile
 from app.models.invitation import Invitation
 from app.models.workspace import Workspace
 from app.models.workspace_schedule import WorkspaceSchedule
+from app.models.draft import Draft
 
 __all__ = [
     "Base",
@@ -28,4 +29,5 @@ __all__ = [
     "Invitation",
     "Workspace",
     "WorkspaceSchedule",
+    "Draft",
 ]
