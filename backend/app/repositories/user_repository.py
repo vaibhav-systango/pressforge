@@ -100,6 +100,24 @@ class UserRepository:
         db.refresh(user)
         return user
 
+    def set_password_reset_code(self, db: Session, user: User, code: str, expires_in_minutes: int = 15) -> User:
+        """Set a password reset code and expiration time for the user."""
+        user.passwordResetCode = code
+        user.passwordResetExpiresAt = generate_timestamp_ms() + (expires_in_minutes * 60 * 1000)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+
+    def clear_password_reset_code(self, db: Session, user: User) -> User:
+        """Clear the password reset code and expiration time for the user."""
+        user.passwordResetCode = None
+        user.passwordResetExpiresAt = None
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+
     def delete_user(self, db: Session, user: User) -> User:
         """Soft delete the user record."""
         user.isDeleted = True

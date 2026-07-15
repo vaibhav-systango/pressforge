@@ -106,6 +106,15 @@ export function LoginView() {
             error={form.errors.password ? String(form.errors.password) : undefined}
           />
 
+          <div className="text-right -mt-2">
+            <Link
+              href="/auth/forgot-password"
+              className="text-xs text-instagram-pink font-semibold hover:underline"
+            >
+              Forgot Password?
+            </Link>
+          </div>
+
           <button
             type="submit"
             disabled={loginMutation.isPending}
