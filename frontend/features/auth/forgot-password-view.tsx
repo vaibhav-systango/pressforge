@@ -130,7 +130,7 @@ export function ForgotPasswordView() {
       setFormError(apiError.message);
       notifications.show({
         title: "Verification Failed",
-        message: apiError.message,
+        message: apiError.message,  
         color: "red",
       });
     }
