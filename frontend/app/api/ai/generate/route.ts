@@ -36,31 +36,46 @@ export async function POST(request: Request) {
     return jsonError('Authentication required', 401, 'TOKEN_MISSING');
   }
 
-  const { data, errorMessage, response } = await callBackend<GenerateResponse>(
-    '/content/generate',
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        workspaceId: body.workspaceId,
-        prompt: body.prompt,
-        platforms: body.platforms ?? ['instagram'],
-        goal: body.goal,
-        cta: body.cta,
-        visualStyle: body.visualStyle,
-        referenceUrls: body.referenceUrls ?? [],
-        referenceText: body.referenceText ?? '',
-      }),
-      accessToken,
-    },
-  );
-
-  if (!data) {
-    return jsonError(
-      errorMessage ?? 'Content generation failed',
-      response.status,
-      response.status === 503 ? 'GEMINI_NOT_CONFIGURED' : 'GENERATION_FAILED',
+  try {
+    const { data, errorMessage, response } = await callBackend<GenerateResponse>(
+      '/content/generate',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          workspaceId: body.workspaceId,
+          prompt: body.prompt,
+          platforms: body.platforms ?? ['instagram'],
+          goal: body.goal,
+          cta: body.cta,
+          visualStyle: body.visualStyle,
+          referenceUrls: body.referenceUrls ?? [],
+          referenceText: body.referenceText ?? '',
+          brandName: body.brandName,
+          tone: body.tone,
+          keywords: body.keywords,
+          targetAudience: body.targetAudience,
+          brandVoice: body.brandVoice,
+          description: body.description,
+          rules: body.rules,
+        }),
+        accessToken,
+      },
     );
-  }
 
-  return NextResponse.json(data);
+    if (!data) {
+      const code =
+        response.status === 503 && errorMessage !== 'Backend unavailable'
+          ? 'GEMINI_NOT_CONFIGURED'
+          : 'GENERATION_FAILED';
+      return jsonError(
+        errorMessage ?? 'Content generation failed',
+        response.status,
+        code,
+      );
+    }
+
+    return NextResponse.json(data);
+  } catch {
+    return jsonError('Content generation failed', 503, 'GENERATION_FAILED');
+  }
 }

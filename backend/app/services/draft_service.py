@@ -136,15 +136,17 @@ class DraftService:
             "referenceText",
             "history",
         )
+        updates: dict = {}
         for key in updatable:
             if key not in data:
                 continue
             value = data[key]
             if key == "history":
                 value = _history_to_dicts(value)
-            setattr(draft, key, value)
+            updates[key] = value
 
-        draft.updatedAt = generate_timestamp_ms()
+        updates["updatedAt"] = generate_timestamp_ms()
+        draft_repository.update(db, draft, **updates)
         db.commit()
         db.refresh(draft)
         return _draft_to_dict(draft)

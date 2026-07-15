@@ -10,6 +10,13 @@ class GenerateContentRequest(BaseModel):
     visualStyle: str | None = None
     referenceUrls: list[str] = Field(default_factory=list)
     referenceText: str | None = None
+    brandName: str | None = None
+    tone: str | None = None
+    keywords: list[str] | None = None
+    targetAudience: str | None = None
+    brandVoice: str | None = None
+    description: str | None = None
+    rules: list[str] | None = None
 
 
 class ContentVariation(BaseModel):

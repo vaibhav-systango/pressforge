@@ -269,6 +269,12 @@ export function ContentNewView() {
           visualStyle,
           referenceUrls,
           referenceText,
+          brandName: localBrandName,
+          tone: localTone,
+          keywords: localKeywords,
+          targetAudience: localTargetAudience,
+          brandVoice: localBrandVoice,
+          rules: localRules,
         }),
       });
 
@@ -499,8 +505,9 @@ export function ContentNewView() {
     setHashtags(hashtags.filter((t) => t !== tag));
   };
   const handleAddHashtag = () => {
-    if (newHashtag.trim() && !hashtags.includes(newHashtag.trim())) {
-      setHashtags([...hashtags, newHashtag.trim().replace(/^#/, "")]);
+    const normalized = newHashtag.trim().replace(/^#/, "");
+    if (normalized && !hashtags.includes(normalized)) {
+      setHashtags([...hashtags, normalized]);
       setNewHashtag("");
     }
   };
@@ -510,11 +517,9 @@ export function ContentNewView() {
     setLinkedinHashtags(liHashtags.filter((t) => t !== tag));
   };
   const handleAddLinkedinHashtag = () => {
-    if (newLiHashtag.trim() && !liHashtags.includes(newLiHashtag.trim())) {
-      setLinkedinHashtags([
-        ...liHashtags,
-        newLiHashtag.trim().replace(/^#/, ""),
-      ]);
+    const normalized = newLiHashtag.trim().replace(/^#/, "");
+    if (normalized && !liHashtags.includes(normalized)) {
+      setLinkedinHashtags([...liHashtags, normalized]);
       setNewLinkedinHashtag("");
     }
   };

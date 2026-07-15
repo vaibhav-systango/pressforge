@@ -79,7 +79,13 @@ export interface AiGenerateRequest {
   referenceUrls?: string[];
   referenceText?: string;
   platform?: string;
+  brandName?: string;
   tone?: string;
+  keywords?: string[];
+  targetAudience?: string;
+  brandVoice?: string;
+  description?: string;
+  rules?: string[];
 }
 
 export interface InviteUserRequest {

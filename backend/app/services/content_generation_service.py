@@ -24,6 +24,22 @@ class ContentGenerationService:
         if not workspace_service._can_access_workspace(db, user, workspace):
             raise ValueError(ContentErrorCodes.ACCESS_DENIED)
 
+        brand_name = data.get("brandName") if data.get("brandName") is not None else workspace.name
+        tone = data.get("tone") if data.get("tone") is not None else workspace.tone
+        keywords = data.get("keywords") if data.get("keywords") is not None else (workspace.keywords or [])
+        target_audience = (
+            data.get("targetAudience")
+            if data.get("targetAudience") is not None
+            else workspace.targetAudience
+        )
+        brand_voice = (
+            data.get("brandVoice") if data.get("brandVoice") is not None else workspace.brandVoice
+        )
+        description = (
+            data.get("description") if data.get("description") is not None else workspace.description
+        )
+        rules = data.get("rules") if data.get("rules") is not None else (workspace.rules or [])
+
         return gemini_content_provider.generate_variations(
             prompt=prompt,
             goal=data.get("goal"),
@@ -32,12 +48,13 @@ class ContentGenerationService:
             platforms=data.get("platforms") or ["instagram"],
             reference_urls=data.get("referenceUrls") or [],
             reference_text=data.get("referenceText"),
-            brand_name=workspace.name,
-            tone=workspace.tone,
-            keywords=workspace.keywords or [],
-            target_audience=workspace.targetAudience,
-            brand_voice=workspace.brandVoice,
-            description=workspace.description,
+            brand_name=brand_name,
+            tone=tone,
+            keywords=keywords or [],
+            target_audience=target_audience,
+            brand_voice=brand_voice,
+            description=description,
+            rules=rules or [],
         )
 
 

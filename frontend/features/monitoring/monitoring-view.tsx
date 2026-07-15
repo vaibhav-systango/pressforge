@@ -26,6 +26,42 @@ export function MonitoringView() {
   const neutralPercent = Math.round((neutralCount / total) * 100);
   const negativePercent = Math.round((negativeCount / total) * 100);
 
+  const mentionHealth = (() => {
+    if (mentions.length === 0) {
+      return {
+        label: 'No data',
+        detail: 'No mentions scanned yet',
+        className: 'text-text-secondary',
+      };
+    }
+    if (negativePercent >= 50) {
+      return {
+        label: 'Poor',
+        detail: `${negativePercent}% negative — needs attention`,
+        className: 'text-red-600',
+      };
+    }
+    if (negativePercent >= 30) {
+      return {
+        label: 'Fair',
+        detail: 'Elevated negative sentiment',
+        className: 'text-amber-600',
+      };
+    }
+    if (positivePercent >= 50) {
+      return {
+        label: 'Good',
+        detail: 'Sentiment ratio healthy',
+        className: 'text-green-600',
+      };
+    }
+    return {
+      label: 'Stable',
+      detail: 'Sentiment ratio stable',
+      className: 'text-green-600',
+    };
+  })();
+
   const proposedRule = 'Always acknowledge delivery inquiries with warm shipping timelines.';
   const ruleInjected = activeWorkspace?.rules?.includes(proposedRule) ?? false;
 
@@ -33,25 +69,46 @@ export function MonitoringView() {
   const [draftingMentionId, setDraftingMentionId] = useState<string | null>(null);
   const [generatedResponse, setGeneratedResponse] = useState('');
 
-  const handleInjectRule = () => {
-    if (activeWorkspace) {
-      const alreadyHas = activeWorkspace.rules?.includes(proposedRule) ?? false;
-      if (!alreadyHas) {
-        updateWorkspace({
-          ...activeWorkspace,
-          rules: [...(activeWorkspace.rules ?? []), proposedRule]
-        });
-      }
+  const handleInjectRule = async () => {
+    if (!activeWorkspace) return;
+
+    const alreadyHas = activeWorkspace.rules?.includes(proposedRule) ?? false;
+    if (alreadyHas) {
       alert('AI Rule injected successfully into Brand Voice rules!');
+      return;
+    }
+
+    try {
+      await updateWorkspace({
+        ...activeWorkspace,
+        rules: [...(activeWorkspace.rules ?? []), proposedRule],
+      });
+      alert('AI Rule injected successfully into Brand Voice rules!');
+    } catch {
+      alert('Failed to inject rule into Brand Voice. Please try again.');
     }
   };
 
-  const handleCreateDraftResponse = (mentionId: string, author: string, content: string) => {
+  const handleCreateDraftResponse = (
+    mentionId: string,
+    author: string,
+    content: string,
+    sentiment: 'positive' | 'neutral' | 'negative',
+  ) => {
     setDraftingMentionId(mentionId);
-    // Generate simulated AI reply
-    setGeneratedResponse(
-      `@${author} Thank you for sharing your thoughts! We hold sustainability at our core and want to apologize for the delay. Drop us a DM so we can speed up your shipping!`
-    );
+    const brand = activeWorkspace?.name || 'our team';
+    const excerpt = content.length > 120 ? `${content.slice(0, 117)}…` : content;
+
+    let reply: string;
+    if (sentiment === 'negative') {
+      reply = `@${author} We're sorry this happened. Thanks for telling us about "${excerpt}". ${brand} wants to make it right — please DM us so we can help resolve this quickly.`;
+    } else if (sentiment === 'positive') {
+      reply = `@${author} Thank you so much for the kind words about ${brand}! "${excerpt}" means a lot to our team.`;
+    } else {
+      reply = `@${author} Thanks for sharing your thoughts with ${brand}. Regarding "${excerpt}" — we're happy to answer any follow-ups if you reply or DM us.`;
+    }
+
+    setGeneratedResponse(reply);
   };
 
   const handleSaveResponseDraft = async () => {
@@ -120,8 +177,8 @@ export function MonitoringView() {
 
         <div className="bg-bg-card border border-border-primary rounded-2xl p-5 shadow-sm text-center flex flex-col justify-center">
           <p className="text-xs font-bold text-text-secondary uppercase tracking-wide">Mention Health</p>
-          <p className="text-3xl font-extrabold text-text-primary mt-2">Good</p>
-          <p className="text-[10px] text-green-600 font-semibold mt-1">Sentiment ratio stable</p>
+          <p className="text-3xl font-extrabold text-text-primary mt-2">{mentionHealth.label}</p>
+          <p className={`text-[10px] font-semibold mt-1 ${mentionHealth.className}`}>{mentionHealth.detail}</p>
         </div>
       </div>
 
@@ -161,7 +218,14 @@ export function MonitoringView() {
 
                   <div className="text-right">
                     <button
-                      onClick={() => handleCreateDraftResponse(men.id, men.author ?? 'user', men.content ?? '')}
+                      onClick={() =>
+                        handleCreateDraftResponse(
+                          men.id,
+                          men.author ?? 'user',
+                          men.content ?? men.title ?? '',
+                          men.sentiment,
+                        )
+                      }
                       className="text-[10px] text-instagram-pink font-bold hover:underline"
                     >
                       AI Response Draft
@@ -182,11 +246,19 @@ export function MonitoringView() {
                 <h3 className="text-xs font-bold text-instagram-pink flex items-center gap-1">
                   <Sparkles className="w-3.5 h-3.5" /> Drafting AI Social Response
                 </h3>
-                <button onClick={() => setDraftingMentionId(null)}>
+                <button
+                  type="button"
+                  onClick={() => setDraftingMentionId(null)}
+                  aria-label="Close response draft"
+                >
                   <X className="w-4 h-4 text-slate-400 hover:text-text-secondary" />
                 </button>
               </div>
+              <label htmlFor="ai-social-response" className="sr-only">
+                AI social response draft
+              </label>
               <textarea
+                id="ai-social-response"
                 value={generatedResponse}
                 onChange={(e) => setGeneratedResponse(e.target.value)}
                 className="w-full border border-border-primary rounded-xl p-3 text-xs focus:border-[#E1306C] outline-none min-h-[95px] resize-y"

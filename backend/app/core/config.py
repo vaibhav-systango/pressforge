@@ -61,7 +61,7 @@ class Settings(BaseSettings):
 
     # AI content generation
     GEMINI_API_KEY: str = Field(default="", description="Google Gemini API key for content generation")
-    GEMINI_MODEL: str = Field(default="gemini-2.5-flash", description="Gemini model id")
+    GEMINI_MODEL: str = Field(default="gemini-3.5-flash", description="Gemini model id")
 
     # Configuration for Pydantic Settings
     model_config = SettingsConfigDict(

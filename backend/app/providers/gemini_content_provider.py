@@ -86,10 +86,12 @@ class GeminiContentProvider:
         target_audience: str | None,
         brand_voice: str | None,
         description: str | None,
+        rules: list[str] | None = None,
     ) -> str:
         platforms_label = ", ".join(platforms) if platforms else "instagram"
         keyword_list = ", ".join(keywords) if keywords else "(none)"
         refs = "\n".join(f"- {url}" for url in reference_urls) if reference_urls else "(none)"
+        brand_rules = "\n".join(f"- {rule}" for rule in (rules or []) if rule) or "(none)"
 
         return f"""
 You are an expert social media content creator for Pressforge.
@@ -107,6 +109,9 @@ Brand voice notes: "{brand_voice or ""}"
 Brand description: "{description or ""}"
 Target audience: "{target_audience or "General audience"}"
 Brand keywords to incorporate into hashtags when relevant: "{keyword_list}"
+
+Brand rules (must follow):
+{brand_rules}
 
 Reference URLs:
 {refs}
@@ -145,10 +150,26 @@ Rules:
                     params={"key": settings.GEMINI_API_KEY},
                     json=payload,
                 )
-                response.raise_for_status()
+                if response.is_error:
+                    # Avoid logging the API key from the request URL.
+                    detail = ""
+                    try:
+                        detail = response.json().get("error", {}).get("message", "")
+                    except Exception:
+                        detail = response.text[:300]
+                    logger.error(
+                        "Gemini API call failed: %s %s model=%s detail=%s",
+                        response.status_code,
+                        response.reason_phrase,
+                        model,
+                        detail,
+                    )
+                    response.raise_for_status()
                 body = response.json()
+        except ValueError:
+            raise
         except Exception as exc:
-            logger.error("Gemini API call failed: %s", exc)
+            logger.error("Gemini API call failed for model=%s: %s", model, type(exc).__name__)
             raise ValueError(ContentErrorCodes.GENERATION_FAILED) from exc
 
         try:
@@ -218,6 +239,7 @@ Rules:
         target_audience: str | None = None,
         brand_voice: str | None = None,
         description: str | None = None,
+        rules: list[str] | None = None,
         aspect_ratio: str = "1:1",
     ) -> dict[str, Any]:
         instructions = self._build_prompt(
@@ -234,6 +256,7 @@ Rules:
             target_audience=target_audience,
             brand_voice=brand_voice,
             description=description,
+            rules=rules,
         )
         raw = self._call_gemini(instructions)
         raw_variations = raw.get("variations") or []
