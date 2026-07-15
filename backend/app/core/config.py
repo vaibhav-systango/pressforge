@@ -54,6 +54,14 @@ class Settings(BaseSettings):
     CLOUDINARY_API_SECRET: str = Field(default="", description="Cloudinary API secret")
     CLOUDINARY_KYC_FOLDER: str = Field(default="pressforge/kyc", description="Cloudinary folder for KYC uploads")
     CLOUDINARY_BRAND_ASSETS_FOLDER: str = Field(default="pressforge/brand_assets", description="Cloudinary folder for brand assets uploads")
+    CLOUDINARY_GENERATED_FOLDER: str = Field(
+        default="pressforge/generated",
+        description="Cloudinary folder for AI-generated images",
+    )
+
+    # AI content generation
+    GEMINI_API_KEY: str = Field(default="", description="Google Gemini API key for content generation")
+    GEMINI_MODEL: str = Field(default="gemini-2.5-flash", description="Gemini model id")
 
     # Configuration for Pydantic Settings
     model_config = SettingsConfigDict(

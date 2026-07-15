@@ -33,8 +33,8 @@ export function isDraft(value: unknown): value is Draft {
   if (!value || typeof value !== 'object') return false;
   const v = value as Record<string, unknown>;
   return (
-    typeof v.title === 'string' &&
+    typeof v.prompt === 'string' &&
     typeof v.workspaceId === 'string' &&
-    typeof v.platform === 'string'
+    typeof v.status === 'string'
   );
 }

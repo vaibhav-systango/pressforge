@@ -12,3 +12,4 @@ bcrypt
 email-validator
 sendgrid
 cloudinary
+httpx

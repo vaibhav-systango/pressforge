@@ -71,7 +71,13 @@ export interface BackendTokenResponse {
 
 export interface AiGenerateRequest {
   prompt: string;
-  workspaceId?: string;
+  workspaceId: string;
+  platforms?: Array<'instagram' | 'linkedin'>;
+  goal?: string;
+  cta?: string;
+  visualStyle?: string;
+  referenceUrls?: string[];
+  referenceText?: string;
   platform?: string;
   tone?: string;
 }
