@@ -10,6 +10,9 @@ import { ArrowRight, X, Plus } from 'lucide-react';
 
 
 
+import { notifications } from '@mantine/notifications';
+import { validateKeyword, validateRule } from '@/lib/utils/validation';
+
 const TONES = ['casual', 'energetic', 'professional', 'witty', 'bold', 'formal'];
 
 export function BrandVoiceView() {
@@ -22,15 +25,26 @@ export function BrandVoiceView() {
   const [tone, setTone] = useState<Workspace['tone']>(activeWs?.tone || 'casual');
   const [keywordInput, setKeywordInput] = useState('');
   const [keywords, setKeywords] = useState<string[]>(activeWs?.keywords || []);
+  const [keywordError, setKeywordError] = useState<string | null>(null);
   const [ruleInput, setRuleInput] = useState('');
   const [rules, setRules] = useState<string[]>(activeWs?.rules || []);
+  const [ruleError, setRuleError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAddKeyword = () => {
-    if (keywordInput.trim() && !keywords.includes(keywordInput.trim())) {
-      setKeywords([...keywords, keywordInput.trim().toLowerCase()]);
-      setKeywordInput('');
+    const error = validateKeyword(keywordInput);
+    if (error) {
+      setKeywordError(error);
+      return;
     }
+    const val = keywordInput.trim().toLowerCase();
+    if (keywords.includes(val)) {
+      setKeywordError('Keyword already added');
+      return;
+    }
+    setKeywordError(null);
+    setKeywords([...keywords, val]);
+    setKeywordInput('');
   };
 
   const handleRemoveKeyword = (kw: string) => {
@@ -38,10 +52,19 @@ export function BrandVoiceView() {
   };
 
   const handleAddRule = () => {
-    if (ruleInput.trim() && !rules.includes(ruleInput.trim())) {
-      setRules([...rules, ruleInput.trim()]);
-      setRuleInput('');
+    const error = validateRule(ruleInput);
+    if (error) {
+      setRuleError(error);
+      return;
     }
+    const val = ruleInput.trim();
+    if (rules.includes(val)) {
+      setRuleError('Rule already added');
+      return;
+    }
+    setRuleError(null);
+    setRules([...rules, val]);
+    setRuleInput('');
   };
 
   const handleRemoveRule = (rule: string) => {
@@ -63,8 +86,13 @@ export function BrandVoiceView() {
 
       await updateState({ currentStep: 4 });
       router.push('/onboarding/kyc');
-    } catch {
-      alert('Failed to save brand voice settings. Please try again.');
+    } catch (err) {
+      console.error(err);
+      notifications.show({
+        title: 'Error saving settings',
+        message: 'Failed to save brand voice settings. Please try again.',
+        color: 'red',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -115,7 +143,10 @@ export function BrandVoiceView() {
                 type="text"
                 placeholder="e.g. eco-friendly"
                 value={keywordInput}
-                onChange={(e) => setKeywordInput(e.target.value)}
+                onChange={(e) => {
+                  setKeywordInput(e.target.value);
+                  if (keywordError) setKeywordError(null);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
@@ -133,6 +164,9 @@ export function BrandVoiceView() {
                 <Plus className="w-4 h-4" />
               </button>
             </div>
+            {keywordError && (
+              <p className="text-[11px] text-red-500 font-medium">{keywordError}</p>
+            )}
             {/* Keyword Chips */}
             <div className="flex flex-wrap gap-1.5 mt-1">
               {keywords.map((kw) => (
@@ -160,7 +194,10 @@ export function BrandVoiceView() {
                 type="text"
                 placeholder="e.g. Always end with a question"
                 value={ruleInput}
-                onChange={(e) => setRuleInput(e.target.value)}
+                onChange={(e) => {
+                  setRuleInput(e.target.value);
+                  if (ruleError) setRuleError(null);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
@@ -178,6 +215,9 @@ export function BrandVoiceView() {
                 <Plus className="w-4 h-4" />
               </button>
             </div>
+            {ruleError && (
+              <p className="text-[11px] text-red-500 font-medium">{ruleError}</p>
+            )}
             {/* Rules List */}
             <ul className="flex flex-col gap-1.5 mt-1 max-h-[120px] overflow-y-auto pr-1">
               {rules.map((rule) => (

@@ -18,6 +18,7 @@ export function SignupView() {
   const router = useRouter();
   const signupMutation = useSignupMutation();
   const [formError, setFormError] = useState('');
+  const [submitted, setSubmitted] = useState(false);
 
   const form = useForm({
     initialValues: {
@@ -32,30 +33,34 @@ export function SignupView() {
       password: validatePassword,
       terms: (value) => (value ? null : 'You must agree to the terms'),
     },
+    validateInputOnBlur: true,
   });
 
-  const handleSubmit = form.onSubmit(async (values) => {
-    setFormError('');
-    try {
-      const result = await signupMutation.mutateAsync({
-        fullName: values.fullName,
-        email: values.email,
-        password: values.password,
-      });
-      router.replace(getPostAuthRedirect(result.user));
-    } catch (error) {
-      const apiError =
-        error instanceof ApiError
-          ? error
-          : new ApiError('Unable to create account. Please try again.', 500, 'UNKNOWN');
-      setFormError(apiError.message);
-      notifications.show({
-        title: 'Signup failed',
-        message: apiError.message,
-        color: 'red',
-      });
-    }
-  });
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    setSubmitted(true);
+    form.onSubmit(async (values) => {
+      setFormError('');
+      try {
+        const result = await signupMutation.mutateAsync({
+          fullName: values.fullName,
+          email: values.email,
+          password: values.password,
+        });
+        router.replace(getPostAuthRedirect(result.user));
+      } catch (error) {
+        const apiError =
+          error instanceof ApiError
+            ? error
+            : new ApiError('Unable to create account. Please try again.', 500, 'UNKNOWN');
+        setFormError(apiError.message);
+        notifications.show({
+          title: 'Signup failed',
+          message: apiError.message,
+          color: 'red',
+        });
+      }
+    })(e);
+  };
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-4">
@@ -83,7 +88,7 @@ export function SignupView() {
               {...form.getInputProps('fullName')}
               className="border border-[#EFEFEF] bg-[#FAFAFA] text-[#262626] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
             />
-            {form.errors.fullName ? (
+            {form.errors.fullName && (form.isTouched('fullName') || submitted) ? (
               <p className="text-[11px] text-red-500 font-medium">{form.errors.fullName}</p>
             ) : null}
           </div>
@@ -99,7 +104,7 @@ export function SignupView() {
               {...form.getInputProps('email')}
               className="border border-[#EFEFEF] bg-[#FAFAFA] text-[#262626] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
             />
-            {form.errors.email ? (
+            {form.errors.email && (form.isTouched('email') || submitted) ? (
               <p className="text-[11px] text-red-500 font-medium">{form.errors.email}</p>
             ) : null}
           </div>
@@ -110,7 +115,7 @@ export function SignupView() {
             placeholder="••••••••"
             className="border border-[#EFEFEF] bg-[#FAFAFA] text-[#262626]"
             {...form.getInputProps('password')}
-            error={form.errors.password ? String(form.errors.password) : undefined}
+            error={form.errors.password && (form.isTouched('password') || submitted) ? String(form.errors.password) : undefined}
           />
 
           <label className="flex items-start gap-2 text-xs text-[#737373] cursor-pointer">
@@ -121,19 +126,20 @@ export function SignupView() {
             />
             <span>I agree to the Terms of Service and Privacy Policy.</span>
           </label>
-          {form.errors.terms ? (
+          {form.errors.terms && (form.isTouched('terms') || submitted) ? (
             <p className="text-[11px] text-red-500 font-medium -mt-2">{form.errors.terms}</p>
           ) : null}
 
           <button
             type="submit"
-            disabled={signupMutation.isPending}
-            className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3 rounded-full text-sm font-semibold hover:opacity-95 transition shadow-sm mt-3 cursor-pointer disabled:opacity-60"
+            disabled={signupMutation.isPending || !form.values.fullName.trim() || !form.values.email.trim() || !form.values.password.trim() || !form.values.terms}
+            className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3 rounded-full text-sm font-semibold hover:opacity-95 transition shadow-sm mt-3 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <span>{signupMutation.isPending ? 'Creating account...' : 'Create Account'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
+
 
         <div className="border-t border-[#EFEFEF] pt-4 text-center">
           <p className="text-xs text-[#737373]">

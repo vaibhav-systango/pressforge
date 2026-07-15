@@ -6,6 +6,8 @@ import React, { useState, useEffect } from 'react';
 import { OnboardingStepper } from '@/components/onboarding/onboarding-stepper';
 import { ArrowRight } from 'lucide-react';
 import { FileUpload } from '@/components/common/file-upload';
+import { notifications } from '@mantine/notifications';
+import { validateWorkspaceName, validateWebsiteUrl } from '@/lib/utils/validation';
 
 export function WorkspaceView() {
   const router = useRouter();
@@ -20,6 +22,21 @@ export function WorkspaceView() {
     activeWs?.website || state.individualWebsite || '',
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [submitted, setSubmitted] = useState(false);
+
+  const getErrors = () => {
+    const errs: Record<string, string> = {};
+    const nameErr = validateWorkspaceName(brandName);
+    if (nameErr) errs.brandName = nameErr;
+
+    const webErr = validateWebsiteUrl(website);
+    if (webErr) errs.website = webErr;
+
+    return errs;
+  };
+
+  const errors = getErrors();
 
   const [uploadedFile, setUploadedFile] = useState<string | null>(activeWs?.brandAsset || null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
@@ -46,10 +63,18 @@ export function WorkspaceView() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!brandName.trim()) {
-      alert('Please enter a workspace brand name.');
+    setSubmitted(true);
+
+    const validationErrors = getErrors();
+    if (Object.keys(validationErrors).length > 0) {
+      notifications.show({
+        title: 'Validation error',
+        message: 'Please fix the errors below before continuing.',
+        color: 'red',
+      });
       return;
     }
+
     setIsSubmitting(true);
     try {
       if (state.accountType === 'individual' && activeWs) {
@@ -80,7 +105,11 @@ export function WorkspaceView() {
       router.push('/onboarding/brand-voice');
     } catch (err) {
       console.error(err);
-      alert('Failed to save workspace. Please try again.');
+      notifications.show({
+        title: 'Error saving workspace',
+        message: err instanceof Error ? err.message : 'Please try again.',
+        color: 'red',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -105,6 +134,7 @@ export function WorkspaceView() {
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-[#737373]" htmlFor="brand-name">
               Brand / Client Name
+              <span className="text-red-500 ml-0.5">*</span>
             </label>
             <input
               id="brand-name"
@@ -113,8 +143,12 @@ export function WorkspaceView() {
               placeholder="e.g. Acme Clothing Co"
               value={brandName}
               onChange={(e) => setBrandName(e.target.value)}
+              onBlur={() => setTouched((prev) => ({ ...prev, brandName: true }))}
               className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-[#E1306C] outline-none transition duration-150"
             />
+            {(touched.brandName || submitted) && errors.brandName && (
+              <p className="text-[11px] text-red-500 font-medium">{errors.brandName}</p>
+            )}
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -127,8 +161,12 @@ export function WorkspaceView() {
               placeholder="https://acmeclothing.com"
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
+              onBlur={() => setTouched((prev) => ({ ...prev, website: true }))}
               className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-[#E1306C] outline-none transition duration-150"
             />
+            {(touched.website || submitted) && errors.website && (
+              <p className="text-[11px] text-red-500 font-medium">{errors.website}</p>
+            )}
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -145,8 +183,8 @@ export function WorkspaceView() {
 
           <button
             type="submit"
-            disabled={isSubmitting}
-            className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3 rounded-full text-sm font-semibold hover:opacity-95 transition shadow-sm mt-2 disabled:opacity-60"
+            disabled={isSubmitting || !brandName.trim() || Object.keys(errors).length > 0}
+            className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3 rounded-full text-sm font-semibold hover:opacity-95 transition shadow-sm mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <span>{isSubmitting ? 'Saving...' : 'Configure Brand Voice'}</span>
             <ArrowRight className="w-4 h-4" />

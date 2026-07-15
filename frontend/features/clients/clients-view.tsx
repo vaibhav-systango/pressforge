@@ -27,6 +27,10 @@ export function ClientsView() {
   const router = useRouter();
 
   const isClient = state.currentUserType === 'client';
+  const isIndividual =
+    user?.userType === 'individual' ||
+    state.currentUserType === 'individual' ||
+    state.accountType === 'individual';
   
   // Search and Filter States
   const [searchTerm, setSearchTerm] = useState('');
@@ -207,7 +211,7 @@ export function ClientsView() {
   // Filter & Search Logic is now handled on the backend API side.
   const filteredClients = clients;
 
-  if (isClient) {
+  if (isClient || isIndividual) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center max-w-md mx-auto space-y-4">
         <div className="w-16 h-16 rounded-full bg-red-50 dark:bg-red-950/20 text-red-500 border border-red-100 dark:border-red-900/30 flex items-center justify-center">
@@ -215,7 +219,9 @@ export function ClientsView() {
         </div>
         <h2 className="text-xl font-bold text-text-primary">Restricted Access</h2>
         <p className="text-sm text-text-secondary">
-          Client portal users are not permitted to manage client portals or invite other users.
+          {isClient
+            ? "Client portal users are not permitted to manage client portals or invite other users."
+            : "Individual accounts are not permitted to manage client portals or invite other users."}
         </p>
         <button
           onClick={() => router.push('/app')}

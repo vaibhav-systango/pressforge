@@ -12,6 +12,7 @@ interface FileUploadProps {
   accept?: string;
   maxSize?: number; // in bytes
   uploadUrl?: string;
+  required?: boolean;
 }
 
 export function FileUpload({
@@ -23,6 +24,7 @@ export function FileUpload({
   accept = 'image/png, image/jpeg, application/pdf',
   maxSize = 10 * 1024 * 1024, // 10MB
   uploadUrl = '/api/uploads/kyc',
+  required = false,
 }: FileUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -98,7 +100,12 @@ export function FileUpload({
 
   return (
     <div className="flex flex-col gap-1.5 w-full">
-      {label && <label className="text-xs font-semibold text-[#737373]">{label}</label>}
+      {label && (
+        <label className="text-xs font-semibold text-[#737373]">
+          {label}
+          {required && <span className="text-red-500 ml-0.5">*</span>}
+        </label>
+      )}
 
       {value ? (
         <div className="border border-slate-100 bg-[#FAFAFA] rounded-2xl p-4 flex flex-col gap-3 shadow-xs">

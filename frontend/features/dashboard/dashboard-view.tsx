@@ -564,28 +564,6 @@ export function DashboardView() {
             </div>
           </div>
 
-          {/* Client Portals Card */}
-          <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-border-primary pb-2.5">
-              <h3 className="text-sm font-bold text-text-primary flex items-center gap-1.5">
-                <Users className="w-4 h-4 text-instagram-pink" />
-                <span>Client Portals</span>
-              </h3>
-              <Link href="/app/clients" className="text-xs font-semibold text-instagram-pink hover:underline">
-                Manage
-              </Link>
-            </div>
-            <p className="text-xs text-text-secondary leading-relaxed">
-              Invite clients to collaborate and approve their brand's drafts. Currently, you have <span className="font-semibold text-text-primary">{(state.clients || []).length} active client portals</span>.
-            </p>
-            <Link
-              href="/app/clients"
-              className="w-full flex items-center justify-center gap-1.5 bg-[#262626] hover:bg-slate-800 text-white py-2.5 rounded-full text-xs font-bold transition shadow-sm"
-            >
-              <Plus className="w-3.5 h-3.5 animate-pulse" />
-              <span>Invite Client User</span>
-            </Link>
-          </div>
         </div>
       </div>
     </div>

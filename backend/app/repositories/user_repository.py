@@ -52,14 +52,20 @@ class UserRepository:
         contentThemes: list[str],
         website: str | None = None
     ) -> UserProfile:
-        """Create and persist a user profile."""
-        profile = UserProfile(
-            userId=userId,
-            primaryGoal=primaryGoal,
-            contentThemes=contentThemes,
-            website=website
-        )
-        db.add(profile)
+        """Create or update a user profile."""
+        profile = db.query(UserProfile).filter(UserProfile.userId == userId).first()
+        if profile:
+            profile.primaryGoal = primaryGoal
+            profile.contentThemes = contentThemes
+            profile.website = website
+        else:
+            profile = UserProfile(
+                userId=userId,
+                primaryGoal=primaryGoal,
+                contentThemes=contentThemes,
+                website=website
+            )
+            db.add(profile)
         db.flush()  # Use flush to participate in transactional operations without premature commit
         return profile
 

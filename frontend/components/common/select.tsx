@@ -21,6 +21,7 @@ export interface SelectProps {
   id?: string;
   name?: string;
   disabled?: boolean;
+  required?: boolean;
 }
 
 export function Select({
@@ -35,6 +36,7 @@ export function Select({
   id,
   name,
   disabled = false,
+  required = false,
 }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -84,6 +86,7 @@ export function Select({
       {label && (
         <label className="text-xs font-semibold text-text-secondary select-none" htmlFor={id}>
           {label}
+          {required && <span className="text-red-500 ml-0.5">*</span>}
         </label>
       )}
       <div className="relative w-full">
