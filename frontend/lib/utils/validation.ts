@@ -55,6 +55,9 @@ export function validateWebsiteUrl(value: string | undefined | null): string | n
   if (!trimmed) {
     return null; // optional
   }
+  if (trimmed.length > 200) {
+    return 'Website URL must be 200 characters or less';
+  }
   try {
     const url = new URL(trimmed);
     if (url.protocol !== 'http:' && url.protocol !== 'https:') {
@@ -143,6 +146,117 @@ export function validateOrganizationName(value: string | undefined | null): stri
   }
   if (trimmed.length > 100) {
     return 'Organization / Agency name must be 100 characters or less';
+  }
+  return null;
+}
+
+/**
+ * Validates a phone number.
+ */
+export function validatePhoneNumber(value: string | undefined | null): string | null {
+  const trimmed = value ? value.trim() : '';
+  if (!trimmed) {
+    return 'Phone number is required';
+  }
+  const phoneRegex = /^\+?[0-9\s\-()]{7,20}$/;
+  if (!phoneRegex.test(trimmed)) {
+    return 'Enter a valid phone number';
+  }
+  return null;
+}
+
+/**
+ * Validates a date of birth. Must be valid and age must be >= 18.
+ */
+export function validateDob(value: string | undefined | null): string | null {
+  const trimmed = value ? value.trim() : '';
+  if (!trimmed) {
+    return 'Date of birth is required';
+  }
+  const dobDate = new Date(trimmed);
+  if (isNaN(dobDate.getTime())) {
+    return 'Enter a valid date';
+  }
+  
+  const today = new Date();
+  let age = today.getFullYear() - dobDate.getFullYear();
+  const m = today.getMonth() - dobDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
+    age--;
+  }
+  
+  if (age < 18) {
+    return 'You must be at least 18 years old';
+  }
+  return null;
+}
+
+/**
+ * Validates a company legal name.
+ */
+export function validateCompanyName(value: string | undefined | null): string | null {
+  const trimmed = value ? value.trim() : '';
+  if (!trimmed) {
+    return 'Company legal name is required';
+  }
+  if (trimmed.length < 2) {
+    return 'Company name must be at least 2 characters';
+  }
+  if (trimmed.length > 100) {
+    return 'Company name must be 100 characters or less';
+  }
+  return null;
+}
+
+/**
+ * Validates a business tax ID/EIN.
+ */
+export function validateTaxId(value: string | undefined | null): string | null {
+  const trimmed = value ? value.trim() : '';
+  if (!trimmed) {
+    return 'Tax ID / EIN is required';
+  }
+  if (trimmed.length < 5) {
+    return 'Tax ID / EIN must be at least 5 characters';
+  }
+  return null;
+}
+
+/**
+ * Validates a business registered address.
+ */
+export function validateBusinessAddress(value: string | undefined | null): string | null {
+  const trimmed = value ? value.trim() : '';
+  if (!trimmed) {
+    return 'Registered address is required';
+  }
+  if (trimmed.length < 10) {
+    return 'Please enter a complete address (at least 10 characters)';
+  }
+  return null;
+}
+
+/**
+ * Validates a primary contact person.
+ */
+export function validateContactPerson(value: string | undefined | null): string | null {
+  const trimmed = value ? value.trim() : '';
+  if (!trimmed) {
+    return 'Primary contact person name is required';
+  }
+  if (trimmed.length < 2) {
+    return 'Contact person must be at least 2 characters';
+  }
+  return null;
+}
+
+/**
+ * Validates brief organization description.
+ */
+export function validateOrganizationDescription(value: string | undefined | null): string | null {
+  const trimmed = value ? value.trim() : '';
+  if (trimmed.length > 500) {
+    return 'Description must be 500 characters or less';
   }
   return null;
 }

@@ -52,14 +52,20 @@ class UserRepository:
         contentThemes: list[str],
         website: str | None = None
     ) -> UserProfile:
-        """Create and persist a user profile."""
-        profile = UserProfile(
-            userId=userId,
-            primaryGoal=primaryGoal,
-            contentThemes=contentThemes,
-            website=website
-        )
-        db.add(profile)
+        """Create or update a user profile."""
+        profile = db.query(UserProfile).filter(UserProfile.userId == userId).first()
+        if profile:
+            profile.primaryGoal = primaryGoal
+            profile.contentThemes = contentThemes
+            profile.website = website
+        else:
+            profile = UserProfile(
+                userId=userId,
+                primaryGoal=primaryGoal,
+                contentThemes=contentThemes,
+                website=website
+            )
+            db.add(profile)
         db.flush()  # Use flush to participate in transactional operations without premature commit
         return profile
 
@@ -89,6 +95,24 @@ class UserRepository:
         """Update the user's password hash and update the passwordUpdatedAt timestamp."""
         user.passwordHash = passwordHash
         user.passwordUpdatedAt = generate_timestamp_ms()
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+
+    def set_password_reset_code(self, db: Session, user: User, code: str, expires_in_minutes: int = 15) -> User:
+        """Set a password reset code and expiration time for the user."""
+        user.passwordResetCode = code
+        user.passwordResetExpiresAt = generate_timestamp_ms() + (expires_in_minutes * 60 * 1000)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+
+    def clear_password_reset_code(self, db: Session, user: User) -> User:
+        """Clear the password reset code and expiration time for the user."""
+        user.passwordResetCode = None
+        user.passwordResetExpiresAt = None
         db.add(user)
         db.commit()
         db.refresh(user)

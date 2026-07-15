@@ -13,6 +13,15 @@ import { Select } from '@/components/common/select';
 import {
   ShieldCheck, ArrowRight, Building, User, FileText, Phone, Calendar, MapPin
 } from 'lucide-react';
+import {
+  validateFullName,
+  validatePhoneNumber,
+  validateDob,
+  validateCompanyName,
+  validateTaxId,
+  validateBusinessAddress,
+  validateContactPerson
+} from '@/lib/utils/validation';
 
 export function KycView() {
   const router = useRouter();
@@ -33,13 +42,53 @@ export function KycView() {
   const [businessAddress, setBusinessAddress] = useState(state.kycDetails?.businessAddress || '');
   const [contactPerson, setContactPerson] = useState(state.kycDetails?.contactPerson || '');
 
-  // UI States
   const [uploadedFile, setUploadedFile] = useState<string | null>(state.kycDetails?.uploadedFile || null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [fileType, setFileType] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [submitError, setSubmitError] = useState('');
+
+  // UI States
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [submitted, setSubmitted] = useState(false);
+
+  const getErrors = () => {
+    const errs: Record<string, string> = {};
+    if (isIndividual) {
+      const nameErr = validateFullName(fullName);
+      if (nameErr) errs.fullName = nameErr;
+
+      const phoneErr = validatePhoneNumber(phoneNumber);
+      if (phoneErr) errs.phoneNumber = phoneErr;
+
+      const dobErr = validateDob(dob);
+      if (dobErr) errs.dob = dobErr;
+
+      if (!uploadedFile) {
+        errs.uploadedFile = 'Please upload your identity document';
+      }
+    } else {
+      const nameErr = validateCompanyName(companyName);
+      if (nameErr) errs.companyName = nameErr;
+
+      const taxErr = validateTaxId(taxId);
+      if (taxErr) errs.taxId = taxErr;
+
+      const addrErr = validateBusinessAddress(businessAddress);
+      if (addrErr) errs.businessAddress = addrErr;
+
+      const contactErr = validateContactPerson(contactPerson);
+      if (contactErr) errs.contactPerson = contactErr;
+
+      if (!uploadedFile) {
+        errs.uploadedFile = 'Please upload verification documents';
+      }
+    }
+    return errs;
+  };
+
+  const errors = getErrors();
 
   // Restore file preview and metadata on mount if present
   useEffect(() => {
@@ -55,6 +104,7 @@ export function KycView() {
     setUploadedFile(name);
     setFilePreview(preview);
     setFileType(type);
+    setTouched((prev) => ({ ...prev, uploadedFile: true }));
 
     if (typeof window !== 'undefined') {
       if (name) {
@@ -69,14 +119,16 @@ export function KycView() {
 
   const handleFinish = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitted(true);
     setSubmitError('');
 
-    if (isIndividual && (!fullName || !phoneNumber || !dob || !uploadedFile)) {
-      alert('Please fill in all details and upload your identity document.');
-      return;
-    }
-    if (isOrg && (!companyName || !taxId || !businessAddress || !contactPerson || !uploadedFile)) {
-      alert('Please fill in all business details and upload verification documents.');
+    const validationErrors = getErrors();
+    if (Object.keys(validationErrors).length > 0) {
+      notifications.show({
+        title: 'Validation error',
+        message: 'Please fix the errors below before continuing.',
+        color: 'red',
+      });
       return;
     }
 
@@ -237,6 +289,7 @@ export function KycView() {
                     <label className="text-xs font-semibold text-[#737373] flex items-center gap-1.5">
                       <User className="w-3.5 h-3.5 text-slate-400" />
                       <span>Full Legal Name</span>
+                      <span className="text-red-500 ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
@@ -244,8 +297,12 @@ export function KycView() {
                       placeholder="Jane Doe"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
+                      onBlur={() => setTouched((prev) => ({ ...prev, fullName: true }))}
                       className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
                     />
+                    {(touched.fullName || submitted) && errors.fullName && (
+                      <p className="text-[11px] text-red-500 font-medium">{errors.fullName}</p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -253,6 +310,7 @@ export function KycView() {
                       <label className="text-xs font-semibold text-[#737373] flex items-center gap-1.5">
                         <Phone className="w-3.5 h-3.5 text-slate-400" />
                         <span>Phone Number</span>
+                        <span className="text-red-500 ml-0.5">*</span>
                       </label>
                       <input
                         type="tel"
@@ -260,28 +318,38 @@ export function KycView() {
                         placeholder="+1 (555) 000-0000"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
+                        onBlur={() => setTouched((prev) => ({ ...prev, phoneNumber: true }))}
                         className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
                       />
+                      {(touched.phoneNumber || submitted) && errors.phoneNumber && (
+                        <p className="text-[11px] text-red-500 font-medium">{errors.phoneNumber}</p>
+                      )}
                     </div>
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-[#737373] flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5 text-slate-400" />
                         <span>Date of Birth</span>
+                        <span className="text-red-500 ml-0.5">*</span>
                       </label>
                       <input
                         type="date"
                         required
                         value={dob}
                         onChange={(e) => setDob(e.target.value)}
+                        onBlur={() => setTouched((prev) => ({ ...prev, dob: true }))}
                         className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
                       />
+                      {(touched.dob || submitted) && errors.dob && (
+                        <p className="text-[11px] text-red-500 font-medium">{errors.dob}</p>
+                      )}
                     </div>
                   </div>
 
                   <div className="flex flex-col gap-1.5">
                     <Select
                       label="Identity Document Type"
+                      required={true}
                       value={idType}
                       onChange={(e) => setIdType(e.target.value)}
                       options={[
@@ -300,6 +368,7 @@ export function KycView() {
                     <label className="text-xs font-semibold text-[#737373] flex items-center gap-1.5">
                       <Building className="w-3.5 h-3.5 text-slate-400" />
                       <span>Company Legal Name</span>
+                      <span className="text-red-500 ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
@@ -307,8 +376,12 @@ export function KycView() {
                       placeholder="Acme Digital Ltd"
                       value={companyName}
                       onChange={(e) => setCompanyName(e.target.value)}
+                      onBlur={() => setTouched((prev) => ({ ...prev, companyName: true }))}
                       className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
                     />
+                    {(touched.companyName || submitted) && errors.companyName && (
+                      <p className="text-[11px] text-red-500 font-medium">{errors.companyName}</p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -331,6 +404,7 @@ export function KycView() {
                       <label className="text-xs font-semibold text-[#737373] flex items-center gap-1.5">
                         <FileText className="w-3.5 h-3.5 text-slate-400" />
                         <span>Tax ID / EIN Number</span>
+                        <span className="text-red-500 ml-0.5">*</span>
                       </label>
                       <input
                         type="text"
@@ -338,8 +412,12 @@ export function KycView() {
                         placeholder="e.g. EIN-12-3456789"
                         value={taxId}
                         onChange={(e) => setTaxId(e.target.value)}
+                        onBlur={() => setTouched((prev) => ({ ...prev, taxId: true }))}
                         className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
                       />
+                      {(touched.taxId || submitted) && errors.taxId && (
+                        <p className="text-[11px] text-red-500 font-medium">{errors.taxId}</p>
+                      )}
                     </div>
                   </div>
 
@@ -347,6 +425,7 @@ export function KycView() {
                     <label className="text-xs font-semibold text-[#737373] flex items-center gap-1.5">
                       <MapPin className="w-3.5 h-3.5 text-slate-400" />
                       <span>Business Registered Address</span>
+                      <span className="text-red-500 ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
@@ -354,14 +433,19 @@ export function KycView() {
                       placeholder="123 Corporate Blvd, Suite 400, New York, NY"
                       value={businessAddress}
                       onChange={(e) => setBusinessAddress(e.target.value)}
+                      onBlur={() => setTouched((prev) => ({ ...prev, businessAddress: true }))}
                       className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
                     />
+                    {(touched.businessAddress || submitted) && errors.businessAddress && (
+                      <p className="text-[11px] text-red-500 font-medium">{errors.businessAddress}</p>
+                    )}
                   </div>
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-[#737373] flex items-center gap-1.5">
                       <User className="w-3.5 h-3.5 text-slate-400" />
                       <span>Primary Contact Person (Name & Title)</span>
+                      <span className="text-red-500 ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
@@ -369,8 +453,12 @@ export function KycView() {
                       placeholder="Jane Doe (CEO)"
                       value={contactPerson}
                       onChange={(e) => setContactPerson(e.target.value)}
+                      onBlur={() => setTouched((prev) => ({ ...prev, contactPerson: true }))}
                       className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
                     />
+                    {(touched.contactPerson || submitted) && errors.contactPerson && (
+                      <p className="text-[11px] text-red-500 font-medium">{errors.contactPerson}</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -379,18 +467,28 @@ export function KycView() {
               <div className="mt-4">
                 <FileUpload
                   label={isIndividual ? 'Upload Identity Document Scan' : 'Upload Corporate Registry / Business License'}
+                  required={true}
                   value={uploadedFile}
                   previewUrl={filePreview}
                   fileType={fileType}
                   onChange={handleFileChange}
                 />
+                {(touched.uploadedFile || submitted) && errors.uploadedFile && (
+                  <p className="text-[11px] text-red-500 font-medium mt-1">{errors.uploadedFile}</p>
+                )}
               </div>
+
 
               {/* Action Button */}
               <button
                 type="submit"
-                disabled={completeOnboardingMutation.isPending}
-                className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3.5 rounded-xl text-xs font-bold hover:opacity-95 transition shadow-sm mt-6 cursor-pointer disabled:opacity-60"
+                disabled={
+                  completeOnboardingMutation.isPending ||
+                  (isIndividual
+                    ? !fullName.trim() || !phoneNumber.trim() || !dob.trim() || !idType || !uploadedFile || Object.keys(errors).length > 0
+                    : !companyName.trim() || !taxId.trim() || !businessAddress.trim() || !contactPerson.trim() || !uploadedFile || Object.keys(errors).length > 0)
+                }
+                className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3.5 rounded-xl text-xs font-bold hover:opacity-95 transition shadow-sm mt-6 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <span>Verify Identity & Complete Setup</span>
                 <ArrowRight className="w-4 h-4" />

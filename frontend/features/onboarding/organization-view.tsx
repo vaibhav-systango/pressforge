@@ -14,6 +14,13 @@ import {
 } from 'lucide-react';
 import { PasswordInput } from '@/components/common/password-input';
 import { Select } from '@/components/common/select';
+import { notifications } from '@mantine/notifications';
+import {
+  validateWorkspaceName,
+  validateWebsiteUrl,
+  validateOrganizationName,
+  validateOrganizationDescription,
+} from '@/lib/utils/validation';
 
 export function OrganizationView() {
   const router = useRouter();
@@ -169,12 +176,71 @@ export function OrganizationView() {
     setShowInstaModal(true);
   };
 
+  const [instaError, setInstaError] = useState('');
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const getErrors = () => {
+    const errs: Record<string, string> = {};
+    if (accountType === 'individual') {
+      const nameErr = validateWorkspaceName(individualBrandName);
+      if (nameErr) errs.individualBrandName = nameErr;
+
+      if (!individualGoal) {
+        errs.individualGoal = 'Please select a goal';
+      } else if (individualGoal === 'other' && !individualGoalCustom.trim()) {
+        errs.individualGoalCustom = 'Please describe your custom goal';
+      }
+
+      if (individualThemes.length === 0 && !individualThemeInput.trim()) {
+        errs.individualThemes = 'Please select at least one content theme';
+      }
+
+      const webErr = validateWebsiteUrl(individualWebsite);
+      if (webErr) errs.individualWebsite = webErr;
+    } else {
+      const nameErr = validateOrganizationName(orgName);
+      if (nameErr) errs.orgName = nameErr;
+
+      if (!orgWebsite.trim()) {
+        errs.orgWebsite = 'Business Website / Portfolio URL is required';
+      } else {
+        const webErr = validateWebsiteUrl(orgWebsite);
+        if (webErr) errs.orgWebsite = webErr;
+      }
+
+      if (!orgDesc.trim()) {
+        errs.orgDesc = 'Brief Organization Description is required';
+      } else {
+        const descErr = validateOrganizationDescription(orgDesc);
+        if (descErr) errs.orgDesc = descErr;
+      }
+
+      if (orgIndustries.length === 0) {
+        errs.orgIndustries = 'Please select at least one industry';
+      } else if (orgIndustries.includes('Other') && !orgIndustryCustom.trim()) {
+        errs.orgIndustryCustom = 'Please describe your custom industry';
+      }
+
+      if (orgObjectives.length === 0) {
+        errs.orgObjectives = 'Please select at least one primary objective';
+      } else if (orgObjectives.includes('other') && !orgObjectiveCustom.trim()) {
+        errs.orgObjectiveCustom = 'Please describe your custom objective';
+      }
+    }
+    return errs;
+  };
+
+  const errors = getErrors();
+
   const handleInstaLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (!instaUsername.trim()) {
-      alert('Please enter a username.');
+      setInstaError('Please enter a username.');
       return;
     }
+    setInstaError('');
     setInstaStep('loading');
     setTimeout(() => {
       setInstaStep('authorize');
@@ -198,89 +264,78 @@ export function OrganizationView() {
     }, 1000);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitted(true);
 
-    if (accountType === 'individual') {
-      if (!individualBrandName.trim()) {
-        alert('Please enter your Brand / Workspace Name.');
-        return;
-      }
-      if (!individualGoal) {
-        alert('Please select a goal.');
-        return;
-      }
-      if (individualGoal === 'other' && !individualGoalCustom.trim()) {
-        alert('Please tell us your custom purpose.');
-        return;
-      }
-      if (individualThemes.length === 0 && !individualThemeInput.trim()) {
-        alert('Please select at least one content theme.');
-        return;
-      }
-
-      const savedThemes = individualThemeInput.trim()
-        ? individualThemes.includes(individualThemeInput.trim())
-          ? individualThemes
-          : [...individualThemes, individualThemeInput.trim()]
-        : individualThemes;
-      const savedGoal =
-        individualGoal === 'other' ? individualGoalCustom.trim() : individualGoal;
-
-      updateState((prev) => {
-        return {
-          ...prev,
-          accountType: 'individual',
-          individualNiche,
-          individualGoal: savedGoal,
-          individualThemes: savedThemes,
-          individualWebsite,
-          individualInstagramConnected: individualInstaConnected,
-          individualInstagramUsername: individualInstaUser,
-          currentStep: 2,
-        };
+    const validationErrors = getErrors();
+    if (Object.keys(validationErrors).length > 0) {
+      notifications.show({
+        title: 'Validation error',
+        message: 'Please fix the errors below before continuing.',
+        color: 'red',
       });
+      return;
+    }
 
-      router.push('/onboarding/workspace');
-    } else {
-      if (!orgName.trim()) {
-        alert('Please enter an organization name.');
-        return;
-      }
-      if (orgIndustries.includes('Other') && !orgIndustryCustom.trim()) {
-        alert('Please describe your custom industry.');
-        return;
-      }
-      if (orgObjectives.length === 0) {
-        alert('Please select at least one primary business objective.');
-        return;
-      }
-      if (orgObjectives.includes('other') && !orgObjectiveCustom.trim()) {
-        alert('Please enter your custom objective.');
-        return;
-      }
+    setIsSubmitting(true);
+    try {
+      if (accountType === 'individual') {
+        const savedThemes = individualThemeInput.trim()
+          ? individualThemes.includes(individualThemeInput.trim())
+            ? individualThemes
+            : [...individualThemes, individualThemeInput.trim()]
+          : individualThemes;
+        const savedGoal =
+          individualGoal === 'other' ? individualGoalCustom.trim() : individualGoal;
 
-      const savedIndustries =
-        orgIndustries.includes('Other') && orgIndustryCustom.trim()
-          ? [...orgIndustries.filter((industry) => industry !== 'Other'), orgIndustryCustom.trim()]
-          : orgIndustries;
-      const savedObjective = orgObjectives.join(', ');
+        await updateState((prev) => {
+          return {
+            ...prev,
+            accountType: 'individual',
+            individualNiche,
+            individualGoal: savedGoal,
+            individualThemes: savedThemes,
+            individualWebsite,
+            individualInstagramConnected: individualInstaConnected,
+            individualInstagramUsername: individualInstaUser,
+            currentStep: 2,
+          };
+        });
 
-      updateState((prev) => ({
-        ...prev,
-        accountType: 'organization',
-        organizationName: orgName,
-        organizationTeamSize: teamSize,
-        organizationWebsite: orgWebsite,
-        organizationIndustries: savedIndustries,
-        organizationIndustryCustom: orgIndustryCustom.trim(),
-        organizationObjective: savedObjective,
-        organizationObjectiveCustom: orgObjectives.includes('other') ? orgObjectiveCustom.trim() : '',
-        organizationDescription: orgDesc,
-        currentStep: 2,
-      }));
+        router.push('/onboarding/workspace');
+      } else {
+        const savedIndustries =
+          orgIndustries.includes('Other') && orgIndustryCustom.trim()
+            ? [...orgIndustries.filter((industry) => industry !== 'Other'), orgIndustryCustom.trim()]
+            : orgIndustries;
+        const savedObjective = orgObjectives.join(', ');
 
-      router.push('/onboarding/kyc');
+        await updateState((prev) => ({
+          ...prev,
+          accountType: 'organization',
+          organizationName: orgName,
+          organizationTeamSize: teamSize,
+          organizationWebsite: orgWebsite,
+          organizationIndustries: savedIndustries,
+          organizationIndustryCustom: orgIndustryCustom.trim(),
+          organizationObjective: savedObjective,
+          organizationObjectiveCustom: orgObjectives.includes('other') ? orgObjectiveCustom.trim() : '',
+          organizationDescription: orgDesc,
+          currentStep: 2,
+        }));
+
+        router.push('/onboarding/kyc');
+      }
+    } catch (err) {
+      console.error(err);
+      notifications.show({
+        title: 'Error saving details',
+        message: err instanceof Error ? err.message : 'Please try again.',
+        color: 'red',
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -388,6 +443,7 @@ export function OrganizationView() {
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-[#737373]" htmlFor="brand-name">
                     Workspace / Brand Name
+                    <span className="text-red-500 ml-0.5">*</span>
                   </label>
                   <input
                     id="brand-name"
@@ -396,13 +452,18 @@ export function OrganizationView() {
                     placeholder="e.g. Jane Styles Travel"
                     value={individualBrandName}
                     onChange={(e) => setIndividualBrandName(e.target.value)}
+                    onBlur={() => setTouched((prev) => ({ ...prev, individualBrandName: true }))}
                     className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
                   />
+                  {(touched.individualBrandName || submitted) && errors.individualBrandName && (
+                    <p className="text-[11px] text-red-500 font-medium">{errors.individualBrandName}</p>
+                  )}
                 </div>
 
                 <div className="flex flex-col gap-1.5">
                   <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                     Why are you creating this brand?
+                    <span className="text-red-500 ml-0.5">*</span>
                   </p>
                   <p className="text-sm text-slate-500">
                     Choose the goal that best matches your current priority, or select Other to
@@ -415,17 +476,23 @@ export function OrganizationView() {
                     <button
                       type="button"
                       key={option.value}
-                      onClick={() => handleGoalSelect(option.value)}
+                      onClick={() => {
+                        handleGoalSelect(option.value);
+                        setTouched((prev) => ({ ...prev, individualGoal: true }));
+                      }}
                       className={`text-left rounded-2xl border px-4 py-3 text-sm font-semibold transition duration-150 ${
                         individualGoal === option.value
-                          ? 'border-instagram-pink bg-pink-50 text-slate-900'
-                          : 'border-[#E5E7EB] bg-white text-slate-600 hover:border-slate-300'
+                           ? 'border-instagram-pink bg-pink-50 text-slate-900'
+                           : 'border-[#E5E7EB] bg-white text-slate-600 hover:border-slate-300'
                       }`}
                     >
                       {option.label}
                     </button>
                   ))}
                 </div>
+                {(touched.individualGoal || submitted) && errors.individualGoal && (
+                  <p className="text-[11px] text-red-500 font-medium">{errors.individualGoal}</p>
+                )}
 
                 {individualGoal === 'other' && (
                   <div className="flex flex-col gap-1.5">
@@ -438,14 +505,19 @@ export function OrganizationView() {
                       placeholder="e.g. Showcase my handmade art, generate event leads"
                       value={individualGoalCustom}
                       onChange={(e) => setIndividualGoalCustom(e.target.value)}
+                      onBlur={() => setTouched((prev) => ({ ...prev, individualGoalCustom: true }))}
                       className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
                     />
+                    {(touched.individualGoalCustom || submitted) && errors.individualGoalCustom && (
+                      <p className="text-[11px] text-red-500 font-medium">{errors.individualGoalCustom}</p>
+                    )}
                   </div>
                 )}
 
                 <div className="flex flex-col gap-1.5">
                   <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                     What content themes should we prioritize?
+                    <span className="text-red-500 ml-0.5">*</span>
                   </p>
                   <p className="text-sm text-slate-500">
                     Pick your most important themes, then add a custom theme if needed.
@@ -459,7 +531,10 @@ export function OrganizationView() {
                       <button
                         type="button"
                         key={theme}
-                        onClick={() => toggleTheme(theme)}
+                        onClick={() => {
+                          toggleTheme(theme);
+                          setTouched((prev) => ({ ...prev, individualThemes: true }));
+                        }}
                         className={`rounded-full border px-3 py-2 text-xs font-semibold transition duration-150 ${
                           active
                             ? 'border-instagram-pink bg-pink-50 text-instagram-pink'
@@ -471,6 +546,9 @@ export function OrganizationView() {
                     );
                   })}
                 </div>
+                {(touched.individualThemes || submitted) && errors.individualThemes && (
+                  <p className="text-[11px] text-red-500 font-medium">{errors.individualThemes}</p>
+                )}
 
                 <div className="flex flex-col gap-2">
                   <label className="text-xs font-semibold text-[#737373]" htmlFor="theme-custom">
@@ -527,8 +605,12 @@ export function OrganizationView() {
                     placeholder="https://example.com"
                     value={individualWebsite}
                     onChange={(e) => setIndividualWebsite(e.target.value)}
+                    onBlur={() => setTouched((prev) => ({ ...prev, individualWebsite: true }))}
                     className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
                   />
+                  {(touched.individualWebsite || submitted) && errors.individualWebsite && (
+                    <p className="text-[11px] text-red-500 font-medium">{errors.individualWebsite}</p>
+                  )}
                 </div>
 
                 <div className="flex flex-col gap-2">
@@ -600,6 +682,7 @@ export function OrganizationView() {
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-[#737373]" htmlFor="org-name">
                         Organization Legal Name
+                        <span className="text-red-500 ml-0.5">*</span>
                       </label>
                       <input
                         id="org-name"
@@ -608,8 +691,12 @@ export function OrganizationView() {
                         placeholder="e.g. Zenith Media Agency"
                         value={orgName}
                         onChange={(e) => setOrgName(e.target.value)}
+                        onBlur={() => setTouched((prev) => ({ ...prev, orgName: true }))}
                         className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
                       />
+                      {(touched.orgName || submitted) && errors.orgName && (
+                        <p className="text-[11px] text-red-500 font-medium">{errors.orgName}</p>
+                      )}
                     </div>
 
                     <div className="flex flex-col gap-1.5">
@@ -632,6 +719,7 @@ export function OrganizationView() {
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-[#737373]" htmlFor="org-website">
                       Business Website / Portfolio URL
+                      <span className="text-red-500 ml-0.5">*</span>
                     </label>
                     <input
                       id="org-website"
@@ -639,14 +727,19 @@ export function OrganizationView() {
                       placeholder="https://yourcompany.com"
                       value={orgWebsite}
                       onChange={(e) => setOrgWebsite(e.target.value)}
+                      onBlur={() => setTouched((prev) => ({ ...prev, orgWebsite: true }))}
                       className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
                     />
+                    {(touched.orgWebsite || submitted) && errors.orgWebsite && (
+                      <p className="text-[11px] text-red-500 font-medium">{errors.orgWebsite}</p>
+                    )}
                   </div>
 
                   <div className="flex flex-col gap-2">
                     <div>
                       <label className="text-xs font-semibold text-[#737373]">
                         Business type / Industry verticals
+                        <span className="text-red-500 ml-0.5">*</span>
                       </label>
                       <p className="text-[11px] text-slate-400 mt-1">
                         Select one or more industry labels that fit your organization.
@@ -659,7 +752,10 @@ export function OrganizationView() {
                           <button
                             type="button"
                             key={industry}
-                            onClick={() => toggleIndustry(industry)}
+                            onClick={() => {
+                                toggleIndustry(industry);
+                                setTouched((prev) => ({ ...prev, orgIndustries: true }));
+                            }}
                             className={`rounded-full border px-3 py-2 text-xs font-semibold transition duration-150 ${
                               active
                                 ? 'border-instagram-pink bg-pink-50 text-instagram-pink'
@@ -671,6 +767,9 @@ export function OrganizationView() {
                         );
                       })}
                     </div>
+                    {(touched.orgIndustries || submitted) && errors.orgIndustries && (
+                      <p className="text-[11px] text-red-500 font-medium">{errors.orgIndustries}</p>
+                    )}
 
                     {orgIndustries.includes('Other') && (
                       <div className="flex flex-col gap-1.5">
@@ -686,8 +785,12 @@ export function OrganizationView() {
                           placeholder="e.g. Sustainable sports nutrition"
                           value={orgIndustryCustom}
                           onChange={(e) => setOrgIndustryCustom(e.target.value)}
+                          onBlur={() => setTouched((prev) => ({ ...prev, orgIndustryCustom: true }))}
                           className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
                         />
+                        {(touched.orgIndustryCustom || submitted) && errors.orgIndustryCustom && (
+                          <p className="text-[11px] text-red-500 font-medium">{errors.orgIndustryCustom}</p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -696,6 +799,7 @@ export function OrganizationView() {
                     <div>
                       <label className="text-xs font-semibold text-[#737373]">
                         Primary business objective
+                        <span className="text-red-500 ml-0.5">*</span>
                       </label>
                       <p className="text-[11px] text-slate-400 mt-1">
                         Pick the goals that best describe why you onboard PressForge.
@@ -706,7 +810,10 @@ export function OrganizationView() {
                         <button
                           key={option.value}
                           type="button"
-                          onClick={() => handleOrgObjectiveSelect(option.value)}
+                          onClick={() => {
+                            handleOrgObjectiveSelect(option.value);
+                            setTouched((prev) => ({ ...prev, orgObjectives: true }));
+                          }}
                           className={`text-left rounded-2xl border p-4 text-sm font-semibold transition duration-150 ${
                             orgObjectives.includes(option.value)
                               ? 'border-instagram-pink bg-pink-50 text-slate-900 shadow-sm'
@@ -717,6 +824,9 @@ export function OrganizationView() {
                         </button>
                       ))}
                     </div>
+                    {(touched.orgObjectives || submitted) && errors.orgObjectives && (
+                      <p className="text-[11px] text-red-500 font-medium">{errors.orgObjectives}</p>
+                    )}
                   </div>
 
                   {orgObjectives.includes('other') && (
@@ -733,14 +843,19 @@ export function OrganizationView() {
                         placeholder="e.g. streamline our agency approval process"
                         value={orgObjectiveCustom}
                         onChange={(e) => setOrgObjectiveCustom(e.target.value)}
+                        onBlur={() => setTouched((prev) => ({ ...prev, orgObjectiveCustom: true }))}
                         className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
                       />
+                      {(touched.orgObjectiveCustom || submitted) && errors.orgObjectiveCustom && (
+                        <p className="text-[11px] text-red-500 font-medium">{errors.orgObjectiveCustom}</p>
+                      )}
                     </div>
                   )}
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-[#737373]" htmlFor="org-desc">
                       Brief Organization Description
+                      <span className="text-red-500 ml-0.5">*</span>
                     </label>
                     <textarea
                       id="org-desc"
@@ -748,8 +863,12 @@ export function OrganizationView() {
                       placeholder="e.g. A digital marketing agency specializing in organic retail growth."
                       value={orgDesc}
                       onChange={(e) => setOrgDesc(e.target.value)}
+                      onBlur={() => setTouched((prev) => ({ ...prev, orgDesc: true }))}
                       className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150 resize-none"
                     />
+                    {(touched.orgDesc || submitted) && errors.orgDesc && (
+                      <p className="text-[11px] text-red-500 font-medium">{errors.orgDesc}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -757,9 +876,24 @@ export function OrganizationView() {
 
             <button
               type="submit"
-              className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3.5 rounded-full text-sm font-bold hover:opacity-95 transition shadow-md mt-4 cursor-pointer"
+              disabled={
+                isSubmitting ||
+                (accountType === 'individual'
+                  ? !individualBrandName.trim() ||
+                    !individualGoal ||
+                    (individualGoal === 'other' && !individualGoalCustom.trim()) ||
+                    (individualThemes.length === 0 && !individualThemeInput.trim()) ||
+                    Object.keys(errors).length > 0
+                  : !orgName.trim() ||
+                    !orgWebsite.trim() ||
+                    !orgDesc.trim() ||
+                    (orgIndustries.length === 0 && !orgIndustryCustom.trim()) ||
+                    (orgObjectives.length === 0 && !orgObjectiveCustom.trim()) ||
+                    Object.keys(errors).length > 0)
+              }
+              className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3.5 rounded-full text-sm font-bold hover:opacity-95 transition shadow-md mt-4 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <span>{submitLabel}</span>
+              <span>{isSubmitting ? 'Saving settings...' : submitLabel}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
@@ -814,6 +948,10 @@ export function OrganizationView() {
                       Sign in to authorize PressForge Client integration
                     </p>
                   </div>
+
+                  {instaError && (
+                    <p className="text-[11px] text-red-500 font-medium text-center">{instaError}</p>
+                  )}
 
                   <div className="flex flex-col gap-2">
                     <input

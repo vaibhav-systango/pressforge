@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const GUEST_ONLY_AUTH_PATHS = ['/auth/login', '/auth/signup', '/auth/accept-invite'];
+const GUEST_ONLY_AUTH_PATHS = ['/auth/login', '/auth/signup', '/auth/accept-invite', '/auth/forgot-password'];
 
 const PUBLIC_API_PREFIXES = [
   '/api/auth/login',
   '/api/auth/signup',
   '/api/auth/refresh',
   '/api/auth/logout',
+  '/api/auth/forgot-password',
+  '/api/auth/verify-reset-code',
+  '/api/auth/reset-password',
   '/api/session/init',
   '/api/invitations/accept',
 ];
@@ -142,6 +145,7 @@ export const config = {
     '/auth/login',
     '/auth/signup',
     '/auth/accept-invite',
+    '/auth/forgot-password',
   ],
 };
 

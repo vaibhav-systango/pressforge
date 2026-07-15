@@ -59,3 +59,18 @@ class OrganizationUpdateRequest(BaseModel):
     """Schema for updating organization name."""
     name: str = Field(..., min_length=1, max_length=100)
 
+class ForgotPasswordRequest(BaseModel):
+    """Schema for password reset request."""
+    email: EmailStr
+
+class VerifyResetCodeRequest(BaseModel):
+    """Schema for verifying password reset verification code."""
+    email: EmailStr
+    code: str = Field(..., min_length=6, max_length=6)
+
+class ResetPasswordRequest(BaseModel):
+    """Schema for resetting user password using verification code."""
+    email: EmailStr
+    code: str = Field(..., min_length=6, max_length=6)
+    newPassword: str = Field(..., min_length=8, max_length=30)
+

@@ -44,6 +44,8 @@ class User(Base):
     isDeleted = Column(Boolean, nullable=False, default=False, index=True)
     lastLogin = Column(BigInteger, nullable=True)
     passwordUpdatedAt = Column(BigInteger, nullable=False, default=generate_timestamp_ms)
+    passwordResetCode = Column(String, nullable=True)
+    passwordResetExpiresAt = Column(BigInteger, nullable=True)
     createdAt = Column(BigInteger, nullable=False, default=generate_timestamp_ms)
     updatedAt = Column(BigInteger, nullable=False, default=generate_timestamp_ms, onupdate=generate_timestamp_ms)
     deletedAt = Column(BigInteger, nullable=True)

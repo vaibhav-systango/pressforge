@@ -4,7 +4,19 @@ import logging
 
 from app.database.database import get_db
 from app.models.user import User
-from app.schemas.auth import UserCreate, UserLogin, UserResponse, Token, TokenRefreshRequest, ProfileUpdateRequest, PasswordUpdateRequest, OrganizationUpdateRequest
+from app.schemas.auth import (
+    UserCreate,
+    UserLogin,
+    UserResponse,
+    Token,
+    TokenRefreshRequest,
+    ProfileUpdateRequest,
+    PasswordUpdateRequest,
+    OrganizationUpdateRequest,
+    ForgotPasswordRequest,
+    VerifyResetCodeRequest,
+    ResetPasswordRequest,
+)
 from app.core.dependencies import get_current_user, permission_guard
 from app.services.auth_service import auth_service
 from app.repositories.organization_repository import organization_repository
@@ -234,4 +246,93 @@ async def delete_me(
     from app.repositories.user_repository import user_repository
     user_repository.delete_user(db, current_user)
     return {"message": "Account deleted successfully."}
+
+
+@router.post(
+    "/forgot-password",
+    summary="Request Password Reset",
+    description="Send a 6-digit verification code to the user's email if they exist.",
+)
+async def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    try:
+        auth_service.request_password_reset(db, req.email)
+        return {"message": "If the email is registered, a password reset code has been sent."}
+    except Exception as e:
+        code = str(e)
+        if code == AuthErrorCodes.USER_NOT_FOUND:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=AuthErrorMessages.USER_NOT_FOUND
+            )
+        logger.error(f"Unexpected error in forgot_password: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred."
+        )
+
+
+@router.post(
+    "/verify-reset-code",
+    summary="Verify Reset Code",
+    description="Verify the 6-digit password reset code sent to the user's email.",
+)
+async def verify_reset_code(req: VerifyResetCodeRequest, db: Session = Depends(get_db)):
+    try:
+        auth_service.verify_password_reset_code(db, req.email, req.code)
+        return {"message": "Verification code is valid."}
+    except Exception as e:
+        code = str(e)
+        if code == AuthErrorCodes.USER_NOT_FOUND:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=AuthErrorMessages.USER_NOT_FOUND
+            )
+        elif code == AuthErrorCodes.RESET_CODE_INVALID:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=AuthErrorMessages.RESET_CODE_INVALID
+            )
+        elif code == AuthErrorCodes.RESET_CODE_EXPIRED:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=AuthErrorMessages.RESET_CODE_EXPIRED
+            )
+        logger.error(f"Unexpected error in verify_reset_code: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred."
+        )
+
+
+@router.post(
+    "/reset-password",
+    summary="Reset Password",
+    description="Reset user's password using the verification code.",
+)
+async def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
+    try:
+        auth_service.reset_password(db, req.email, req.code, req.newPassword)
+        return {"message": "Password has been reset successfully."}
+    except Exception as e:
+        code = str(e)
+        if code == AuthErrorCodes.USER_NOT_FOUND:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=AuthErrorMessages.USER_NOT_FOUND
+            )
+        elif code == AuthErrorCodes.RESET_CODE_INVALID:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=AuthErrorMessages.RESET_CODE_INVALID
+            )
+        elif code == AuthErrorCodes.RESET_CODE_EXPIRED:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=AuthErrorMessages.RESET_CODE_EXPIRED
+            )
+        logger.error(f"Unexpected error in reset_password: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred."
+        )
 
