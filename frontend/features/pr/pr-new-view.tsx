@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAppState, useJournalistsQuery } from '@/lib/queries/use-app-state';
 import React, { useState } from 'react';
-import { ChevronLeft, Send, Filter, Search, UserCheck } from 'lucide-react';
+import { ChevronLeft, Send, UserCheck } from 'lucide-react';
 import { useDebounce } from '@/lib/hooks/use-debounce';
 import { Select } from '@/components/common/select';
 

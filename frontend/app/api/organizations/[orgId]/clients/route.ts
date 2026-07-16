@@ -32,7 +32,7 @@ export async function GET(
   const queryString = queryParams.toString();
   const endpoint = `/organizations/${orgId}/clients${queryString ? `?${queryString}` : ''}`;
 
-  const { data, errorMessage, response } = await callBackend<any>(
+  const { data, errorMessage, response } = await callBackend<unknown>(
     endpoint,
     {
       method: 'GET',

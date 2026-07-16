@@ -64,7 +64,7 @@ export function validateWebsiteUrl(value: string | undefined | null): string | n
       return 'URL must start with http:// or https://';
     }
     return null;
-  } catch (e) {
+  } catch {
     return 'Enter a valid URL';
   }
 }

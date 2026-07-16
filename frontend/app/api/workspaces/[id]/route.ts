@@ -136,7 +136,9 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   if (body?.schedule) {
-    const { id: _scheduleId, workspaceId: _workspaceId, ...scheduleFields } = body.schedule;
+    const scheduleFields: Partial<Schedule> = { ...body.schedule };
+    delete scheduleFields.id;
+    delete scheduleFields.workspaceId;
     const { data, errorMessage, response } = await callBackend<ScheduleResponse>(
       `/workspaces/${id}/schedules`,
       {

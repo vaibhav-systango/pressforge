@@ -48,7 +48,7 @@ export async function POST() {
     const response = NextResponse.json({ success: true, expiresIn: ACCESS_TOKEN_TTL_SECONDS });
 
     return setAuthCookies(response, accessToken, newRefreshToken);
-  } catch (error) {
+  } catch {
     // 2. If frontend-signed token verification failed, try backend refresh flow
     try {
       const { data, errorMessage, response } = await callBackend<BackendTokenResponse>('/auth/refresh', {
@@ -65,7 +65,7 @@ export async function POST() {
       }
 
       return await issueBackendAuthResponse(data);
-    } catch (backendError) {
+    } catch {
       return jsonError('Refresh token expired or invalid', 401, 'REFRESH_EXPIRED');
     }
   }

@@ -16,7 +16,7 @@ export async function PUT(request: Request) {
     return jsonError('Current password and new password are required', 400, 'BAD_REQUEST');
   }
 
-  const { errorMessage, response } = await callBackend<any>('/auth/change-password', {
+  const { errorMessage, response } = await callBackend<unknown>('/auth/change-password', {
     method: 'PUT',
     accessToken,
     body: JSON.stringify({

@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Home } from 'lucide-react';
+import { useMounted } from '@/lib/hooks/use-mounted';
 
 interface ErrorProps {
   error: Error & { digest?: string };
@@ -12,10 +13,9 @@ interface ErrorProps {
 
 export default function ErrorPage({ error, reset }: ErrorProps) {
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
 
   useEffect(() => {
-    setMounted(true);
     console.error('Application Runtime Error:', error);
   }, [error]);
 

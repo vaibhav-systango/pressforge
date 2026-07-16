@@ -211,7 +211,7 @@ export function useAppState() {
 
     if (user?.organizationId) {
       try {
-        const payload: any = {};
+        const payload: Record<string, unknown> = {};
         if (options?.workspaceId !== undefined) {
           payload.workspaceId = options.workspaceId;
         } else {
@@ -276,11 +276,12 @@ export function useAppState() {
   };
 
   const addWorkspaceSchedule = async (workspaceId: string, schedule: Schedule) => {
-    const { id: _id, workspaceId: _wsId, ...scheduleFields } = schedule;
+    const payload = { ...schedule };
+    delete payload.workspaceId;
     const res = await fetch(`/api/workspaces/${workspaceId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ schedule: { ...scheduleFields, id: schedule.id } }),
+      body: JSON.stringify({ schedule: payload }),
     });
     if (!res.ok) throw new Error('Failed to add schedule');
     await syncWorkspacesInCache();

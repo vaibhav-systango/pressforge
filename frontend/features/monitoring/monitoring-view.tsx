@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
 import React, { useState } from 'react';
 
-import { ShieldCheck, MessageSquare, AlertCircle, RefreshCw, Sparkles, Send, Twitter, FileText, Globe, ArrowRight, X } from 'lucide-react';
+import { ShieldCheck, Sparkles, Twitter, FileText, Globe, ArrowRight, X } from 'lucide-react';
 
 
 
@@ -214,7 +214,7 @@ export function MonitoringView() {
                     </span>
                   </div>
 
-                  <p className="text-xs text-text-primary leading-relaxed italic">"{men.content}"</p>
+                  <p className="text-xs text-text-primary leading-relaxed italic">&quot;{men.content}&quot;</p>
 
                   <div className="text-right">
                     <button
@@ -286,7 +286,7 @@ export function MonitoringView() {
             <div className="border border-border-primary rounded-xl p-3 bg-[#FAFAFA] text-xs font-semibold text-text-primary leading-normal">
               Proposed Writing Rule:
               <p className="text-xs text-instagram-pink font-bold mt-1 font-mono">
-                "{proposedRule}"
+                &quot;{proposedRule}&quot;
               </p>
             </div>
 

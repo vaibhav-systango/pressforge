@@ -7,7 +7,6 @@ import type {
   Mention,
   MockEmail,
   OrgUser,
-  Schedule,
   Workspace,
 } from '@/lib/types';
 

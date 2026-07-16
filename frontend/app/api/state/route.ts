@@ -112,7 +112,7 @@ export async function GET() {
         const orgId = cookieStore.get(ORGANIZATION_ID_COOKIE)?.value;
 
         if (orgId) {
-          const { data: clientsData } = await callBackend<any[]>(
+          const { data: clientsData } = await callBackend<Record<string, unknown>[]>(
             `/organizations/${orgId}/clients`,
             {
               method: 'GET',
@@ -123,18 +123,29 @@ export async function GET() {
           if (clientsData && Array.isArray(clientsData)) {
             clients = clientsData
               .filter((c) => {
-                const isExpired = c.status === 'expired' || (c.expiresAt && new Date(c.expiresAt) < new Date());
-                return c.status === 'active' && !isExpired && c.role?.toUpperCase() === 'CLIENT';
+                const status = c.status as string | undefined;
+                const expiresAt = c.expiresAt as string | undefined;
+                const role = c.role as string | undefined;
+                const isExpired = status === 'expired' || (expiresAt && new Date(expiresAt) < new Date());
+                return status === 'active' && !isExpired && role?.toUpperCase() === 'CLIENT';
               })
-              .map((c) => ({
-                id: c.id,
-                name: c.name || c.fullName,
-                email: c.email,
-                status: 'active' as const,
-                role: c.role || 'CLIENT',
-                workspaceId: c.workspaceId || '',
-                workspaceIds: c.workspaceIds || (c.workspaceId ? [c.workspaceId] : []),
-              }));
+              .map((c) => {
+                const id = c.id as string;
+                const name = (c.name || c.fullName) as string;
+                const email = c.email as string;
+                const role = (c.role || 'CLIENT') as string;
+                const workspaceId = (c.workspaceId || '') as string;
+                const workspaceIds = (c.workspaceIds || (c.workspaceId ? [c.workspaceId] : [])) as string[];
+                return {
+                  id,
+                  name,
+                  email,
+                  status: 'active' as const,
+                  role,
+                  workspaceId,
+                  workspaceIds,
+                };
+              });
 
             updateSession(auth.sessionId, { clients });
           }
@@ -181,12 +192,10 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: 'merge required', code: 'BAD_REQUEST' }, { status: 400 });
       }
 
-      const {
-        workspaces: _workspaces,
-        activeWorkspaceId: _activeWorkspaceId,
-        drafts: _drafts,
-        ...sessionMerge
-      } = body.merge;
+      const sessionMerge = { ...body.merge };
+      delete sessionMerge.workspaces;
+      delete sessionMerge.activeWorkspaceId;
+      delete sessionMerge.drafts;
 
       const state = updateSession(auth.sessionId, (prev) => ({ ...prev, ...sessionMerge }));
       const mergedState = await mergeBackendState(state, session.accessToken!);
@@ -202,8 +211,10 @@ export async function PATCH(request: Request) {
   }
 
   ensureGuestSession(session.sessionId);
-  const { workspaces: _workspaces, activeWorkspaceId: _activeWorkspaceId, drafts: _drafts, ...sessionMerge } =
-    body.merge;
+  const sessionMerge = { ...body.merge };
+  delete sessionMerge.workspaces;
+  delete sessionMerge.activeWorkspaceId;
+  delete sessionMerge.drafts;
   const state = updateSession(session.sessionId, (prev) => ({ ...prev, ...sessionMerge }));
   const response = NextResponse.json({ state });
   if (session.guestId) {

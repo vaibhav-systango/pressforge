@@ -52,10 +52,10 @@ export async function POST(request: Request) {
     return jsonError('Authentication required', 401, 'TOKEN_MISSING');
   }
 
-  const { id: _clientId, createdAt: _c, updatedAt: _u, ...payload } = draft as Draft & {
-    createdAt?: unknown;
-    updatedAt?: unknown;
-  };
+  const payload = { ...draft } as Partial<Draft> & { createdAt?: unknown; updatedAt?: unknown };
+  delete payload.id;
+  delete payload.createdAt;
+  delete payload.updatedAt;
 
   const { data, errorMessage, response } = await callBackend<DraftResponse>('/drafts', {
     method: 'POST',

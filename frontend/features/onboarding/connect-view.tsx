@@ -37,7 +37,14 @@ export function OnboardingConnectView() {
         }));
       }
     }
-  }, [isIndividual, isOrg, state.individualInstagramConnected, state.orgUsers]);
+  }, [
+    isIndividual,
+    isOrg,
+    state.individualInstagramConnected,
+    state.orgUsers,
+    state.connectedAccounts?.instagram,
+    updateState,
+  ]);
 
   const simulateConnect = (platform: 'instagram' | 'linkedin') => {
     setConnecting(platform);

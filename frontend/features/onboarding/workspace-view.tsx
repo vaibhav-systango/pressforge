@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { OnboardingStepper } from '@/components/onboarding/onboarding-stepper';
 import { ArrowRight } from 'lucide-react';
 import { FileUpload } from '@/components/common/file-upload';
@@ -38,22 +38,29 @@ export function WorkspaceView() {
 
   const errors = getErrors();
 
-  const [uploadedFile, setUploadedFile] = useState<string | null>(activeWs?.brandAsset || null);
-  const [filePreview, setFilePreview] = useState<string | null>(null);
-  const [fileType, setFileType] = useState<string | null>(null);
-
-  useEffect(() => {
+  const [uploadedFile, setUploadedFile] = useState<string | null>(() => activeWs?.brandAsset || null);
+  const [filePreview, setFilePreview] = useState<string | null>(() => {
     if (activeWs?.brandAsset) {
       try {
         const parsed = JSON.parse(activeWs.brandAsset);
-        setUploadedFile(activeWs.brandAsset);
-        setFilePreview(parsed.secureUrl || null);
-        setFileType(parsed.resourceType === 'raw' ? 'application/pdf' : 'image/png');
+        return parsed.secureUrl || null;
       } catch (e) {
         console.error(e);
       }
     }
-  }, [activeWs]);
+    return null;
+  });
+  const [fileType, setFileType] = useState<string | null>(() => {
+    if (activeWs?.brandAsset) {
+      try {
+        const parsed = JSON.parse(activeWs.brandAsset);
+        return parsed.resourceType === 'raw' ? 'application/pdf' : 'image/png';
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return null;
+  });
 
   const handleFileChange = (name: string | null, preview: string | null, type: string | null) => {
     setUploadedFile(name);

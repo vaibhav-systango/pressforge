@@ -1,14 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { 
-  Building, Plus, Trash2, Edit3, Save, X, 
-  Users, ArrowRight, ShieldCheck, HelpCircle, 
-  Layers, ExternalLink, Globe, FileText, Calendar, Clock, Repeat,
+  Building, Plus, Trash2, Save, X, 
+  Users, ShieldCheck, 
+  Layers, ExternalLink, Globe, FileText, Calendar,
   ChevronDown, Briefcase, Smile, Sparkles, Flame, Heart
 } from 'lucide-react';
 import type { Workspace, ClientUser, Schedule } from '@/lib/types';
@@ -42,7 +42,6 @@ export function WorkspacesView() {
     deleteWorkspace, 
     updateClient,
     addWorkspaceSchedule, 
-    updateWorkspaceSchedule, 
     deleteWorkspaceSchedule,
     setActiveWorkspace
   } = useAppState();
@@ -51,16 +50,14 @@ export function WorkspacesView() {
   const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(true);
 
   // Workspace selection state
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>('');
+  const [localSelectedWorkspaceId, setLocalSelectedWorkspaceId] = useState<string>('');
+  const selectedWorkspaceId = localSelectedWorkspaceId || workspaces[0]?.id || '';
+  const setSelectedWorkspaceId = setLocalSelectedWorkspaceId;
 
   const initialLoadDone = React.useRef(false);
 
   const fetchWorkspaces = React.useCallback(async () => {
     try {
-      // Only show full-page loader on initial fetch, not on refetches
-      if (!initialLoadDone.current) {
-        setIsLoadingWorkspaces(true);
-      }
       // Always fetch ALL workspaces for the organization — no client filtering
       const res = await fetch(`/api/workspaces`);
       if (res.ok) {
@@ -76,29 +73,17 @@ export function WorkspacesView() {
   }, []);
 
   React.useEffect(() => {
-    fetchWorkspaces();
+    const handle = setTimeout(() => {
+      fetchWorkspaces();
+    }, 0);
+    return () => clearTimeout(handle);
   }, [fetchWorkspaces]);
 
-  // Initialize local selection to the first workspace once loaded — purely local, never syncs from global state
-  React.useEffect(() => {
-    if (workspaces.length > 0 && !selectedWorkspaceId) {
-      setSelectedWorkspaceId(workspaces[0].id);
-    }
-  }, [workspaces, selectedWorkspaceId]);
-
-  const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   // Workspace forms states
-  const [isCreating, setIsCreating] = useState(false);
-
-  React.useEffect(() => {
-    if (searchParams.get('new') === 'true') {
-      setIsCreating(true);
-      router.replace('/app/workspaces');
-    }
-  }, [searchParams, router]);
+  const [isCreating, setIsCreating] = useState(() => searchParams.get('new') === 'true');
 
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [newWorkspaceWebsite, setNewWorkspaceWebsite] = useState('');
@@ -177,9 +162,32 @@ export function WorkspacesView() {
   const modalRef = React.useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
 
+  const openCreateModal = React.useCallback(() => {
+    setSelectedModalClientId(state.activeClientId || '');
+    setClientSearchQuery('');
+    setVisibleClientsCount(10);
+    setIsLoadingMoreClients(false);
+    setShowModalClientDropdown(false);
+    setValidationError(null);
+    setIsCreating(true);
+  }, [state.activeClientId]);
+
   React.useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
+    if (searchParams.get('new') === 'true') {
+      const handle = setTimeout(() => {
+        openCreateModal();
+        router.replace('/app/workspaces');
+      }, 0);
+      return () => clearTimeout(handle);
+    }
+  }, [searchParams, router, openCreateModal]);
+
+  React.useEffect(() => {
+    const handle = requestAnimationFrame(() => setMounted(true));
+    return () => {
+      cancelAnimationFrame(handle);
+      setMounted(false);
+    };
   }, []);
 
   React.useEffect(() => {
@@ -187,8 +195,10 @@ export function WorkspacesView() {
       if (e.key === 'Escape') {
         if (deleteConfirmId && !isDeletingWorkspace) {
           setDeleteConfirmId(null);
+          setDeleteWorkspaceError(null);
         } else if (scheduleDeleteConfirmId && !isDeletingSchedule) {
           setScheduleDeleteConfirmId(null);
+          setDeleteScheduleError(null);
         } else if (isCreating) {
           setIsCreating(false);
         }
@@ -209,18 +219,6 @@ export function WorkspacesView() {
     };
   }, [isCreating, deleteConfirmId, scheduleDeleteConfirmId]);
 
-  React.useEffect(() => {
-    if (!deleteConfirmId) {
-      setDeleteWorkspaceError(null);
-    }
-  }, [deleteConfirmId]);
-
-  React.useEffect(() => {
-    if (!scheduleDeleteConfirmId) {
-      setDeleteScheduleError(null);
-    }
-  }, [scheduleDeleteConfirmId]);
-
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
       setIsCreating(false);
@@ -238,17 +236,6 @@ export function WorkspacesView() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-
-  React.useEffect(() => {
-    if (isCreating) {
-      setSelectedModalClientId(state.activeClientId || '');
-      setClientSearchQuery('');
-      setVisibleClientsCount(10);
-      setIsLoadingMoreClients(false);
-      setShowModalClientDropdown(false);
-      setValidationError(null);
-    }
-  }, [isCreating, state.activeClientId]);
 
   const filteredClients = (state.clients || []).filter(c => 
     (c.name || '').toLowerCase().includes(clientSearchQuery.toLowerCase()) || 
@@ -273,22 +260,25 @@ export function WorkspacesView() {
   // Sync state when selection changes
   React.useEffect(() => {
     if (currentWorkspace) {
-      setBrandName(currentWorkspace.name);
-      setWebsite(currentWorkspace.website ?? '');
-      setTone((currentWorkspace.tone as ToneOption) ?? 'professional');
-      setBrandVoice(currentWorkspace.brandVoice ?? '');
-      setKeywords(currentWorkspace.keywords || []);
-      setRules(currentWorkspace.rules || []);
-      // reset scheduler inputs when workspace changes
-      setNewScheduleLabel('');
-      setNewScheduleDatetime('');
-      setNewScheduleRecurrence('none');
-      setNewSchedulePublishDraft(false);
-      setNewScheduleEnabled(true);
-      setDeleteWorkspaceError(null);
-      setScheduleError(null);
-      setDeleteScheduleError(null);
-      setClientAllocationError(null);
+      const handle = setTimeout(() => {
+        setBrandName(currentWorkspace.name);
+        setWebsite(currentWorkspace.website ?? '');
+        setTone((currentWorkspace.tone as ToneOption) ?? 'professional');
+        setBrandVoice(currentWorkspace.brandVoice ?? '');
+        setKeywords(currentWorkspace.keywords || []);
+        setRules(currentWorkspace.rules || []);
+        // reset scheduler inputs when workspace changes
+        setNewScheduleLabel('');
+        setNewScheduleDatetime('');
+        setNewScheduleRecurrence('none');
+        setNewSchedulePublishDraft(false);
+        setNewScheduleEnabled(true);
+        setDeleteWorkspaceError(null);
+        setScheduleError(null);
+        setDeleteScheduleError(null);
+        setClientAllocationError(null);
+      }, 0);
+      return () => clearTimeout(handle);
     }
   }, [selectedWorkspaceId, currentWorkspace]);
 
@@ -333,7 +323,7 @@ export function WorkspacesView() {
         ...currentWorkspace,
         name: brandName,
         website: website || undefined,
-        tone: tone as any,
+        tone: tone as Workspace['tone'],
         brandVoice: brandVoice || undefined,
         keywords: keywords,
         rules: rules
@@ -341,9 +331,10 @@ export function WorkspacesView() {
 
       await updateWorkspace(updated);
       fetchWorkspaces();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setEditValidationError(err.message || 'Failed to update workspace. Please try again.');
+      const msg = err instanceof Error ? err.message : 'Failed to update workspace. Please try again.';
+      setEditValidationError(msg);
     } finally {
       setIsSavingWorkspace(false);
     }
@@ -395,7 +386,7 @@ export function WorkspacesView() {
       id: newId,
       name: newWorkspaceName,
       website: newWorkspaceWebsite || undefined,
-      tone: newWorkspaceTone as any,
+      tone: newWorkspaceTone as Workspace['tone'],
       brandVoice: newWorkspaceBrandVoice || undefined,
       keywords: newKeywords.length > 0 ? newKeywords : [],
       rules: newRules.length > 0 ? newRules : [],
@@ -430,9 +421,10 @@ export function WorkspacesView() {
       setNewRuleInput('');
       setSelectedModalClientId('');
       fetchWorkspaces();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setValidationError(err.message || 'Failed to create workspace. Please try again.');
+      const msg = err instanceof Error ? err.message : 'Failed to create workspace. Please try again.';
+      setValidationError(msg);
     } finally {
       setIsCreatingWorkspace(false);
     }
@@ -450,9 +442,10 @@ export function WorkspacesView() {
       await deleteWorkspace(id);
       setDeleteConfirmId(null);
       fetchWorkspaces();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setDeleteWorkspaceError(err.message || 'Failed to delete workspace. Please try again.');
+      const msg = err instanceof Error ? err.message : 'Failed to delete workspace. Please try again.';
+      setDeleteWorkspaceError(msg);
     } finally {
       setIsDeletingWorkspace(false);
     }
@@ -508,9 +501,10 @@ export function WorkspacesView() {
       await deleteWorkspaceSchedule(currentWorkspace.id, id);
       setScheduleDeleteConfirmId(null);
       fetchWorkspaces();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setDeleteScheduleError(err.message || 'Failed to remove schedule. Please try again.');
+      const msg = err instanceof Error ? err.message : 'Failed to remove schedule. Please try again.';
+      setDeleteScheduleError(msg);
     } finally {
       setIsDeletingSchedule(false);
     }
@@ -542,9 +536,10 @@ export function WorkspacesView() {
       setNewSchedulePublishDraft(false);
       setNewScheduleEnabled(true);
       fetchWorkspaces();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setScheduleError(err.message || 'Failed to add schedule. Please try again.');
+      const msg = err instanceof Error ? err.message : 'Failed to add schedule. Please try again.';
+      setScheduleError(msg);
     } finally {
       setIsAddingSchedule(false);
     }
@@ -558,9 +553,10 @@ export function WorkspacesView() {
     try {
       await updateClient(client, { action: 'remove', workspaceId: currentWorkspace.id });
       fetchWorkspaces();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setClientAllocationError(err.message || 'Failed to remove client from workspace. Please try again.');
+      const msg = err instanceof Error ? err.message : 'Failed to remove client from workspace. Please try again.';
+      setClientAllocationError(msg);
     } finally {
       setIsDeallocatingClientId(null);
     }
@@ -853,7 +849,7 @@ export function WorkspacesView() {
         </div>
 
         <button
-          onClick={() => setIsCreating(true)}
+          onClick={openCreateModal}
           className="bg-instagram-pink text-white hover:opacity-90 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
         >
           <Plus className="w-4 h-4" />
@@ -1770,9 +1766,10 @@ export function WorkspacesView() {
                               setSelectedClientToAllocate('');
                               fetchWorkspaces();
                             }
-                          } catch (err: any) {
+                          } catch (err) {
                             console.error(err);
-                            setClientAllocationError(err.message || 'Failed to assign client to workspace. Please try again.');
+                            const msg = err instanceof Error ? err.message : 'Failed to assign client to workspace. Please try again.';
+                            setClientAllocationError(msg);
                           } finally {
                             setIsAddingClient(false);
                           }
@@ -1912,7 +1909,7 @@ export function WorkspacesView() {
                     <Select
                       label="Recurrence"
                       value={newScheduleRecurrence}
-                      onChange={(e) => setNewScheduleRecurrence(e.target.value as any)}
+                      onChange={(e) => setNewScheduleRecurrence(e.target.value as 'none' | 'daily' | 'weekly' | 'monthly')}
                       options={[
                         { value: 'none', label: 'None (one-time)' },
                         { value: 'daily', label: 'Daily' },

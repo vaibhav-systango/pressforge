@@ -18,10 +18,7 @@ import {
   AlertCircle,
   XCircle,
   Plus,
-  Settings,
-  Building,
-  ChevronRight,
-  Users
+  ChevronRight
 } from 'lucide-react';
 
 
@@ -61,7 +58,7 @@ export function DashboardView() {
   const drafts = state.drafts.filter((d) => d.workspaceId === state.activeWorkspaceId);
   const approvedCount = drafts.filter((d) => d.status === 'approved').length;
   const pendingCount = drafts.filter((d) => d.status === 'pending_approval').length;
-  const campaignCount = state.campaigns.filter((c) => c.workspaceId === state.activeWorkspaceId).length;
+
 
   // Calculate approval rate dynamically
   const totalDecided = drafts.filter((d) => d.status === 'approved' || d.status === 'rejected').length;

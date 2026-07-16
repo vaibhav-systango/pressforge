@@ -4,6 +4,7 @@ import { NavLink } from "@/components/navigation/nav-link";
 import { useRouter } from "next/navigation";
 import { useAppState } from "@/lib/queries/use-app-state";
 import { useAuth } from "@/lib/hooks/queries/use-auth";
+import type { AppState, ClientUser, Workspace } from "@/lib/types";
 import React, { useState, useCallback } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useDebounce } from "@/lib/hooks/use-debounce";
@@ -17,7 +18,6 @@ import {
   MessageSquare,
   Send,
   MailOpen,
-  Search,
   BarChart3,
   Settings,
   ChevronDown,
@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { state, setActiveWorkspace, resetState, logout, updateState, refetch } = useAppState();
+  const { state, setActiveWorkspace, resetState, logout, updateState } = useAppState();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const router = useRouter();
@@ -62,7 +62,7 @@ console.log(state)
 
       const res = await fetch(`/api/organizations/${user.organizationId}/clients?${queryParams.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch clients");
-      return res.json() as Promise<any[]>;
+      return res.json() as Promise<ClientUser[]>;
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
@@ -76,7 +76,7 @@ console.log(state)
 
   const activeClients = clientsData ? clientsData.pages.flatMap((page) => page) : [];
 
-  const handleClientSelect = useCallback(async (c: any) => {
+  const handleClientSelect = useCallback(async (c: ClientUser) => {
     setShowClientMenu(false);
 
     // 1. Set the activeClientId in session state
@@ -86,11 +86,11 @@ console.log(state)
     try {
       const res = await fetch(`/api/workspaces?clientId=${encodeURIComponent(c.id)}`);
       if (res.ok) {
-        const wsData = await res.json() as { workspaces: any[]; activeWorkspaceId: string | null };
+        const wsData = await res.json() as { workspaces: Workspace[]; activeWorkspaceId: string | null };
         const clientWorkspaces = wsData.workspaces || [];
 
         // 3. Update the app-state cache with client-filtered workspaces
-        queryClient.setQueryData(['app-state'], (old: any) => ({
+        queryClient.setQueryData(['app-state'], (old: { state: AppState } | undefined) => ({
           state: {
             ...(old?.state ?? {}),
             activeClientId: c.id,
@@ -145,9 +145,6 @@ console.log(state)
     filteredWorkspaces[0];
 
   // Get active client details if any
-  const currentClient = isClient
-    ? state.clients.find((c) => c.id === state.activeClientId)
-    : null;
 
   // Selected client for organization header dropdown based on activeClientId
   const selectedClient =
@@ -571,7 +568,7 @@ console.log(state)
                     >
                       <Users className="w-3.5 h-3.5 text-text-secondary" />
                       <span>
-                        {selectedClient ? (selectedClient.name || selectedClient.fullName) : "Select Client"}
+                        {selectedClient ? selectedClient.name : "Select Client"}
                       </span>
                       <ChevronDown className="w-3 h-3 text-text-secondary" />
                     </button>
@@ -609,7 +606,7 @@ console.log(state)
                                     : ""
                                 }`}
                               >
-                                {c.name || c.fullName}
+                                {c.name}
                               </button>
                             ))}
                             {activeClients.length === 0 && (

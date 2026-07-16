@@ -1,6 +1,5 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
 import { useAuth } from '@/lib/hooks/queries/use-auth';
 import { useQueryClient } from '@tanstack/react-query';
@@ -10,7 +9,7 @@ import {
 } from '@/lib/auth/me-user';
 import { formatOrganizationRole } from '@/lib/invitations/role-hierarchy';
 import { PageLoader } from '@/components/common/page-loader';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Settings, User, Lock, ShieldAlert, 
   Check, ToggleLeft, ToggleRight, Trash2, 
@@ -24,7 +23,6 @@ import { validatePassword, validateFullName, validateOrganizationName } from '@/
 export function SettingsView() {
   const { state, updateState } = useAppState();
   const { user, isLoading: isUserLoading } = useAuth();
-  const router = useRouter();
   const queryClient = useQueryClient();
 
   const isClient = user?.userType === 'client' || state.currentUserType === 'client';
@@ -35,7 +33,7 @@ export function SettingsView() {
 
   // Form states
   const [profileName, setProfileName] = useState(user?.name ?? '');
-  const [profileEmail, setProfileEmail] = useState(user?.email ?? '');
+  const [profileEmail] = useState(user?.email ?? '');
   const [orgName, setOrgName] = useState(
     state.organizationName && state.organizationName !== 'Forge Agencies' ? state.organizationName : '',
   );
@@ -72,22 +70,7 @@ export function SettingsView() {
   const [instagramConnected, setInstagramConnected] = useState(true);
   const [linkedinConnected, setLinkedinConnected] = useState(false);
 
-  // Sync state when user details load
-  useEffect(() => {
-    if (user?.name) {
-      setProfileName(user.name);
-    }
-    if (user?.email) {
-      setProfileEmail(user.email);
-    }
-  }, [user]);
 
-  // Sync state when organization name updates
-  useEffect(() => {
-    if (state.organizationName && state.organizationName !== 'Forge Agencies') {
-      setOrgName(state.organizationName);
-    }
-  }, [state.organizationName]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,8 +100,9 @@ export function SettingsView() {
       await queryClient.invalidateQueries({ queryKey: ['me'] });
       setProfileSaved(true);
       setTimeout(() => setProfileSaved(false), 3000);
-    } catch (err: any) {
-      setProfileApiError(err.message || 'Failed to save profile');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save profile';
+      setProfileApiError(message);
     } finally {
       setIsSavingProfile(false);
     }
@@ -149,8 +133,9 @@ export function SettingsView() {
       await updateState({ organizationName: orgName });
       setOrgSaved(true);
       setTimeout(() => setOrgSaved(false), 3000);
-    } catch (err: any) {
-      setOrgApiError(err.message || 'Failed to update organization');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update organization';
+      setOrgApiError(message);
     } finally {
       setIsSavingOrg(false);
     }
@@ -191,8 +176,9 @@ export function SettingsView() {
       setNewPassword('');
       setConfirmPassword('');
       setTimeout(() => setPasswordSaved(false), 3000);
-    } catch (err: any) {
-      setPasswordApiError(err.message || 'Failed to change password');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to change password';
+      setPasswordApiError(message);
     } finally {
       setIsSavingPassword(false);
     }
@@ -212,8 +198,9 @@ export function SettingsView() {
       await fetch('/api/auth/logout', { method: 'POST' });
       setShowDeleteConfirm(false);
       window.location.href = '/';
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete account');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to delete account';
+      alert(message);
     } finally {
       setIsDeletingAccount(false);
     }
@@ -241,7 +228,7 @@ export function SettingsView() {
         <div className="lg:col-span-8 space-y-6">
           
           {/* Profile Form */}
-          <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm">
+          <div key={user?.userId || 'loading-profile'} className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm">
             <h3 className="text-sm font-bold text-text-primary border-b border-border-primary pb-2.5 mb-4 flex items-center gap-2">
               <User className="w-4 h-4 text-text-secondary" />
               <span>Personal Profile</span>
@@ -346,7 +333,7 @@ export function SettingsView() {
 
           {/* Agency Settings (Only for agency users) */}
           {!isClient && (
-            <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm">
+            <div key={state.organizationName || 'loading-org'} className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm">
               <h3 className="text-sm font-bold text-text-primary border-b border-border-primary pb-2.5 mb-4 flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-text-secondary" />
                 <span>Agency Organization Details</span>

@@ -7,7 +7,6 @@ import {
   getSessionState,
   inviteClient,
   loginUser,
-  updateClient,
 } from '@/lib/server/mock-store';
 import { parseJsonBody } from '@/lib/server/validate-payload';
 import { isClientUser } from '@/lib/server/validate-payload';

@@ -12,7 +12,7 @@ export function ApprovalsListView() {
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
   const isClient = state.currentUserType === 'client';
 
-  const activeWorkspace = state.workspaces.find((w) => w.id === state.activeWorkspaceId) || state.workspaces[0];
+
 
   // Filter drafts for current workspace by status
   const drafts = state.drafts.filter((d) => d.workspaceId === state.activeWorkspaceId);

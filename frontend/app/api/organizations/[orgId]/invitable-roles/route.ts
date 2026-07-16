@@ -15,7 +15,7 @@ export async function GET(
 
   const endpoint = `/organizations/${orgId}/invitable-roles`;
 
-  const { data, errorMessage, response } = await callBackend<any>(
+  const { data, errorMessage, response } = await callBackend<unknown>(
     endpoint,
     {
       method: 'GET',

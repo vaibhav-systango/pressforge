@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
+import { useMounted } from '@/lib/hooks/use-mounted';
 import './globals.css';
 
 interface GlobalErrorProps {
@@ -11,10 +12,9 @@ interface GlobalErrorProps {
 }
 
 export default function GlobalError({ error, reset }: GlobalErrorProps) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
 
   useEffect(() => {
-    setMounted(true);
     console.error('Fatal Layout Error:', error);
   }, [error]);
 

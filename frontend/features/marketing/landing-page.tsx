@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Sparkles, ArrowRight, ShieldCheck, HeartHandshake, Zap, BarChart3, BellRing, Users } from 'lucide-react';
+import { Sparkles, ArrowRight, ShieldCheck, Zap, BarChart3, BellRing, Users } from 'lucide-react';
 
 export function LandingPage() {
   return (
@@ -41,7 +41,7 @@ export function LandingPage() {
       <section className="max-w-7xl mx-auto px-6 pt-16 pb-20 text-center flex-1 flex flex-col items-center justify-center">
 
         <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-[#262626] max-w-4xl leading-tight">
-          Automate Your Brand's PR & Social Media with <span className="bg-gradient-to-r from-[#F58529] via-[#DD2A7B] to-[#515BD4] bg-clip-text text-transparent">AI Intelligence</span>
+          Automate Your Brand&apos;s PR & Social Media with <span className="bg-gradient-to-r from-[#F58529] via-[#DD2A7B] to-[#515BD4] bg-clip-text text-transparent">AI Intelligence</span>
         </h1>
 
         <p className="text-[#737373] text-lg md:text-xl max-w-2xl mt-6 leading-relaxed">

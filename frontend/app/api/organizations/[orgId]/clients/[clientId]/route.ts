@@ -16,7 +16,7 @@ export async function PATCH(
   try {
     const body = await request.json();
 
-    const { data, errorMessage, response } = await callBackend<any>(
+    const { data, errorMessage, response } = await callBackend<unknown>(
       `/organizations/${orgId}/members/${clientId}/workspace`,
       {
         method: 'PATCH',
@@ -38,8 +38,9 @@ export async function PATCH(
     }
 
     return NextResponse.json(data);
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error patching client workspace assignment:', err);
-    return jsonError(err.message ?? 'Internal error', 500, 'INTERNAL_ERROR');
+    const msg = err instanceof Error ? err.message : 'Internal error';
+    return jsonError(msg, 500, 'INTERNAL_ERROR');
   }
 }

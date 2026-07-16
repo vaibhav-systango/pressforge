@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 
-import { jsonError } from '@/lib/server/auth/with-auth';
 import { createSession } from '@/lib/server/mock-store';
 import { parseJsonBody } from '@/lib/server/validate-payload';
 

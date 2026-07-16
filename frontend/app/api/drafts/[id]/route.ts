@@ -54,13 +54,11 @@ export async function PATCH(request: Request, context: RouteContext) {
     return jsonError('Authentication required', 401, 'TOKEN_MISSING');
   }
 
-  const {
-    id: _id,
-    workspaceId: _workspaceId,
-    createdAt: _c,
-    updatedAt: _u,
-    ...payload
-  } = draft as Draft & { createdAt?: unknown; updatedAt?: unknown };
+  const payload = { ...draft } as Partial<Draft> & { createdAt?: unknown; updatedAt?: unknown };
+  delete payload.id;
+  delete payload.workspaceId;
+  delete payload.createdAt;
+  delete payload.updatedAt;
 
   const { data, errorMessage, response } = await callBackend<Draft>(`/drafts/${id}`, {
     method: 'PATCH',

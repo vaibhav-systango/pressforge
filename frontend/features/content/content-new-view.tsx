@@ -2,7 +2,8 @@
 
 import type { Workspace } from "@/lib/types";
 
-import Link from "next/link";
+
+import Image from 'next/image';
 import { useRouter } from "next/navigation";
 import { useAppState } from "@/lib/queries/use-app-state";
 import React, { useState } from "react";
@@ -28,7 +29,7 @@ import {
   ThumbsUp,
   MoreHorizontal,
 } from "lucide-react";
-import { Select } from "@/components/common/select";
+import { Select, type SelectChangeEvent } from "@/components/common/select";
 
 const TONES = [
   "professional",
@@ -90,41 +91,20 @@ interface LocalHistoryItem {
 
 export function ContentNewView() {
   const router = useRouter();
-  const { state, addDraft, updateWorkspace } = useAppState();
+  const { state, addDraft } = useAppState();
 
   const activeWorkspace =
     state.workspaces.find((w) => w.id === state.activeWorkspaceId) ||
     state.workspaces[0];
 
   // Local Brand/Workspace Guideline States (edited only locally for this content generation run)
-  const [localBrandName, setLocalBrandName] = useState("");
-  const [localWebsite, setLocalWebsite] = useState("");
-  const [localTargetAudience, setLocalTargetAudience] = useState("");
-  const [localBrandVoice, setLocalBrandVoice] = useState("");
-  const [localTone, setLocalTone] = useState<Workspace["tone"]>("professional");
-  const [localKeywords, setLocalKeywords] = useState<string[]>([]);
-  const [localRules, setLocalRules] = useState<string[]>([]);
-
-  // Synchronize local states when activeWorkspace changes
-  React.useEffect(() => {
-    if (activeWorkspace) {
-      setLocalBrandName(activeWorkspace.name || "");
-      setLocalWebsite(activeWorkspace.website || "");
-      setLocalTargetAudience(activeWorkspace.targetAudience || "");
-      setLocalBrandVoice(activeWorkspace.brandVoice || "");
-      setLocalTone(activeWorkspace.tone || "professional");
-      setLocalKeywords(activeWorkspace.keywords || []);
-      setLocalRules(activeWorkspace.rules || []);
-    } else {
-      setLocalBrandName("");
-      setLocalWebsite("");
-      setLocalTargetAudience("");
-      setLocalBrandVoice("");
-      setLocalTone("professional");
-      setLocalKeywords([]);
-      setLocalRules([]);
-    }
-  }, [activeWorkspace?.id, activeWorkspace]);
+  const [localBrandName, setLocalBrandName] = useState(activeWorkspace?.name || "");
+  const [localWebsite, setLocalWebsite] = useState(activeWorkspace?.website || "");
+  const [localTargetAudience, setLocalTargetAudience] = useState(activeWorkspace?.targetAudience || "");
+  const [localBrandVoice, setLocalBrandVoice] = useState(activeWorkspace?.brandVoice || "");
+  const [localTone, setLocalTone] = useState<Workspace["tone"]>(activeWorkspace?.tone || "professional");
+  const [localKeywords, setLocalKeywords] = useState<string[]>(activeWorkspace?.keywords || []);
+  const [localRules, setLocalRules] = useState<string[]>(activeWorkspace?.rules || []);
 
   // Primary Prompt & Preferences
   const [prompt, setPrompt] = useState("");
@@ -209,7 +189,7 @@ export function ContentNewView() {
   };
 
   // Active Tone Change
-  const handleToneChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleToneChange = (e: SelectChangeEvent) => {
     setLocalTone(e.target.value as Workspace["tone"]);
   };
 
@@ -1107,10 +1087,12 @@ export function ContentNewView() {
 
                   <div className="w-full aspect-square bg-bg-app flex items-center justify-center overflow-hidden border-b border-border-primary relative">
                     {generatedImageUrl && (
-                      <img
+                      <Image
                         src={generatedImageUrl}
                         alt="Mockup"
-                        className="w-full h-full object-cover"
+                        fill
+                        unoptimized
+                        className="object-cover"
                       />
                     )}
                     <span className="absolute bottom-2 right-2 bg-black/60 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-sm uppercase">
@@ -1182,9 +1164,12 @@ export function ContentNewView() {
                   {/* Attachment card */}
                   {generatedImageUrl && (
                     <div className="border border-border-primary rounded-lg overflow-hidden bg-bg-app">
-                      <img
+                      <Image
                         src={generatedImageUrl}
                         alt="Attachment"
+                        width={600}
+                        height={400}
+                        unoptimized
                         className="w-full object-cover max-h-56"
                       />
                       <div className="p-2 border-t border-border-primary">
@@ -1554,11 +1539,11 @@ export function ContentNewView() {
                           {hist.action}
                         </p>
                         <p className="text-[9px] text-text-secondary line-clamp-1 italic">
-                          "
+                          &quot;
                           {(activePlatformTab === "instagram"
                             ? hist.caption
                             : hist.liCaption) || hist.caption}
-                          "
+                          &quot;
                         </p>
 
                         {index > 0 && (

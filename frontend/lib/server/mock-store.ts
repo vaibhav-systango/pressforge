@@ -441,7 +441,7 @@ export function acceptOrganizationInvitation(
       u.email.toLowerCase() === email.toLowerCase() ? { ...u, status: 'active' as const } : u
     );
     updateSession(sessionId, { orgUsers });
-  } catch (e) {
+  } catch {
     // Session might not exist yet
   }
 

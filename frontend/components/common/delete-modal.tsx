@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, X } from 'lucide-react';
-import { cn } from '@/lib/utils/cn';
+import { useMounted } from '@/lib/hooks/use-mounted';
 
 interface DeleteModalProps {
   isOpen: boolean;
@@ -27,13 +27,7 @@ export function DeleteModal({
   isPending = false,
 }: DeleteModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
-
-  // Set mounted state once client-side is ready
-  useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
-  }, []);
+  const mounted = useMounted();
 
   // Close on Escape key press
   useEffect(() => {

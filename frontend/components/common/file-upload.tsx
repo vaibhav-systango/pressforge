@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import Image from 'next/image';
 import { UploadCloud, FileText } from 'lucide-react';
 
 interface FileUploadProps {
@@ -70,9 +71,10 @@ export function FileUpload({
       const result = await response.json();
       const isImage = file.type.startsWith('image/');
       onChange(JSON.stringify(result), isImage ? result.secureUrl : null, file.type);
-    } catch (err: any) {
+    } catch (err) {
       console.error('File upload error:', err);
-      alert(err.message || 'File upload failed. Please try again.');
+      const msg = err instanceof Error ? err.message : 'File upload failed. Please try again.';
+      alert(msg);
     } finally {
       setIsUploading(false);
     }
@@ -113,7 +115,14 @@ export function FileUpload({
             <div className="flex items-center gap-2.5 min-w-0">
               {previewUrl ? (
                 <div className="w-12 h-12 rounded-lg overflow-hidden border border-slate-100 flex-shrink-0">
-                  <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                  <Image 
+                    src={previewUrl} 
+                    alt="Preview" 
+                    width={48}
+                    height={48}
+                    unoptimized
+                    className="w-full h-full object-cover" 
+                  />
                 </div>
               ) : (
                 <div className="w-12 h-12 rounded-lg bg-pink-50 text-instagram-pink flex items-center justify-center flex-shrink-0">

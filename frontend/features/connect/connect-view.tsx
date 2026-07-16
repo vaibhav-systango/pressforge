@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+
 import { NavLink } from '@/components/navigation/nav-link';
 import { useAppState } from '@/lib/queries/use-app-state';
 import React, { useState } from 'react';
@@ -9,7 +9,7 @@ import { Select } from '@/components/common/select';
 
 export function ConnectView() {
   const { state, updateState } = useAppState();
-  const isClient = state.currentUserType === 'client';
+
 
   const channels = state.connectedChannels || [];
   const [newName, setNewName] = useState('');
@@ -58,7 +58,7 @@ export function ConnectView() {
         {channels.length === 0 ? (
           <div className="text-sm text-text-secondary italic">No channels connected yet.</div>
         ) : (
-          channels.map((c: any) => (
+          channels.map((c) => (
             <div key={c.id} className="flex items-center justify-between p-3 border rounded">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold">{c.name.charAt(0)}</div>

@@ -3,7 +3,6 @@
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, ShieldCheck, Mail, KeyRound } from "lucide-react";
 
@@ -17,11 +16,9 @@ import { ApiError } from "@/lib/utils/api-errors";
 import { validateEmail, validatePassword } from "@/lib/utils/validation";
 
 export function ForgotPasswordView() {
-  const router = useRouter();
   const [step, setStep] = useState<"email" | "code" | "password" | "success">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
-  const [formError, setFormError] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
 
   const forgotPasswordMutation = useForgotPasswordMutation();
@@ -75,7 +72,6 @@ export function ForgotPasswordView() {
   });
 
   const handleRequestCode = async (values: { email: string }) => {
-    setFormError("");
     try {
       await forgotPasswordMutation.mutateAsync({ email: values.email });
       setEmail(values.email);
@@ -88,7 +84,6 @@ export function ForgotPasswordView() {
       });
     } catch (err) {
       const apiError = err instanceof ApiError ? err : new ApiError("Failed to send reset code.", 500, "FORGOT_PASSWORD_FAILED");
-      setFormError(apiError.message);
       notifications.show({
         title: "Request Failed",
         message: apiError.message,
@@ -99,7 +94,6 @@ export function ForgotPasswordView() {
 
   const handleResendCode = async () => {
     if (resendTimer > 0) return;
-    setFormError("");
     try {
       await forgotPasswordMutation.mutateAsync({ email });
       setResendTimer(60);
@@ -110,7 +104,6 @@ export function ForgotPasswordView() {
       });
     } catch (err) {
       const apiError = err instanceof ApiError ? err : new ApiError("Failed to resend code.", 500, "FORGOT_PASSWORD_FAILED");
-      setFormError(apiError.message);
       notifications.show({
         title: "Resend Failed",
         message: apiError.message,
@@ -120,14 +113,12 @@ export function ForgotPasswordView() {
   };
 
   const handleVerifyCode = async (values: { code: string }) => {
-    setFormError("");
     try {
       await verifyResetCodeMutation.mutateAsync({ email, code: values.code });
       setCode(values.code);
       setStep("password");
     } catch (err) {
       const apiError = err instanceof ApiError ? err : new ApiError("Invalid or expired code.", 400, "VERIFY_RESET_CODE_FAILED");
-      setFormError(apiError.message);
       notifications.show({
         title: "Verification Failed",
         message: apiError.message,  
@@ -137,7 +128,6 @@ export function ForgotPasswordView() {
   };
 
   const handleResetPassword = async (values: { password: string }) => {
-    setFormError("");
     try {
       await resetPasswordMutation.mutateAsync({
         email,
@@ -152,7 +142,6 @@ export function ForgotPasswordView() {
       });
     } catch (err) {
       const apiError = err instanceof ApiError ? err : new ApiError("Failed to reset password.", 400, "RESET_PASSWORD_FAILED");
-      setFormError(apiError.message);
       notifications.show({
         title: "Reset Failed",
         message: apiError.message,

@@ -3,15 +3,11 @@
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Home } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useMounted } from '@/lib/hooks/use-mounted';
 
 export default function NotFound() {
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useMounted();
 
   if (!mounted) return null;
 
@@ -33,7 +29,7 @@ export default function NotFound() {
             Page not found
           </h1>
           <p className="text-text-secondary text-sm max-w-sm mx-auto leading-relaxed">
-            The page you are looking for doesn't exist or has been moved to another coordinate.
+            The page you are looking for doesn&apos;t exist or has been moved to another coordinate.
           </p>
         </div>
 
