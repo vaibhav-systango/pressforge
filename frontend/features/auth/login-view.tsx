@@ -51,7 +51,12 @@ export function LoginView() {
         email: values.email,
         password: values.password,
       });
-      router.replace(getPostAuthRedirect(result.user));
+      const fromParam = searchParams.get("from");
+      if (fromParam && (fromParam.startsWith("/app") || fromParam.startsWith("/onboarding"))) {
+        router.replace(fromParam);
+      } else {
+        router.replace(getPostAuthRedirect(result.user));
+      }
     } catch (error) {
       const apiError = error instanceof ApiError ? error : new ApiError("Invalid email or password.", 401, "UNAUTHORIZED");
       setFormError(apiError.message);

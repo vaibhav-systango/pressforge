@@ -10,6 +10,7 @@ import { MessageSquare, ArrowRight, CheckCircle2, XCircle, AlertCircle, Instagra
 export function ApprovalsListView() {
   const { state } = useAppState();
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const isClient = state.currentUserType === 'client';
 
   const activeWorkspace = state.workspaces.find((w) => w.id === state.activeWorkspaceId) || state.workspaces[0];
 
@@ -31,9 +32,13 @@ export function ApprovalsListView() {
     <div className="flex flex-col gap-6 animate-fade-in">
       {/* Header */}
       <div className="border-b border-border-primary pb-5">
-        <h1 className="text-2xl font-bold tracking-tight text-text-primary"> Client Approvals</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-text-primary">
+          {isClient ? 'My Approvals' : 'Client Approvals'}
+        </h1>
         <p className="text-sm text-text-secondary mt-1">
-          Review posts currently sent to client phone preview, or inspect approvals history.
+          {isClient
+            ? 'Review and approve posts generated for your workspace.'
+            : 'Review posts currently sent to client phone preview, or inspect approvals history.'}
         </p>
       </div>
 
@@ -48,7 +53,9 @@ export function ApprovalsListView() {
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-text-secondary uppercase tracking-wide">Awaiting Client</span>
+            <span className="text-xs font-bold text-text-secondary uppercase tracking-wide">
+              {isClient ? 'Awaiting My Approval' : 'Awaiting Client'}
+            </span>
             <AlertCircle className="w-4.5 h-4.5 text-yellow-500" />
           </div>
           <p className="text-2xl font-extrabold text-text-primary mt-2">{pendingDrafts.length}</p>
@@ -63,7 +70,9 @@ export function ApprovalsListView() {
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-text-secondary uppercase tracking-wide">Approved & Scheduled</span>
+            <span className="text-xs font-bold text-text-secondary uppercase tracking-wide">
+              {isClient ? 'Approved by Me' : 'Approved & Scheduled'}
+            </span>
             <CheckCircle2 className="w-4.5 h-4.5 text-green-500" />
           </div>
           <p className="text-2xl font-extrabold text-text-primary mt-2">{approvedDrafts.length}</p>
@@ -78,7 +87,9 @@ export function ApprovalsListView() {
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-text-secondary uppercase tracking-wide">Feedback / Rejected</span>
+            <span className="text-xs font-bold text-text-secondary uppercase tracking-wide">
+              {isClient ? 'Feedback Sent / Rejected' : 'Feedback / Rejected'}
+            </span>
             <XCircle className="w-4.5 h-4.5 text-red-500" />
           </div>
           <p className="text-2xl font-extrabold text-text-primary mt-2">{rejectedDrafts.length}</p>
@@ -87,8 +98,12 @@ export function ApprovalsListView() {
 
       {/* Listing card */}
       <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
-        <h3 className="text-base font-bold text-text-primary border-b border-border-primary pb-2 capitalize">
-          {activeTab} Approvals
+        <h3 className="text-base font-bold text-text-primary border-b border-border-primary pb-2">
+          {activeTab === 'pending'
+            ? (isClient ? 'Awaiting My Approval' : 'Pending Approvals')
+            : activeTab === 'approved'
+            ? (isClient ? 'Approved by Me' : 'Approved & Scheduled')
+            : (isClient ? 'Feedback Sent / Rejected' : 'Feedback / Rejected')}
         </h3>
 
         <div className="flex flex-col gap-4">
@@ -120,7 +135,7 @@ export function ApprovalsListView() {
                     href={`/app/approvals/${draft.id }`}
                     className="flex items-center gap-1.5 bg-[#E1306C] text-white px-4 py-2 rounded-full text-xs font-bold hover:opacity-95 transition shadow-sm"
                   >
-                    <span>Simulate Chat Link</span>
+                    <span>{isClient ? 'Review & Approve' : 'Simulate Chat Link'}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
                 ) : (

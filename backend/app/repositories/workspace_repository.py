@@ -84,7 +84,9 @@ class WorkspaceRepository:
         client_user_id: str,
     ) -> list[Workspace]:
         from app.models.organization_member import MemberWorkspace
-        return (
+        
+        # M2M relationship query
+        m2m_workspaces = (
             db.query(Workspace)
             .options(joinedload(Workspace.schedules))
             .join(
@@ -102,9 +104,30 @@ class WorkspaceRepository:
                 OrganizationMember.userId == client_user_id,
                 OrganizationMember.role == OrganizationRole.CLIENT.value,
             )
-            .order_by(Workspace.createdAt.asc())
             .all()
         )
+
+        # Legacy column query
+        legacy_workspaces = (
+            db.query(Workspace)
+            .options(joinedload(Workspace.schedules))
+            .join(
+                OrganizationMember,
+                OrganizationMember.workspaceId == Workspace.id,
+            )
+            .filter(
+                Workspace.organizationId == organization_id,
+                Workspace.isActive.is_(True),
+                OrganizationMember.organizationId == organization_id,
+                OrganizationMember.userId == client_user_id,
+                OrganizationMember.role == OrganizationRole.CLIENT.value,
+            )
+            .all()
+        )
+
+        # Combine, deduplicate, and sort by creation time
+        combined = {w.id: w for w in m2m_workspaces + legacy_workspaces}
+        return sorted(list(combined.values()), key=lambda w: w.createdAt)
 
 
     def list_by_guest_session(self, db: Session, guest_session_id: str) -> list[Workspace]:

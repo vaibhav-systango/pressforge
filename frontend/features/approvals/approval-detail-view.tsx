@@ -5,9 +5,30 @@ import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
 import React, { useState } from 'react';
-import { ChevronLeft, Check, X, CornerDownLeft, MessageSquare, Phone, Video, MoreVertical, Sparkles, Send } from 'lucide-react';
+import { 
+  ChevronLeft, Check, X, CornerDownLeft, MessageSquare, MoreVertical, Sparkles, Send,
+  Heart, MessageCircle, Bookmark, ThumbsUp, Share2, Instagram, Linkedin 
+} from 'lucide-react';
 
-
+const getSimulatedImage = (promptText: string) => {
+  const text = promptText.toLowerCase();
+  if (text.includes('summer') || text.includes('dress') || text.includes('fashion') || text.includes('wear')) {
+    return 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&auto=format&fit=crop&q=80';
+  }
+  if (text.includes('pack') || text.includes('box') || text.includes('deliver') || text.includes('shipping') || text.includes('sustain')) {
+    return 'https://images.unsplash.com/photo-1607344645866-009c320c5ab8?w=600&auto=format&fit=crop&q=80';
+  }
+  if (text.includes('coffee') || text.includes('morning') || text.includes('latte') || text.includes('cafe')) {
+    return 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&auto=format&fit=crop&q=80';
+  }
+  if (text.includes('food') || text.includes('restaurant') || text.includes('delicious') || text.includes('lunch')) {
+    return 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&auto=format&fit=crop&q=80';
+  }
+  if (text.includes('tech') || text.includes('code') || text.includes('computer') || text.includes('app')) {
+    return 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=600&auto=format&fit=crop&q=80';
+  }
+  return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80';
+};
 
 export function ApprovalDetailView() {
   const router = useRouter();
@@ -30,6 +51,9 @@ export function ApprovalDetailView() {
       </div>
     );
   }
+
+  const activeWorkspace = state.workspaces.find((w) => w.id === draft.workspaceId) || state.workspaces[0];
+  const imageUrl = draft.imageUrl || getSimulatedImage(draft.prompt ?? '');
 
   const handleApprove = () => {
     const nextVersion = (draft.version ?? 1) + 1;
@@ -164,119 +188,191 @@ export function ApprovalDetailView() {
           </div>
         </div>
 
-        {/* Right Side: Simulated Smartphone Frame (WhatsApp Mock) */}
+        {/* Right Side: Simulated Smartphone Frame */}
         <div className="lg:col-span-6 flex justify-center">
-          <div className="w-[320px] h-[600px] border-[8px] border-[#1e293b] rounded-[32px] bg-[#0f172a] overflow-hidden shadow-2xl relative flex flex-col">
+          <div className="w-[320px] h-[600px] border-[8px] border-[#1e293b] rounded-[32px] bg-bg-app overflow-hidden shadow-2xl relative flex flex-col">
             {/* Top Notch/Speaker */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-[#1e293b] rounded-b-xl z-20 flex items-center justify-center">
               <div className="w-12 h-1 bg-[#374151] rounded-full mb-1"></div>
             </div>
 
-            {/* WhatsApp Header */}
-            <div className="bg-[#075E54] text-white pt-7 pb-2.5 px-4 flex items-center justify-between shrink-0 z-10">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-slate-300 flex items-center justify-center text-[#075E54] text-xs font-extrabold">
-                  PF
-                </div>
-                <div>
-                  <p className="text-xs font-bold leading-tight">PressForge Approvals</p>
-                  <p className="text-[9px] text-[#25D366] font-semibold leading-none mt-0.5">Online</p>
-                </div>
+            {/* Platform Mockup Header with Switcher */}
+            <div className="bg-bg-card border-b border-border-primary pt-8 pb-3 px-4 flex items-center justify-between shrink-0 z-10">
+              <div className="flex items-center gap-1.5">
+                {activeTab === 'instagram' ? (
+                  <Instagram className="w-4 h-4 text-instagram-pink" />
+                ) : (
+                  <Linkedin className="w-4 h-4 text-blue-600" />
+                )}
+                <span className="text-[11px] font-bold text-text-primary capitalize">{activeTab} Preview</span>
               </div>
-              <div className="flex gap-2.5 text-slate-100">
-                <Video className="w-3.5 h-3.5" />
-                <Phone className="w-3.5 h-3.5" />
-                <MoreVertical className="w-3.5 h-3.5" />
-              </div>
-            </div>
-
-            {/* Chat Area */}
-            <div className="flex-1 bg-[#E5DDD5] p-3 overflow-y-auto space-y-4 flex flex-col justify-end">
-              {/* Message 1: Bot Explainer */}
-              <div className="bg-bg-card rounded-lg p-2.5 text-xs text-text-primary shadow-sm max-w-[85%] self-start relative">
-                {/* Speech tail */}
-                <span className="absolute -left-1.5 top-2 border-[6px] border-transparent border-r-white"></span>
-                <p className="leading-relaxed">
-                  Hi! Here is the latest cross-platform post draft. Review the media brief and text below:
-                </p>
-              </div>
-
-              {/* Platform Toggle Pill (Inside WhatsApp Chat) */}
               {draft.platform === 'both' && (
-                <div className="flex gap-1 justify-center self-center bg-bg-card/50 backdrop-blur-xs p-0.5 rounded-full border border-slate-300/40">
+                <div className="flex gap-1 bg-bg-app p-0.5 rounded-full border border-border-primary">
                   <button 
                     onClick={() => setActiveTab('instagram')}
-                    className={`px-3 py-0.5 rounded-full text-[8px] font-black uppercase transition cursor-pointer ${
-                      activeTab === 'instagram' ? 'bg-[#075E54] text-white shadow-xs' : 'text-text-secondary'
+                    className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase transition cursor-pointer ${
+                      activeTab === 'instagram' ? 'bg-instagram-pink text-white shadow-xs' : 'text-text-secondary'
                     }`}
                   >
-                    Instagram
+                    Insta
                   </button>
                   <button 
                     onClick={() => setActiveTab('linkedin')}
-                    className={`px-3 py-0.5 rounded-full text-[8px] font-black uppercase transition cursor-pointer ${
-                      activeTab === 'linkedin' ? 'bg-[#075E54] text-white shadow-xs' : 'text-text-secondary'
+                    className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase transition cursor-pointer ${
+                      activeTab === 'linkedin' ? 'bg-blue-600 text-white shadow-xs' : 'text-text-secondary'
                     }`}
                   >
                     LinkedIn
                   </button>
                 </div>
               )}
-
-              {/* Message 2: Post Card */}
-              <div className="bg-[#DCF8C6] rounded-lg p-1.5 shadow-sm max-w-[90%] self-end relative space-y-2 border border-green-200">
-                {/* Speech tail */}
-                <span className="absolute -right-1.5 top-2 border-[6px] border-transparent border-l-[#DCF8C6]"></span>
-
-                {/* Mock Image Box */}
-                <div className="w-full aspect-[4/3] bg-bg-app border border-border-primary rounded-md flex flex-col items-center justify-center p-2 text-center overflow-hidden">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">AI Image Concept</span>
-                  <p className="text-[8px] text-text-secondary line-clamp-4 mt-1 font-mono leading-relaxed">
-                    {activeTab === 'instagram' ? draft.imageBrief : (draft.liImageBrief || draft.imageBrief)}
-                  </p>
-                </div>
-
-                {/* Caption text */}
-                <div className="px-1 py-0.5 text-[10px] text-text-primary leading-relaxed space-y-1">
-                  <p className="whitespace-pre-wrap">
-                    {activeTab === 'instagram' ? draft.caption : (draft.liCaption || draft.caption)}
-                  </p>
-                  <p className="text-[#075E54] font-semibold">
-                    {activeTab === 'instagram' 
-                      ? (draft.hashtags ?? []).map((h) => `#${h}`).join(' ') 
-                      : (draft.liHashtags ?? draft.hashtags ?? []).map((h) => `#${h}`).join(' ')}
-                  </p>
-                </div>
-              </div>
-
-              {/* simulated actions inside chat */}
-              <div className="flex gap-2">
-                <button
-                  onClick={handleApprove}
-                  className="flex-1 bg-[#25D366] text-white py-2 rounded-xl text-[10px] font-bold shadow hover:opacity-95 transition text-center"
-                >
-                  Approve Post
-                </button>
-                <button
-                  onClick={() => {
-                    const el = document.querySelector('textarea');
-                    if (el) el.focus();
-                  }}
-                  className="flex-1 bg-bg-card border border-border-primary text-text-primary py-2 rounded-xl text-[10px] font-bold shadow hover:bg-bg-app transition text-center"
-                >
-                  Request Edits
-                </button>
-              </div>
             </div>
 
-            {/* Bottom Input Area */}
-            <div className="bg-bg-app p-2 flex items-center gap-2 border-t border-border-primary shrink-0">
-              <div className="flex-1 bg-bg-card rounded-full px-3 py-1.5 border border-border-primary text-slate-400 text-[10px] font-medium">
-                Type a message...
-              </div>
-              <div className="w-8 h-8 rounded-full bg-[#075E54] flex items-center justify-center text-white shrink-0 shadow">
-                <Send className="w-3.5 h-3.5" />
-              </div>
+            {/* Scrollable Preview Area */}
+            <div className="flex-1 overflow-y-auto bg-bg-app">
+              {activeTab === 'instagram' ? (
+                /* INSTAGRAM MOCKUP */
+                <div className="flex flex-col bg-bg-card">
+                  {/* Instagram User Header */}
+                  <div className="flex items-center justify-between p-3 border-b border-border-primary">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] flex items-center justify-center text-white font-black text-[10px]">
+                        {activeWorkspace?.name?.charAt(0) || 'W'}
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-bold text-text-primary leading-tight">{activeWorkspace?.name || 'Brand Name'}</p>
+                        <p className="text-[8px] text-text-secondary leading-none mt-0.5">AI Mockup Draft</p>
+                      </div>
+                    </div>
+                    <MoreVertical className="w-3.5 h-3.5 text-text-secondary" />
+                  </div>
+
+                  {/* Post Image */}
+                  <div className="w-full aspect-square bg-bg-app flex items-center justify-center overflow-hidden border-b border-border-primary relative">
+                    {imageUrl ? (
+                      <img 
+                        src={imageUrl} 
+                        alt="Instagram Visual" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-bg-hover">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">AI Image Concept</span>
+                        <p className="text-[8px] text-text-secondary line-clamp-6 mt-1 font-mono leading-relaxed">
+                          {draft.imageBrief}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Instagram Actions */}
+                  <div className="p-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3.5 text-text-primary">
+                      <Heart className="w-4.5 h-4.5 hover:text-red-500 transition cursor-pointer" />
+                      <MessageCircle className="w-4.5 h-4.5 hover:opacity-80 transition cursor-pointer" />
+                      <Send className="w-4.5 h-4.5 hover:opacity-80 transition cursor-pointer" />
+                    </div>
+                    <Bookmark className="w-4.5 h-4.5 text-text-primary hover:opacity-80 transition cursor-pointer" />
+                  </div>
+
+                  {/* Caption & Hashtags */}
+                  <div className="px-3 pb-4 space-y-1 text-[11px] text-text-primary">
+                    <p className="leading-relaxed">
+                      <span className="font-bold mr-1">{activeWorkspace?.name?.toLowerCase().replace(/\s+/g, '') || 'brand'}</span>
+                      {draft.caption}
+                    </p>
+                    <p className="text-instagram-pink font-semibold leading-normal">
+                      {(draft.hashtags ?? []).map((h) => `#${h}`).join(' ')}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                /* LINKEDIN MOCKUP */
+                <div className="bg-bg-card p-3 space-y-3">
+                  {/* LinkedIn User Header */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex gap-2">
+                      <div className="w-8 h-8 rounded-sm bg-blue-600 flex items-center justify-center text-white font-extrabold text-xs">
+                        {activeWorkspace?.name?.charAt(0) || 'W'}
+                      </div>
+                      <div>
+                        <p className="font-bold text-text-primary text-xs leading-snug flex items-center gap-1">
+                          <span>{activeWorkspace?.name || 'Brand Name'}</span>
+                          <span className="text-[9px] font-normal text-text-secondary bg-bg-app border border-border-primary px-1 rounded-sm">2nd</span>
+                        </p>
+                        <p className="text-[10px] text-text-secondary leading-none mt-0.5">15,240 followers</p>
+                        <p className="text-[9px] text-text-secondary mt-0.5">1h • Edited • 🌐</p>
+                      </div>
+                    </div>
+                    <MoreVertical className="w-4 h-4 text-text-secondary" />
+                  </div>
+
+                  {/* LinkedIn Body Text */}
+                  <div className="space-y-2 text-text-primary text-[11px] leading-relaxed whitespace-pre-wrap">
+                    <p>{draft.liCaption || draft.caption}</p>
+                    <p className="text-blue-700 dark:text-blue-400 font-semibold">
+                      {(draft.liHashtags ?? draft.hashtags ?? []).map((h) => `#${h}`).join(' ')}
+                    </p>
+                  </div>
+
+                  {/* LinkedIn Attachment Image */}
+                  <div className="border border-border-primary rounded-lg overflow-hidden bg-bg-app">
+                    {imageUrl ? (
+                      <img src={imageUrl} alt="LinkedIn Visual" className="w-full object-cover max-h-52" />
+                    ) : (
+                      <div className="w-full aspect-[4/3] flex flex-col items-center justify-center p-4 text-center bg-bg-hover">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">AI Image Concept</span>
+                        <p className="text-[8px] text-text-secondary line-clamp-6 mt-1 font-mono leading-relaxed">
+                          {draft.liImageBrief || draft.imageBrief}
+                        </p>
+                      </div>
+                    )}
+                    <div className="p-2 border-t border-border-primary bg-bg-card">
+                      <p className="font-bold text-[10px] truncate text-text-primary">{draft.prompt || 'PressForge AI Update'}</p>
+                      <p className="text-[9px] text-text-secondary truncate">{activeWorkspace?.name || 'brand'}.com</p>
+                    </div>
+                  </div>
+
+                  {/* LinkedIn Actions */}
+                  <div className="border-t border-border-primary pt-2 flex items-center justify-between text-text-secondary text-[10px] font-bold">
+                    <button type="button" className="flex items-center gap-1 hover:text-blue-600 py-1">
+                      <ThumbsUp className="w-3.5 h-3.5" />
+                      <span>Like</span>
+                    </button>
+                    <button type="button" className="flex items-center gap-1 hover:text-blue-600 py-1">
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      <span>Comment</span>
+                    </button>
+                    <button type="button" className="flex items-center gap-1 hover:text-blue-600 py-1">
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span>Repost</span>
+                    </button>
+                    <button type="button" className="flex items-center gap-1 hover:text-blue-600 py-1">
+                      <Send className="w-3.5 h-3.5 rotate-0" />
+                      <span>Send</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Actions Frame */}
+            <div className="bg-bg-card p-3 flex gap-2 border-t border-border-primary shrink-0">
+              <button
+                onClick={handleApprove}
+                className="flex-1 bg-[#E1306C] text-white py-2 rounded-full text-xs font-bold hover:opacity-95 transition shadow-sm text-center"
+              >
+                Approve Post
+              </button>
+              <button
+                onClick={() => {
+                  const el = document.querySelector('textarea');
+                  if (el) el.focus();
+                }}
+                className="flex-1 bg-bg-app hover:bg-slate-200 border border-border-primary text-text-primary py-2 rounded-full text-xs font-bold transition text-center"
+              >
+                Request Edits
+              </button>
             </div>
           </div>
         </div>

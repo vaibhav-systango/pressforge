@@ -273,12 +273,12 @@ async def assign_workspace(
         from app.models.workspace import Workspace
         from app.models.organization_member import OrganizationMember, MemberWorkspace
 
-        # 1. Verify that current_user is OWNER or ADMIN of the organization
+        # 1. Verify that current_user is OWNER, ADMIN, or MEMBER of the organization
         manager_member = db.query(OrganizationMember).filter(
             OrganizationMember.organizationId == org_id,
             OrganizationMember.userId == current_user.id
         ).first()
-        if not manager_member or manager_member.role not in ["OWNER", "ADMIN"]:
+        if not manager_member or manager_member.role not in ["OWNER", "ADMIN", "MEMBER"]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only organization owners and admins can assign workspaces to members"
@@ -296,6 +296,13 @@ async def assign_workspace(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Active member not found in organization"
+            )
+
+        # Check: organization members can only assign workspaces to clients
+        if manager_member.role == "MEMBER" and member.role != "CLIENT":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only organization owners and admins can assign workspaces to members"
             )
 
         # 3. If workspaceId is provided, verify it exists, belongs to the organization, and is active
