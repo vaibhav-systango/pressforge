@@ -10,7 +10,7 @@ const eslintConfig = defineConfig([
       // Wireframe views use common hydration and form-sync patterns flagged by this rule.
       "react-hooks/set-state-in-effect": "warn",
       "react/no-unescaped-entities": "warn",
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-explicit-any": "error",
     },
   },
   // Override default ignores of eslint-config-next.
