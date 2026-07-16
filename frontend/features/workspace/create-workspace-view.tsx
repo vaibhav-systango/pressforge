@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { ArrowRight, Building, CheckCircle2 } from 'lucide-react';
+import { notifications } from '@mantine/notifications';
 
 import { useAppState } from '@/lib/queries/use-app-state';
 
@@ -34,7 +35,11 @@ export function CreateWorkspaceView() {
       await setActiveWorkspace(workspace.id);
       setCreatedName(workspace.name);
     } catch {
-      alert('Failed to create workspace. Please try again.');
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to create workspace. Please try again.',
+        color: 'red',
+      });
     } finally {
       setIsSubmitting(false);
     }

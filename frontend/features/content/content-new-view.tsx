@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
+import { notifications } from '@mantine/notifications';
 import type { Workspace } from '@/lib/types';
 import { Sparkles, Instagram, Send, Save, RefreshCw, Linkedin } from 'lucide-react';
 
@@ -116,11 +117,19 @@ export function ContentNewView() {
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt.trim()) {
-      alert("Please enter a brief or prompt to guide the AI.");
+      notifications.show({
+        title: 'Validation error',
+        message: 'Please enter a brief or prompt to guide the AI.',
+        color: 'red',
+      });
       return;
     }
     if (!state.activeWorkspaceId) {
-      alert("Select or create a workspace before generating content.");
+      notifications.show({
+        title: 'Validation error',
+        message: 'Select or create a workspace before generating content.',
+        color: 'red',
+      });
       return;
     }
 
@@ -203,7 +212,11 @@ export function ContentNewView() {
 
       setGenerated(true);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Content generation failed");
+      notifications.show({
+        title: 'Generation failed',
+        message: err instanceof Error ? err.message : 'Content generation failed',
+        color: 'red',
+      });
     } finally {
       setGenerating(false);
     }
@@ -375,7 +388,11 @@ export function ContentNewView() {
     status: "draft" | "pending_approval" | "approved",
   ) => {
     if (!state.activeWorkspaceId) {
-      alert("Select or create a workspace before saving.");
+      notifications.show({
+        title: 'Validation error',
+        message: 'Select or create a workspace before saving.',
+        color: 'red',
+      });
       return;
     }
 
@@ -456,7 +473,11 @@ export function ContentNewView() {
         liImageBrief,
       });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to save draft");
+      notifications.show({
+        title: 'Save failed',
+        message: err instanceof Error ? err.message : 'Failed to save draft',
+        color: 'red',
+      });
       return;
     }
 

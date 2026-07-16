@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react';
 import Image from 'next/image';
 import { UploadCloud, FileText } from 'lucide-react';
+import { notifications } from '@mantine/notifications';
 
 interface FileUploadProps {
   value: string | null;
@@ -34,7 +35,11 @@ export function FileUpload({
   const handleFile = async (file: File) => {
     // Validate size
     if (file.size > maxSize) {
-      alert(`File is too large. Max size is ${Math.round(maxSize / (1024 * 1024))}MB.`);
+      notifications.show({
+        title: 'Upload error',
+        message: `File is too large. Max size is ${Math.round(maxSize / (1024 * 1024))}MB.`,
+        color: 'red',
+      });
       return;
     }
 
@@ -49,7 +54,11 @@ export function FileUpload({
     });
 
     if (!isAllowed) {
-      alert('Invalid file format. Please upload an accepted format.');
+      notifications.show({
+        title: 'Upload error',
+        message: 'Invalid file format. Please upload an accepted format.',
+        color: 'red',
+      });
       return;
     }
 
@@ -74,7 +83,11 @@ export function FileUpload({
     } catch (err) {
       console.error('File upload error:', err);
       const msg = err instanceof Error ? err.message : 'File upload failed. Please try again.';
-      alert(msg);
+      notifications.show({
+        title: 'Upload error',
+        message: msg,
+        color: 'red',
+      });
     } finally {
       setIsUploading(false);
     }

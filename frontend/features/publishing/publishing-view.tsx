@@ -2,6 +2,7 @@
 
 import { useAppState } from '@/lib/queries/use-app-state';
 import React, { useState } from 'react';
+import { notifications } from '@mantine/notifications';
 import { Send, CheckCircle2, AlertTriangle, Calendar, Clock, RefreshCw, Instagram, Linkedin } from 'lucide-react';
 
 
@@ -32,7 +33,11 @@ export function PublishingView() {
         });
       }
       setPublishingId(null);
-      alert('Post successfully published to connected channels!');
+      notifications.show({
+        title: 'Success',
+        message: 'Post successfully published to connected channels!',
+        color: 'green',
+      });
     }, 800); // 800ms mock network request
   };
 
@@ -186,7 +191,11 @@ export function PublishingView() {
               <div className="shrink-0">
                 <button
                   type="button"
-                  onClick={() => alert('Simulating publication retry... Success!')}
+                  onClick={() => notifications.show({
+                    title: 'Simulating retry',
+                    message: 'Simulating publication retry... Success!',
+                    color: 'blue',
+                  })}
                   className="flex items-center gap-1 bg-red-50 border border-red-200 hover:bg-red-100 text-red-700 px-3.5 py-1.5 rounded-full text-xs font-bold transition"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />

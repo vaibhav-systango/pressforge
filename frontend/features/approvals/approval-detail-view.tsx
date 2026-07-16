@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
+import { notifications } from '@mantine/notifications';
 import React, { useState } from 'react';
 import { 
   ChevronLeft, Check, X, CornerDownLeft, MessageSquare, MoreVertical, Send,
@@ -73,13 +74,21 @@ export function ApprovalDetailView() {
         ...(draft.history ?? [])
       ]
     });
-    alert('Post Approved & Scheduled successfully!');
+    notifications.show({
+      title: 'Success',
+      message: 'Post Approved & Scheduled successfully!',
+      color: 'green',
+    });
     router.push('/app/publishing');
   };
 
   const handleFeedback = () => {
     if (!feedback.trim()) {
-      alert('Please enter your revision comments before requesting changes.');
+      notifications.show({
+        title: 'Validation error',
+        message: 'Please enter your revision comments before requesting changes.',
+        color: 'yellow',
+      });
       return;
     }
 
@@ -99,7 +108,11 @@ export function ApprovalDetailView() {
         ...(draft.history ?? [])
       ]
     });
-    alert('Feedback submitted. Draft returned to creator for revisions.');
+    notifications.show({
+      title: 'Feedback submitted',
+      message: 'Draft returned to creator for revisions.',
+      color: 'green',
+    });
     router.push('/app/approvals');
   };
 
@@ -120,7 +133,11 @@ export function ApprovalDetailView() {
         ...(draft.history ?? [])
       ]
     });
-    alert('Post rejected.');
+    notifications.show({
+      title: 'Post rejected',
+      message: 'Post rejected.',
+      color: 'red',
+    });
     router.push('/app/approvals');
   };
 

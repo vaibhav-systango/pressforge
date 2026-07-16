@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
+import { notifications } from '@mantine/notifications';
 import React, { useState } from 'react';
 import { 
   ChevronLeft, Save, Sparkles, Clock, X, Plus, Heart, 
@@ -335,7 +336,11 @@ export function ContentDetailView() {
       liImageBrief
     });
 
-    alert('Draft updated successfully!');
+    notifications.show({
+      title: 'Success',
+      message: 'Draft updated successfully!',
+      color: 'green',
+    });
     if (statusToUpdate === 'pending_approval') {
       router.push('/app/approvals');
     } else {

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAppState, useJournalistsQuery } from '@/lib/queries/use-app-state';
+import { notifications } from '@mantine/notifications';
 import React, { useState } from 'react';
 import { ChevronLeft, Send, UserCheck } from 'lucide-react';
 import { useDebounce } from '@/lib/hooks/use-debounce';
@@ -67,11 +68,19 @@ export function PrNewView() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !brief.trim()) {
-      alert('Please fill out the campaign title and release brief.');
+      notifications.show({
+        title: 'Validation error',
+        message: 'Please fill out the campaign title and release brief.',
+        color: 'red',
+      });
       return;
     }
     if (selectedJournalists.length === 0) {
-      alert('Please select at least one journalist to target.');
+      notifications.show({
+        title: 'Validation error',
+        message: 'Please select at least one journalist to target.',
+        color: 'red',
+      });
       return;
     }
 
@@ -90,7 +99,11 @@ export function PrNewView() {
       journalists: selectedJournalists
     });
 
-    alert('PR brief distributed successfully to selected editors!');
+    notifications.show({
+      title: 'Success',
+      message: 'PR brief distributed successfully to selected editors!',
+      color: 'green',
+    });
     router.push('/app/pr');
   };
 

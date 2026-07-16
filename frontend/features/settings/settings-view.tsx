@@ -3,6 +3,7 @@
 import { useAppState } from '@/lib/queries/use-app-state';
 import { useAuth } from '@/lib/hooks/queries/use-auth';
 import { useQueryClient } from '@tanstack/react-query';
+import { notifications } from '@mantine/notifications';
 import {
   formatAccountTypeLabel,
   formatMeTimestamp,
@@ -200,7 +201,11 @@ export function SettingsView() {
       window.location.href = '/';
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete account';
-      alert(message);
+      notifications.show({
+        title: 'Error',
+        message: message,
+        color: 'red',
+      });
     } finally {
       setIsDeletingAccount(false);
     }

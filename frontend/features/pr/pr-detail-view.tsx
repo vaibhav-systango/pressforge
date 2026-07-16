@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useAppState, useJournalistsQuery } from '@/lib/queries/use-app-state';
+import { notifications } from '@mantine/notifications';
 import { ChevronLeft, MailOpen, MousePointerClick, MessageSquare, ShieldCheck, Mail, Send } from 'lucide-react';
 
 
@@ -183,7 +184,11 @@ export function PrDetailView() {
                   </p>
                   <div className="pt-2 text-right">
                     <button
-                      onClick={() => alert(`Simulating mail draft replying to ${j.name}...`)}
+                      onClick={() => notifications.show({
+                        title: 'Simulating reply',
+                        message: `Simulating mail draft replying to ${j.name}...`,
+                        color: 'blue',
+                      })}
                       className="text-[10px] text-instagram-pink font-bold hover:underline"
                     >
                       Draft Reply back
