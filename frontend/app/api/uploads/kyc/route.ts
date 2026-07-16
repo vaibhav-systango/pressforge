@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const backendFormData = new FormData();
     backendFormData.append('file', file);
 
-    const { data, errorMessage, response } = await callBackend<any>('/uploads/kyc', {
+    const { data, errorMessage, response } = await callBackend<unknown>('/uploads/kyc', {
       method: 'POST',
       body: backendFormData,
       accessToken,
@@ -34,7 +34,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(data);
-  } catch (error: any) {
-    return jsonError(error.message || 'Upload error', 500, 'INTERNAL_SERVER_ERROR');
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Upload error';
+    return jsonError(msg, 500, 'INTERNAL_SERVER_ERROR');
   }
 }

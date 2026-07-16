@@ -2,9 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
+import { notifications } from '@mantine/notifications';
 import React, { useState } from 'react';
 
-import { ShieldCheck, MessageSquare, AlertCircle, RefreshCw, Sparkles, Send, Twitter, FileText, Globe, ArrowRight, X } from 'lucide-react';
+import { ShieldCheck, Sparkles, Twitter, FileText, Globe, ArrowRight, X } from 'lucide-react';
 
 
 
@@ -74,7 +75,11 @@ export function MonitoringView() {
 
     const alreadyHas = activeWorkspace.rules?.includes(proposedRule) ?? false;
     if (alreadyHas) {
-      alert('AI Rule injected successfully into Brand Voice rules!');
+      notifications.show({
+        title: 'Success',
+        message: 'AI Rule injected successfully into Brand Voice rules!',
+        color: 'green',
+      });
       return;
     }
 
@@ -83,9 +88,17 @@ export function MonitoringView() {
         ...activeWorkspace,
         rules: [...(activeWorkspace.rules ?? []), proposedRule],
       });
-      alert('AI Rule injected successfully into Brand Voice rules!');
+      notifications.show({
+        title: 'Success',
+        message: 'AI Rule injected successfully into Brand Voice rules!',
+        color: 'green',
+      });
     } catch {
-      alert('Failed to inject rule into Brand Voice. Please try again.');
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to inject rule into Brand Voice. Please try again.',
+        color: 'red',
+      });
     }
   };
 
@@ -114,7 +127,11 @@ export function MonitoringView() {
   const handleSaveResponseDraft = async () => {
     if (!generatedResponse.trim()) return;
     if (!state.activeWorkspaceId) {
-      alert('Select a workspace before saving a draft.');
+      notifications.show({
+        title: 'Validation error',
+        message: 'Select a workspace before saving a draft.',
+        color: 'red',
+      });
       return;
     }
 
@@ -139,11 +156,19 @@ export function MonitoringView() {
         ]
       });
     } catch {
-      alert('Failed to save response draft');
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to save response draft',
+        color: 'red',
+      });
       return;
     }
 
-    alert('Response draft saved! You can check it in the Content Planner.');
+    notifications.show({
+      title: 'Success',
+      message: 'Response draft saved! You can check it in the Content Planner.',
+      color: 'green',
+    });
     setDraftingMentionId(null);
     router.push('/app/content');
   };
@@ -214,7 +239,7 @@ export function MonitoringView() {
                     </span>
                   </div>
 
-                  <p className="text-xs text-text-primary leading-relaxed italic">"{men.content}"</p>
+                  <p className="text-xs text-text-primary leading-relaxed italic">&quot;{men.content}&quot;</p>
 
                   <div className="text-right">
                     <button
@@ -286,7 +311,7 @@ export function MonitoringView() {
             <div className="border border-border-primary rounded-xl p-3 bg-[#FAFAFA] text-xs font-semibold text-text-primary leading-normal">
               Proposed Writing Rule:
               <p className="text-xs text-instagram-pink font-bold mt-1 font-mono">
-                "{proposedRule}"
+                &quot;{proposedRule}&quot;
               </p>
             </div>
 

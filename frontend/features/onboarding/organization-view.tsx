@@ -33,7 +33,7 @@ export function OrganizationView() {
   const [individualBrandName, setIndividualBrandName] = useState(
     state.workspaces?.[0] && state.workspaces?.[0]?.id !== 'ws-acme' ? state.workspaces[0].name : '',
   );
-  const [individualNiche, setIndividualNiche] = useState(state.individualNiche || '');
+  const individualNiche = state.individualNiche || '';
   const [individualGoal, setIndividualGoal] = useState(
     state.individualGoal && state.individualGoal !== 'grow audience' ? state.individualGoal : '',
   );

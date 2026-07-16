@@ -6,6 +6,8 @@ import { useAppState } from '@/lib/queries/use-app-state';
 import { useAuth } from '@/lib/hooks/queries/use-auth';
 import { useInviteMemberMutation } from '@/lib/hooks/mutations/use-invitation';
 import { ApiError } from '@/lib/utils/api-errors';
+import type { ClientUser } from '@/lib/types';
+import type { InviteUserRequest } from '@/lib/types/api';
 import React, { useState } from 'react';
 import { useQuery, useMutation, useInfiniteQuery } from '@tanstack/react-query';
 import { useDebounce } from '@/lib/hooks/use-debounce';
@@ -14,9 +16,9 @@ import { Select } from '@/components/common/select';
 import { DeleteModal } from '@/components/common/delete-modal';
 import { InfiniteScroll } from '@/components/common/infinite-scroll';
 import { 
-  Users, Mail, ArrowRight, ShieldAlert, Building, X, Plus, 
-  Trash2, Calendar, ShieldCheck, UserCheck, AlertTriangle, 
-  Filter, Search, Key
+  Users, Mail, ShieldAlert, 
+  Trash2, UserCheck, 
+  Filter, Search
 } from 'lucide-react';
 
 export function ClientsView() {
@@ -40,7 +42,6 @@ export function ClientsView() {
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('all');
 
   // Backend invitation form
-  const [isInviting, setIsInviting] = useState(false);
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<string>('');
@@ -48,7 +49,7 @@ export function ClientsView() {
   const [deleteInviteId, setDeleteInviteId] = useState<string | null>(null);
 
   // Fetch Invitable Roles from Backend
-  const { data: invitableRoles = [], isLoading: isRolesLoading } = useQuery({
+  const { data: invitableRoles = [] } = useQuery({
     queryKey: ['invitable-roles', organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
@@ -59,7 +60,7 @@ export function ClientsView() {
     enabled: Boolean(organizationId),
   });
 
-  const canInvite = Boolean(organizationId) && (isRolesLoading || invitableRoles.length > 0);
+
 
   // Fetch ALL Clients (for stats cards)
   const { data: allClients = [], refetch: refetchAllClients } = useQuery({
@@ -68,7 +69,7 @@ export function ClientsView() {
       if (!organizationId) return [];
       const res = await fetch(`/api/organizations/${organizationId}/clients`);
       if (!res.ok) throw new Error('Failed to fetch clients');
-      return res.json() as Promise<any[]>;
+      return res.json() as Promise<ClientUser[]>;
     },
     enabled: Boolean(organizationId),
   });
@@ -95,7 +96,7 @@ export function ClientsView() {
 
       const res = await fetch(`/api/organizations/${organizationId}/clients?${queryParams.toString()}`);
       if (!res.ok) throw new Error('Failed to fetch clients');
-      return res.json() as Promise<any[]>;
+      return res.json() as Promise<ClientUser[]>;
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
@@ -169,7 +170,7 @@ export function ClientsView() {
       await inviteMutation.mutateAsync({
         email: inviteEmail.trim(),
         fullName: inviteName.trim(),
-        role: selectedInviteRole as any,
+        role: selectedInviteRole as InviteUserRequest['role'],
       });
 
       refetchClients();
@@ -178,7 +179,6 @@ export function ClientsView() {
       setInviteName('');
       setInviteEmail('');
       setInviteRole(invitableRoles[0]?.value ?? '');
-      setIsInviting(false);
 
       notifications.show({
         title: 'Invitation sent',
@@ -200,7 +200,7 @@ export function ClientsView() {
   };
 
   // Helper: check if a client subscription has expired
-  const getComputedStatus = (client: any) => {
+  const getComputedStatus = (client: ClientUser) => {
     if (client.status === 'expired') return 'expired';
     if (client.expiresAt && new Date(client.expiresAt) < new Date()) {
       return 'expired';
@@ -308,7 +308,7 @@ export function ClientsView() {
           {/* Status Filter */}
           <Select
             value={selectedStatusFilter}
-            onChange={(e) => setSelectedStatusFilter(e.target.value as any)}
+            onChange={(e) => setSelectedStatusFilter(e.target.value as 'all' | 'active' | 'pending' | 'expired')}
             options={[
               { value: 'all', label: 'All Statuses' },
               { value: 'active', label: 'Active' },
@@ -435,7 +435,7 @@ export function ClientsView() {
 
                             {/* Actions */}
                             <div className="flex items-center gap-2 self-end sm:self-start">
-                              {!client.isAccepted && (
+                              {client.status === 'pending' && (
                                 <button
                                   onClick={() => setDeleteInviteId(client.id)}
                                   disabled={deleteInviteMutation.isPending}

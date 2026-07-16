@@ -3,14 +3,13 @@
 import Link from 'next/link';
 import { useAppState } from '@/lib/queries/use-app-state';
 import React from 'react';
-import { MailOpen, Plus, ArrowUpRight, BarChart2, Check, ShieldAlert } from 'lucide-react';
+import { Plus, ArrowUpRight } from 'lucide-react';
 
 
 
 export function PrListView() {
   const { state } = useAppState();
 
-  const activeWorkspace = state.workspaces.find((w) => w.id === state.activeWorkspaceId) || state.workspaces[0];
 
   const campaigns = state.campaigns.filter((c) => c.workspaceId === state.activeWorkspaceId);
 

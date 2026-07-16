@@ -64,7 +64,7 @@ export async function DELETE() {
     return jsonError('Authentication required', 401, 'TOKEN_MISSING');
   }
 
-  const { errorMessage, response } = await callBackend<any>('/auth/me', {
+  const { errorMessage, response } = await callBackend<unknown>('/auth/me', {
     method: 'DELETE',
     accessToken,
   });

@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 
-import { callBackend } from '@/lib/server/backend-client';
 import { mapBackendUser, mapBackendUserType } from '@/lib/server/map-backend-user';
 import { ensureSession, updateSession } from '@/lib/server/mock-store';
 import {

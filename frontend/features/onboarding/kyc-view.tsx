@@ -3,7 +3,7 @@
 import { notifications } from '@mantine/notifications';
 import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { OnboardingStepper } from '@/components/onboarding/onboarding-stepper';
 import { useCompleteOnboardingMutation } from '@/lib/hooks/mutations/use-onboarding';
 import { buildOnboardingPayload } from '@/lib/onboarding/map-payload';
@@ -43,8 +43,18 @@ export function KycView() {
   const [contactPerson, setContactPerson] = useState(state.kycDetails?.contactPerson || '');
 
   const [uploadedFile, setUploadedFile] = useState<string | null>(state.kycDetails?.uploadedFile || null);
-  const [filePreview, setFilePreview] = useState<string | null>(null);
-  const [fileType, setFileType] = useState<string | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('kyc_file_preview');
+    }
+    return null;
+  });
+  const [fileType, setFileType] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('kyc_file_type');
+    }
+    return null;
+  });
   const [verifying, setVerifying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [submitError, setSubmitError] = useState('');
@@ -90,15 +100,7 @@ export function KycView() {
 
   const errors = getErrors();
 
-  // Restore file preview and metadata on mount if present
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedPreview = sessionStorage.getItem('kyc_file_preview');
-      const savedFileType = sessionStorage.getItem('kyc_file_type');
-      if (savedPreview) setFilePreview(savedPreview);
-      if (savedFileType) setFileType(savedFileType);
-    }
-  }, []);
+
 
   const handleFileChange = (name: string | null, preview: string | null, type: string | null) => {
     setUploadedFile(name);

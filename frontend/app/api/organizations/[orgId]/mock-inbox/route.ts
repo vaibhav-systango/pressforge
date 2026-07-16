@@ -13,7 +13,7 @@ export async function GET(
     return jsonError('Authentication required', 401, 'TOKEN_MISSING');
   }
 
-  const { data, errorMessage, response } = await callBackend<any>(
+  const { data, errorMessage, response } = await callBackend<unknown>(
     `/organizations/${orgId}/mock-inbox`,
     {
       method: 'GET',

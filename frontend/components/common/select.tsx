@@ -9,10 +9,17 @@ export interface SelectOption {
   label: string;
 }
 
+export interface SelectChangeEvent {
+  target: {
+    value: string;
+    name: string;
+  };
+}
+
 export interface SelectProps {
   options: (SelectOption | string)[];
   value?: string;
-  onChange: (e: any) => void;
+  onChange: (e: SelectChangeEvent) => void;
   placeholder?: string;
   label?: string;
   error?: string;
@@ -76,7 +83,7 @@ export function Select({
         name: name || '',
       },
     };
-    onChange(mockEvent as any);
+    onChange(mockEvent as SelectChangeEvent);
   };
 
   const hasWidth = containerClassName && /\bw-\S+/.test(containerClassName);

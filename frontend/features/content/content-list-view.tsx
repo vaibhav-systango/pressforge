@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useAppState } from '@/lib/queries/use-app-state';
 import React, { useState } from 'react';
-import { List, Sparkles, Instagram, Plus, Linkedin } from 'lucide-react';
+import { Sparkles, Instagram, Linkedin } from 'lucide-react';
 
 export function ContentListView() {
   const { state } = useAppState();
@@ -57,7 +57,7 @@ export function ContentListView() {
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setListTab(tab.id as any)}
+              onClick={() => setListTab(tab.id as 'pending' | 'draft' | 'approved' | 'published' | 'all')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition duration-150 cursor-pointer ${
                 listTab === tab.id
                   ? 'bg-bg-app border border-border-primary text-text-primary'

@@ -2,6 +2,7 @@
 
 import { useAppState } from '@/lib/queries/use-app-state';
 import React, { useState } from 'react';
+import { notifications } from '@mantine/notifications';
 import { Send, CheckCircle2, AlertTriangle, Calendar, Clock, RefreshCw, Instagram, Linkedin } from 'lucide-react';
 
 
@@ -11,7 +12,6 @@ export function PublishingView() {
   const [activeTab, setActiveTab] = useState<'scheduled' | 'logs'>('scheduled');
   const [publishingId, setPublishingId] = useState<string | null>(null);
 
-  const activeWorkspace = state.workspaces.find((w) => w.id === state.activeWorkspaceId) || state.workspaces[0];
 
   const drafts = state.drafts.filter((d) => d.workspaceId === state.activeWorkspaceId);
 
@@ -33,7 +33,11 @@ export function PublishingView() {
         });
       }
       setPublishingId(null);
-      alert('Post successfully published to connected channels!');
+      notifications.show({
+        title: 'Success',
+        message: 'Post successfully published to connected channels!',
+        color: 'green',
+      });
     }, 800); // 800ms mock network request
   };
 
@@ -155,7 +159,7 @@ export function PublishingView() {
                         Published (API Success)
                       </span>
                     </div>
-                    <p className="text-xs text-text-secondary line-clamp-1 italic">"{log.caption}"</p>
+                    <p className="text-xs text-text-secondary line-clamp-1 italic">&quot;{log.caption}&quot;</p>
                     <p className="text-[9px] text-text-secondary font-semibold mt-1">
                       Published: {log.scheduledAt ? new Date(log.scheduledAt).toLocaleString() : 'Just now'}
                     </p>
@@ -177,7 +181,7 @@ export function PublishingView() {
                       Connection Timeout (HTTP 504)
                     </span>
                   </div>
-                  <p className="text-xs text-text-secondary line-clamp-1 italic">"We are excited to share a peek..."</p>
+                  <p className="text-xs text-text-secondary line-clamp-1 italic">&quot;We are excited to share a peek...&quot;</p>
                   <p className="text-[9px] text-text-secondary font-semibold mt-1">
                     Attempted: 2026-06-16 11:34:02
                   </p>
@@ -187,7 +191,11 @@ export function PublishingView() {
               <div className="shrink-0">
                 <button
                   type="button"
-                  onClick={() => alert('Simulating publication retry... Success!')}
+                  onClick={() => notifications.show({
+                    title: 'Simulating retry',
+                    message: 'Simulating publication retry... Success!',
+                    color: 'blue',
+                  })}
                   className="flex items-center gap-1 bg-red-50 border border-red-200 hover:bg-red-100 text-red-700 px-3.5 py-1.5 rounded-full text-xs font-bold transition"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />

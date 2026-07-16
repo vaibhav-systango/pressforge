@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { withAuth } from '@/lib/server/auth/with-auth';
-import { addCampaign, getSessionState, updateCampaign } from '@/lib/server/mock-store';
+import { addCampaign, getSessionState } from '@/lib/server/mock-store';
 import { isCampaign, parseJsonBody } from '@/lib/server/validate-payload';
 
 export async function GET(request: Request) {

@@ -5,8 +5,7 @@ import { useAppState } from '@/lib/queries/use-app-state';
 import React, { useState } from 'react';
 import { Select } from '@/components/common/select';
 import { 
-  BarChart3, TrendingUp, Sparkles, Instagram, 
-  Linkedin, ArrowUpRight, Award, ChevronDown, Building
+  ArrowUpRight, Award, Building
 } from 'lucide-react';
 
 function getDeterministicMetrics(workspaceId: string, name: string) {

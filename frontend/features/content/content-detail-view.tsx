@@ -3,14 +3,16 @@
 import type { DraftHistoryEntry } from '@/lib/types';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
+import { notifications } from '@mantine/notifications';
 import React, { useState } from 'react';
 import { 
   ChevronLeft, Save, Sparkles, Clock, X, Plus, Heart, 
   MessageCircle, Send as ShareIcon, Bookmark, Undo, Link2, 
-  RefreshCw, Send, Edit3, Building, Linkedin, Share2, ThumbsUp, MoreHorizontal,
+  RefreshCw, Send, Edit3, Linkedin, Share2, ThumbsUp, MoreHorizontal,
   Instagram, Check
 } from 'lucide-react';
 import { Select } from '@/components/common/select';
@@ -225,7 +227,7 @@ export function ContentDetailView() {
   };
 
   // Restore Version
-  const handleRestoreVersion = (histItem: any) => {
+  const handleRestoreVersion = (histItem: DraftHistoryEntry) => {
     setCaption(histItem.caption);
     setHashtags(histItem.hashtags || hashtags);
     setImageBrief(histItem.imageBrief || imageBrief);
@@ -334,7 +336,11 @@ export function ContentDetailView() {
       liImageBrief
     });
 
-    alert('Draft updated successfully!');
+    notifications.show({
+      title: 'Success',
+      message: 'Draft updated successfully!',
+      color: 'green',
+    });
     if (statusToUpdate === 'pending_approval') {
       router.push('/app/approvals');
     } else {
@@ -636,10 +642,12 @@ export function ContentDetailView() {
                 {/* Image */}
                 <div className="w-full aspect-square bg-bg-app flex items-center justify-center overflow-hidden border-b border-border-primary relative">
                   {imageUrl ? (
-                    <img 
+                    <Image 
                       src={imageUrl} 
                       alt="Draft Visual" 
-                      className="w-full h-full object-cover"
+                      fill
+                      unoptimized
+                      className="object-cover"
                     />
                   ) : (
                     <span className="text-xs text-text-secondary italic">Image placeholder</span>
@@ -704,7 +712,14 @@ export function ContentDetailView() {
                 {/* Attachment image */}
                 {imageUrl && (
                   <div className="border border-border-primary rounded-lg overflow-hidden bg-bg-app">
-                    <img src={imageUrl} alt="Attachment" className="w-full object-cover max-h-56" />
+                    <Image 
+                      src={imageUrl} 
+                      alt="Attachment" 
+                      width={600}
+                      height={400}
+                      unoptimized
+                      className="w-full object-cover max-h-56" 
+                    />
                     <div className="p-2 border-t border-border-primary">
                       <p className="font-bold text-[10px] truncate text-text-primary">{goal} Update</p>
                       <p className="text-[9px] text-text-secondary truncate">{activeWorkspace?.name || 'brand'}.com</p>
@@ -945,7 +960,7 @@ export function ContentDetailView() {
                     </div>
                     <p className="text-instagram-pink font-semibold">{hist.action}</p>
                     <p className="text-[9px] text-text-secondary line-clamp-2 italic">
-                      "{(activePlatformTab === 'instagram' ? hist.caption : hist.liCaption) || hist.caption}"
+                      &quot;{(activePlatformTab === 'instagram' ? hist.caption : hist.liCaption) || hist.caption}&quot;
                     </p>
                     {hist.feedback && (
                       <div className="bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900 rounded-lg p-2 mt-1.5 text-[9px] text-red-700 dark:text-red-400">

@@ -1,12 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
+import { notifications } from '@mantine/notifications';
 import React, { useState } from 'react';
 import { 
-  ChevronLeft, Check, X, CornerDownLeft, MessageSquare, MoreVertical, Sparkles, Send,
+  ChevronLeft, Check, X, CornerDownLeft, MessageSquare, MoreVertical, Send,
   Heart, MessageCircle, Bookmark, ThumbsUp, Share2, Instagram, Linkedin 
 } from 'lucide-react';
 
@@ -72,13 +74,21 @@ export function ApprovalDetailView() {
         ...(draft.history ?? [])
       ]
     });
-    alert('Post Approved & Scheduled successfully!');
+    notifications.show({
+      title: 'Success',
+      message: 'Post Approved & Scheduled successfully!',
+      color: 'green',
+    });
     router.push('/app/publishing');
   };
 
   const handleFeedback = () => {
     if (!feedback.trim()) {
-      alert('Please enter your revision comments before requesting changes.');
+      notifications.show({
+        title: 'Validation error',
+        message: 'Please enter your revision comments before requesting changes.',
+        color: 'yellow',
+      });
       return;
     }
 
@@ -98,7 +108,11 @@ export function ApprovalDetailView() {
         ...(draft.history ?? [])
       ]
     });
-    alert('Feedback submitted. Draft returned to creator for revisions.');
+    notifications.show({
+      title: 'Feedback submitted',
+      message: 'Draft returned to creator for revisions.',
+      color: 'green',
+    });
     router.push('/app/approvals');
   };
 
@@ -119,7 +133,11 @@ export function ApprovalDetailView() {
         ...(draft.history ?? [])
       ]
     });
-    alert('Post rejected.');
+    notifications.show({
+      title: 'Post rejected',
+      message: 'Post rejected.',
+      color: 'red',
+    });
     router.push('/app/approvals');
   };
 
@@ -250,10 +268,12 @@ export function ApprovalDetailView() {
                   {/* Post Image */}
                   <div className="w-full aspect-square bg-bg-app flex items-center justify-center overflow-hidden border-b border-border-primary relative">
                     {imageUrl ? (
-                      <img 
+                      <Image 
                         src={imageUrl} 
                         alt="Instagram Visual" 
-                        className="w-full h-full object-cover"
+                        fill
+                        unoptimized
+                        className="object-cover"
                       />
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-bg-hover">
@@ -318,7 +338,14 @@ export function ApprovalDetailView() {
                   {/* LinkedIn Attachment Image */}
                   <div className="border border-border-primary rounded-lg overflow-hidden bg-bg-app">
                     {imageUrl ? (
-                      <img src={imageUrl} alt="LinkedIn Visual" className="w-full object-cover max-h-52" />
+                      <Image 
+                        src={imageUrl} 
+                        alt="LinkedIn Visual" 
+                        width={600}
+                        height={400}
+                        unoptimized
+                        className="w-full object-cover max-h-52" 
+                      />
                     ) : (
                       <div className="w-full aspect-[4/3] flex flex-col items-center justify-center p-4 text-center bg-bg-hover">
                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">AI Image Concept</span>

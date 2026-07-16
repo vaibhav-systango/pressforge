@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import Image from 'next/image';
 import { UploadCloud, FileText } from 'lucide-react';
+import { notifications } from '@mantine/notifications';
 
 interface FileUploadProps {
   value: string | null;
@@ -33,7 +35,11 @@ export function FileUpload({
   const handleFile = async (file: File) => {
     // Validate size
     if (file.size > maxSize) {
-      alert(`File is too large. Max size is ${Math.round(maxSize / (1024 * 1024))}MB.`);
+      notifications.show({
+        title: 'Upload error',
+        message: `File is too large. Max size is ${Math.round(maxSize / (1024 * 1024))}MB.`,
+        color: 'red',
+      });
       return;
     }
 
@@ -48,7 +54,11 @@ export function FileUpload({
     });
 
     if (!isAllowed) {
-      alert('Invalid file format. Please upload an accepted format.');
+      notifications.show({
+        title: 'Upload error',
+        message: 'Invalid file format. Please upload an accepted format.',
+        color: 'red',
+      });
       return;
     }
 
@@ -70,9 +80,14 @@ export function FileUpload({
       const result = await response.json();
       const isImage = file.type.startsWith('image/');
       onChange(JSON.stringify(result), isImage ? result.secureUrl : null, file.type);
-    } catch (err: any) {
+    } catch (err) {
       console.error('File upload error:', err);
-      alert(err.message || 'File upload failed. Please try again.');
+      const msg = err instanceof Error ? err.message : 'File upload failed. Please try again.';
+      notifications.show({
+        title: 'Upload error',
+        message: msg,
+        color: 'red',
+      });
     } finally {
       setIsUploading(false);
     }
@@ -113,7 +128,14 @@ export function FileUpload({
             <div className="flex items-center gap-2.5 min-w-0">
               {previewUrl ? (
                 <div className="w-12 h-12 rounded-lg overflow-hidden border border-slate-100 flex-shrink-0">
-                  <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                  <Image 
+                    src={previewUrl} 
+                    alt="Preview" 
+                    width={48}
+                    height={48}
+                    unoptimized
+                    className="w-full h-full object-cover" 
+                  />
                 </div>
               ) : (
                 <div className="w-12 h-12 rounded-lg bg-pink-50 text-instagram-pink flex items-center justify-center flex-shrink-0">
