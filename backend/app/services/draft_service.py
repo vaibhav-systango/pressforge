@@ -108,6 +108,13 @@ class DraftService:
         )
         db.commit()
         db.refresh(draft)
+
+        try:
+            from app.services.notification_service import notification_service
+            notification_service.dispatch_draft_notification(db, draft)
+        except Exception as e:
+            logger.error("Failed to dispatch draft creation notification: %s", e)
+
         return _draft_to_dict(draft)
 
     def update_draft(self, db: Session, user: User, draft_id: str, data: dict) -> dict:

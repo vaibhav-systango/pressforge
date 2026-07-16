@@ -1244,7 +1244,7 @@ export function ContentNewView() {
                     className="w-full flex items-center justify-center gap-2 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3 rounded-full text-xs font-bold hover:opacity-95 transition shadow-sm cursor-pointer"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    <span>Send to WhatsApp for Client Approval</span>
+                    <span>Send via Email & Telegram for Client Approval</span>
                   </button>
                 ) : (
                   <button
