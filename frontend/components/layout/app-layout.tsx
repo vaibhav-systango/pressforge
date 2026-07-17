@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 
 import { AppShell } from '@/components/layout/app-shell';
 import { useAppState } from '@/lib/queries/use-app-state';
+import { PageLoader } from '@/components/common/page-loader';
 
 function isClientRouteAllowed(pathname: string): boolean {
   return (
@@ -22,17 +23,22 @@ function isClientRouteAllowed(pathname: string): boolean {
 }
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const { state } = useAppState();
+  const { state, isLoading } = useAppState();
   const pathname = usePathname();
   const router = useRouter();
   const isClient = state.currentUserType === 'client';
   const isAllowed = !isClient || isClientRouteAllowed(pathname);
 
   useEffect(() => {
+    if (isLoading) return;
     if (!isAllowed) {
       router.replace('/app');
     }
-  }, [isAllowed, router]);
+  }, [isAllowed, isLoading, router]);
+
+  if (isLoading) {
+    return <PageLoader />;
+  }
 
   if (!isAllowed) {
     return null;

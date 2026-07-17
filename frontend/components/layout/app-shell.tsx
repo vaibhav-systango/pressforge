@@ -120,7 +120,7 @@ console.log(state)
     state.currentUserType === "individual" ||
     state.accountType === "individual";
   const displayUserName = user?.name || state.currentUserName || "User";
-  const displayOrgName = state.organizationName || "Forge Agencies";
+  const displayOrgName = user?.organizationName || state.organizationName || "Forge Agencies";
   const userInitials = displayUserName
     .split(/\s+/)
     .map((n) => n[0])

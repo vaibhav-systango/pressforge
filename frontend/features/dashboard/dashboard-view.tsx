@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Select } from '@/components/common/select';
 import { useAppState } from '@/lib/queries/use-app-state';
+import { useAuth } from '@/lib/hooks/queries/use-auth';
 import { useLinkedInConnection } from '@/lib/hooks/queries/use-social-connection';
 import {
   Sparkles,
@@ -26,6 +27,7 @@ import {
 
 export function DashboardView() {
   const { state, isLoading } = useAppState();
+  const { user } = useAuth();
   const {
     connection: linkedinConnection,
     isLoading: isLinkedInLoading,
@@ -289,13 +291,15 @@ export function DashboardView() {
     );
   }
 
+  const displayOrgName = user?.organizationName || state.organizationName || user?.name || "Forge Agencies";
+
   return (
     <div className="flex flex-col gap-8 animate-fade-in">
       {/* Welcome Block */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-text-primary">
-            Welcome Back, {state.organizationName}
+            Welcome Back, {displayOrgName}
           </h1>
           <p className="text-sm text-text-secondary mt-1">
             Here is the current status of the <span className="font-semibold text-text-primary">{activeWorkspace?.name}</span> workspace.

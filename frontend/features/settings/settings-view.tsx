@@ -52,11 +52,24 @@ export function SettingsView() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Form states
+  const initialOrgName = user?.organizationName || state.organizationName;
   const [profileName, setProfileName] = useState(user?.name ?? '');
   const [profileEmail] = useState(user?.email ?? '');
   const [orgName, setOrgName] = useState(
-    state.organizationName && state.organizationName !== 'Forge Agencies' ? state.organizationName : '',
+    initialOrgName && initialOrgName !== 'Forge Agencies' ? initialOrgName : '',
   );
+
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (user?.name) {
+      setProfileName(user.name);
+    }
+    const currentOrg = user?.organizationName || state.organizationName;
+    if (currentOrg && currentOrg !== 'Forge Agencies') {
+      setOrgName(currentOrg);
+    }
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [user, state.organizationName]);
   
   // Password fields
   const [currentPassword, setCurrentPassword] = useState('');
