@@ -355,7 +355,7 @@ class InvitationService:
                 f"You have been invited to review content briefs and approvals for {org.name} on PressForge.\n\n"
                 f"Your login email will be: {invitation.email}\n\n"
                 f"Click the link to accept the invitation and set your password:\n"
-                f"http://localhost:3000{invite_link}"
+                f"{settings.FRONTEND_URL}{invite_link}"
             )
             
             emails.append({

@@ -48,6 +48,9 @@ def _draft_to_dict(draft: Draft) -> dict:
         "referenceUrls": draft.referenceUrls or [],
         "referenceText": draft.referenceText,
         "history": draft.history or [],
+        "publishedAt": draft.publishedAt,
+        "externalPostId": draft.externalPostId,
+        "publishError": draft.publishError,
         "createdAt": draft.createdAt,
         "updatedAt": draft.updatedAt,
     }

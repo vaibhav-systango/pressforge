@@ -36,11 +36,22 @@ class DraftResponse(BaseModel):
     referenceUrls: list[str] = Field(default_factory=list)
     referenceText: str | None = None
     history: list[DraftHistoryEntry] = Field(default_factory=list)
+    publishedAt: int | None = None
+    externalPostId: str | None = None
+    publishError: str | None = None
     createdAt: int | None = None
     updatedAt: int | None = None
 
     class Config:
         from_attributes = True
+
+
+class PublishDraftResponse(BaseModel):
+    draft: DraftResponse
+    platform: str
+    externalPostId: str
+    publishedAt: int
+    message: str
 
 
 class DraftListResponse(BaseModel):

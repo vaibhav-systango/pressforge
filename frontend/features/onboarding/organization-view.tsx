@@ -1,18 +1,17 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import {
   ArrowRight,
-  Instagram,
+  Linkedin,
   X,
   Check,
   User,
   Building,
 } from 'lucide-react';
-import { PasswordInput } from '@/components/common/password-input';
 import { Select } from '@/components/common/select';
 import { notifications } from '@mantine/notifications';
 import {
@@ -21,10 +20,45 @@ import {
   validateOrganizationName,
   validateOrganizationDescription,
 } from '@/lib/utils/validation';
+import { useLinkedInConnection } from '@/lib/hooks/queries/use-social-connection';
 
 export function OrganizationView() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { state, updateState } = useAppState();
+  const {
+    connection: linkedinConnection,
+    isLoading: isLinkedInLoading,
+    isConnecting: isLinkedInConnecting,
+    connectLinkedIn,
+    refresh: refreshLinkedInConnection,
+  } = useLinkedInConnection();
+
+  const linkedinConnected = linkedinConnection?.connected ?? false;
+  const linkedinDisplayName =
+    linkedinConnection?.account?.displayName ?? linkedinConnection?.account?.username ?? null;
+
+  useEffect(() => {
+    const platform = searchParams.get('platform');
+    const status = searchParams.get('status');
+
+    if (platform !== 'linkedin' || !status) {
+      return;
+    }
+
+    if (status === 'connected') {
+      refreshLinkedInConnection();
+      updateState((prev) => ({
+        ...prev,
+        connectedAccounts: {
+          ...(prev.connectedAccounts ?? { linkedin: false }),
+          linkedin: true,
+        },
+      }));
+    }
+
+    router.replace('/onboarding/organization');
+  }, [searchParams, router, refreshLinkedInConnection, updateState]);
 
   const [accountType, setAccountType] = useState<'individual' | 'organization'>(
     state.accountType || 'individual',
@@ -44,12 +78,6 @@ export function OrganizationView() {
   const [individualThemeInput, setIndividualThemeInput] = useState('');
   const [individualWebsite, setIndividualWebsite] = useState(
     state.individualWebsite || '',
-  );
-  const [individualInstaConnected, setIndividualInstaConnected] = useState(
-    state.individualInstagramConnected || false,
-  );
-  const [individualInstaUser, setIndividualInstaUser] = useState(
-    state.individualInstagramUsername || '',
   );
 
   const goalOptions = [
@@ -162,21 +190,6 @@ export function OrganizationView() {
     });
   };
 
-  const [showInstaModal, setShowInstaModal] = useState(false);
-  const [instaModalTarget, setInstaModalTarget] = useState<'individual' | string | null>(null);
-  const [instaUsername, setInstaUsername] = useState('');
-  const [instaPassword, setInstaPassword] = useState('');
-  const [instaStep, setInstaStep] = useState<'login' | 'authorize' | 'loading'>('login');
-
-  const openInstaAuth = (target: 'individual' | string) => {
-    setInstaModalTarget(target);
-    setInstaUsername('');
-    setInstaPassword('');
-    setInstaStep('login');
-    setShowInstaModal(true);
-  };
-
-  const [instaError, setInstaError] = useState('');
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -234,36 +247,6 @@ export function OrganizationView() {
 
   const errors = getErrors();
 
-  const handleInstaLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!instaUsername.trim()) {
-      setInstaError('Please enter a username.');
-      return;
-    }
-    setInstaError('');
-    setInstaStep('loading');
-    setTimeout(() => {
-      setInstaStep('authorize');
-    }, 800);
-  };
-
-  const handleInstaAuthorize = () => {
-    setInstaStep('loading');
-    setTimeout(() => {
-      const finalUsername = instaUsername.startsWith('@')
-        ? instaUsername.substring(1)
-        : instaUsername;
-
-      if (instaModalTarget === 'individual') {
-        setIndividualInstaConnected(true);
-        setIndividualInstaUser(finalUsername);
-      }
-
-      setShowInstaModal(false);
-      setInstaModalTarget(null);
-    }, 1000);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitted(true);
@@ -297,8 +280,10 @@ export function OrganizationView() {
             individualGoal: savedGoal,
             individualThemes: savedThemes,
             individualWebsite,
-            individualInstagramConnected: individualInstaConnected,
-            individualInstagramUsername: individualInstaUser,
+            connectedAccounts: {
+              ...(prev.connectedAccounts ?? { linkedin: false }),
+              linkedin: linkedinConnected,
+            },
             currentStep: 2,
           };
         });
@@ -388,7 +373,7 @@ export function OrganizationView() {
               <h3 className="font-extrabold text-base text-[#262626]">Creator / Individual</h3>
               <p className="text-xs text-slate-500 mt-1 leading-normal">
                 Best for content creators, influencers, and solo business owners. Manage a single
-                workspace and connect one direct Instagram account.
+                workspace and connect your LinkedIn profile.
               </p>
             </div>
           </button>
@@ -420,7 +405,7 @@ export function OrganizationView() {
               <h3 className="font-extrabold text-base text-[#262626]">Agency / Organization</h3>
               <p className="text-xs text-slate-500 mt-1 leading-normal">
                 Best for agencies and social media teams. Manage multiple client workspaces, invite
-                team members, and authenticate each via Instagram Auth.
+                team members, and connect LinkedIn for publishing.
               </p>
             </div>
           </button>
@@ -615,49 +600,43 @@ export function OrganizationView() {
 
                 <div className="flex flex-col gap-2">
                   <label className="text-xs font-semibold text-[#737373]">
-                    Instagram Account Connection (optional)
+                    LinkedIn Profile Connection (optional)
                   </label>
-                  {individualInstaConnected ? (
+                  {linkedinConnected ? (
                     <div className="border border-green-100 bg-green-50/50 rounded-xl p-4.5 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
-                          <Instagram className="w-5 h-5" />
+                        <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                          <Linkedin className="w-5 h-5" />
                         </div>
                         <div>
                           <p className="text-sm font-bold text-slate-800 flex items-center gap-1">
-                            <span>Instagram Connected</span>
+                            <span>LinkedIn Connected</span>
                             <Check className="w-4 h-4 text-green-600" />
                           </p>
                           <p className="text-xs text-slate-500 mt-0.5">
                             Connected as{' '}
-                            <span className="font-mono text-instagram-pink font-semibold">
-                              @{individualInstaUser}
+                            <span className="font-semibold text-blue-600">
+                              {linkedinDisplayName}
                             </span>
                           </p>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIndividualInstaConnected(false);
-                          setIndividualInstaUser('');
-                        }}
-                        className="text-xs text-red-500 font-bold hover:underline"
-                      >
-                        Disconnect
-                      </button>
                     </div>
                   ) : (
                     <div className="border border-dashed border-[#EFEFEF] rounded-xl p-6 text-center bg-slate-50/50 flex flex-col items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-pink-50 text-instagram-pink flex items-center justify-center">
-                        <Instagram className="w-5 h-5" />
+                      <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+                        <Linkedin className="w-5 h-5" />
                       </div>
+                      <p className="text-xs text-slate-500">
+                        Connect now or skip and set up later in onboarding.
+                      </p>
                       <button
                         type="button"
-                        onClick={() => openInstaAuth('individual')}
-                        className="bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white text-xs font-bold px-5 py-2.5 rounded-full hover:opacity-90 transition shadow-sm"
+                        onClick={() => connectLinkedIn('/onboarding/organization')}
+                        disabled={isLinkedInConnecting || isLinkedInLoading}
+                        className="bg-blue-600 text-white text-xs font-bold px-5 py-2.5 rounded-full hover:opacity-90 transition shadow-sm disabled:opacity-50"
                       >
-                        Login via Instagram Auth
+                        {isLinkedInConnecting ? 'Redirecting...' : 'Connect LinkedIn'}
                       </button>
                     </div>
                   )}
@@ -901,115 +880,6 @@ export function OrganizationView() {
 
         </div>
       </div>
-
-      {showInstaModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="bg-white w-full max-w-[380px] rounded-3xl overflow-hidden shadow-2xl border border-slate-100 flex flex-col animate-scale-up">
-            <div className="bg-[#FAFBFB] px-5 py-4 border-b border-[#EFEFEF] flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] flex items-center justify-center text-white">
-                  <Instagram className="w-4 h-4" />
-                </div>
-                <span className="font-extrabold text-xs tracking-wider uppercase text-slate-700">
-                  Instagram Developer Auth
-                </span>
-              </div>
-              <button
-                onClick={() => {
-                  setShowInstaModal(false);
-                  setInstaModalTarget(null);
-                }}
-                className="text-slate-400 hover:text-slate-600 p-1"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-6 flex flex-col justify-center">
-              {instaStep === 'loading' && (
-                <div className="py-12 flex flex-col items-center gap-3">
-                  <div className="relative w-12 h-12">
-                    <div className="absolute inset-0 rounded-full border-4 border-slate-100"></div>
-                    <div className="absolute inset-0 rounded-full border-4 border-t-[#DD2A7B] animate-spin"></div>
-                  </div>
-                  <p className="text-xs font-bold text-slate-500 mt-2">
-                    Connecting to Instagram APIs...
-                  </p>
-                </div>
-              )}
-
-              {instaStep === 'login' && (
-                <form onSubmit={handleInstaLogin} className="flex flex-col gap-4">
-                  <div className="text-center my-3">
-                    <h2 className="text-3xl font-normal tracking-tight text-[#262626] font-serif italic">
-                      Instagram
-                    </h2>
-                    <p className="text-slate-400 text-[10px] mt-1">
-                      Sign in to authorize PressForge Client integration
-                    </p>
-                  </div>
-
-                  {instaError && (
-                    <p className="text-[11px] text-red-500 font-medium text-center">{instaError}</p>
-                  )}
-
-                  <div className="flex flex-col gap-2">
-                    <input
-                      type="text"
-                      required
-                      placeholder="Phone number, username, or email"
-                      value={instaUsername}
-                      onChange={(e) => setInstaUsername(e.target.value)}
-                      className="border border-[#EFEFEF] bg-[#FAFAFA] rounded-md px-3 py-2 text-xs focus:border-slate-400 outline-none transition"
-                    />
-                    <PasswordInput
-                      placeholder="Password"
-                      value={instaPassword}
-                      onChange={(e) => setInstaPassword(e.target.value)}
-                      className="border border-[#EFEFEF] bg-[#FAFAFA] rounded-md text-xs py-2 focus:border-slate-400"
-                      required
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="bg-[#0095F6] hover:bg-[#1877F2] text-white text-xs font-bold py-2 rounded-md transition shadow-xs mt-1"
-                  >
-                    Log In
-                  </button>
-                </form>
-              )}
-
-              {instaStep === 'authorize' && (
-                <div className="flex flex-col gap-4 text-center">
-                  <h3 className="font-extrabold text-sm text-[#262626] mt-2">
-                    Authorize PressForge Integration
-                  </h3>
-                  <div className="flex gap-2.5 mt-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowInstaModal(false);
-                        setInstaModalTarget(null);
-                      }}
-                      className="flex-1 border border-[#EFEFEF] hover:bg-slate-50 text-slate-600 font-bold py-2 rounded-md text-xs transition"
-                    >
-                      Decline
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleInstaAuthorize}
-                      className="flex-1 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white font-bold py-2 rounded-md text-xs transition shadow-xs"
-                    >
-                      Allow Access
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

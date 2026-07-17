@@ -1,84 +1,206 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { useAppState } from '@/lib/queries/use-app-state';
-import React, { useState } from 'react';
+import { useLinkedInConnection } from '@/lib/hooks/queries/use-social-connection';
+import React, { useEffect, useState } from 'react';
 import { notifications } from '@mantine/notifications';
-import { Send, CheckCircle2, AlertTriangle, Calendar, Clock, RefreshCw, Instagram, Linkedin } from 'lucide-react';
+import {
+  Send,
+  CheckCircle2,
+  AlertTriangle,
+  Calendar,
+  Clock,
+  RefreshCw,
+  Linkedin,
+  ExternalLink,
+} from 'lucide-react';
+import type { AppState, Draft } from '@/lib/types';
 
+function draftPreviewText(draft: Draft): string {
+  return (draft.liCaption || draft.caption || draft.prompt || '').trim();
+}
 
+function formatPublishedAt(draft: Draft): string {
+  if (typeof draft.publishedAt === 'number') {
+    return new Date(draft.publishedAt).toLocaleString();
+  }
+  if (draft.scheduledAt) {
+    return new Date(draft.scheduledAt).toLocaleString();
+  }
+  return 'Just now';
+}
 
 export function PublishingView() {
-  const { state, updateDraft } = useAppState();
+  const queryClient = useQueryClient();
+  const { state } = useAppState();
+  const {
+    connection: linkedinConnection,
+    isLoading: isLinkedInLoading,
+    isConnecting: isLinkedInConnecting,
+    connectLinkedIn,
+  } = useLinkedInConnection();
   const [activeTab, setActiveTab] = useState<'scheduled' | 'logs'>('scheduled');
   const [publishingId, setPublishingId] = useState<string | null>(null);
-
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [publishSuccess, setPublishSuccess] = useState<string | null>(null);
 
   const drafts = state.drafts.filter((d) => d.workspaceId === state.activeWorkspaceId);
-
-  // Scheduled posts (status: approved)
   const scheduledPosts = drafts.filter((d) => d.status === 'approved');
-
-  // Published logs (status: published)
   const publishedLogs = drafts.filter((d) => d.status === 'published');
+  const linkedinConnected = linkedinConnection?.connected ?? false;
 
-  const handlePublishNow = (draftId: string) => {
+  // Keep queue in sync while auto-publish clears approved drafts in the background
+  useEffect(() => {
+    if (scheduledPosts.length === 0) return;
+    const id = window.setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: ['app-state'] });
+    }, 15_000);
+    return () => window.clearInterval(id);
+  }, [scheduledPosts.length, queryClient]);
+
+  const handlePublishNow = async (draftId: string) => {
     setPublishingId(draftId);
-    setTimeout(() => {
-      const draftToPublish = drafts.find((d) => d.id === draftId);
-      if (draftToPublish) {
-        updateDraft({
-          ...draftToPublish,
-          status: 'published',
-          scheduledAt: new Date().toISOString()
+    setPublishError(null);
+    setPublishSuccess(null);
+
+    try {
+      const res = await fetch(`/api/drafts/${draftId}/publish`, { method: 'POST' });
+      const body = (await res.json().catch(() => null)) as
+        | {
+            draft?: Draft;
+            message?: string;
+            externalPostId?: string;
+            error?: string;
+            code?: string;
+          }
+        | null;
+
+      if (!res.ok || !body?.draft) {
+        const message =
+          body?.error ||
+          (body?.code === 'LINKEDIN_RECONNECT_REQUIRED'
+            ? 'LinkedIn connection expired. Reconnect LinkedIn in Settings.'
+            : 'Failed to publish to LinkedIn.');
+        setPublishError(message);
+        notifications.show({
+          title: 'Publish failed',
+          message,
+          color: 'red',
         });
+        return;
       }
-      setPublishingId(null);
+
+      const publishedDraft: Draft = {
+        ...body.draft,
+        status: 'published',
+        externalPostId: body.externalPostId ?? body.draft.externalPostId,
+      };
+
+      queryClient.setQueryData(['app-state'], (old: { state: AppState } | undefined) => {
+        if (!old?.state) return old;
+        return {
+          state: {
+            ...old.state,
+            drafts: (old.state.drafts || []).map((d) =>
+              d.id === publishedDraft.id ? { ...d, ...publishedDraft } : d,
+            ),
+          },
+        };
+      });
+
+      const successMessage = body.message || 'Published to LinkedIn successfully.';
+      setPublishSuccess(successMessage);
       notifications.show({
         title: 'Success',
-        message: 'Post successfully published to connected channels!',
+        message: successMessage,
         color: 'green',
       });
-    }, 800); // 800ms mock network request
+      setActiveTab('logs');
+    } catch {
+      const message = 'Failed to publish to LinkedIn. Please try again.';
+      setPublishError(message);
+      notifications.show({
+        title: 'Publish failed',
+        message,
+        color: 'red',
+      });
+    } finally {
+      setPublishingId(null);
+    }
   };
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
-      {/* Header */}
       <div className="border-b border-border-primary pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-text-primary">Publishing Hub</h1>
           <p className="text-sm text-text-secondary mt-1">
-            Manage scheduled publication pipelines and review API connection logs.
+            Approved drafts auto-post to LinkedIn when connected. Manual publish still works
+            anytime.
           </p>
         </div>
 
-        {/* Tab Toggle */}
         <div className="bg-bg-app p-1 rounded-xl flex items-center border border-border-primary self-start sm:self-center">
           <button
             onClick={() => setActiveTab('scheduled')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition duration-150 ${
-              activeTab === 'scheduled' ? 'bg-bg-card text-text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'
+              activeTab === 'scheduled'
+                ? 'bg-bg-card text-text-primary shadow-sm'
+                : 'text-text-secondary hover:text-text-primary'
             }`}
           >
             <Calendar className="w-3.5 h-3.5" />
-            <span>Scheduled Queue ({scheduledPosts.length})</span>
+            <span>Approved Queue ({scheduledPosts.length})</span>
           </button>
           <button
             onClick={() => setActiveTab('logs')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition duration-150 ${
-              activeTab === 'logs' ? 'bg-bg-card text-text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'
+              activeTab === 'logs'
+                ? 'bg-bg-card text-text-primary shadow-sm'
+                : 'text-text-secondary hover:text-text-primary'
             }`}
           >
             <Clock className="w-3.5 h-3.5" />
-            <span>Publishing Logs ({publishedLogs.length + 1})</span> {/* +1 for the mock error case */}
+            <span>Publishing Logs ({publishedLogs.length})</span>
           </button>
         </div>
       </div>
 
-      {/* Scheduled Queue View */}
+      {!isLinkedInLoading && !linkedinConnected && (
+        <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 font-medium sm:flex-row sm:items-center sm:justify-between">
+          <span>
+            Connect LinkedIn to auto-post. Approved drafts stay in the queue until an account is
+            connected.
+          </span>
+          <button
+            type="button"
+            onClick={() => connectLinkedIn('/app/publishing')}
+            disabled={isLinkedInConnecting}
+            className="shrink-0 rounded-lg bg-blue-600 px-3 py-2 text-[10px] font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isLinkedInConnecting ? 'Redirecting...' : 'Connect LinkedIn'}
+          </button>
+        </div>
+      )}
+
+      {publishError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 font-medium">
+          {publishError}
+        </div>
+      )}
+
+      {publishSuccess && (
+        <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-xs text-green-700 font-medium">
+          {publishSuccess}
+        </div>
+      )}
+
       {activeTab === 'scheduled' && (
         <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
-          <h3 className="text-base font-bold text-text-primary border-b border-border-primary pb-2">Approved Queue</h3>
+          <h3 className="text-base font-bold text-text-primary border-b border-border-primary pb-2">
+            Approved Queue
+          </h3>
 
           <div className="flex flex-col gap-4">
             {scheduledPosts.map((post) => (
@@ -88,8 +210,10 @@ export function PublishingView() {
               >
                 {publishingId === post.id && (
                   <div className="absolute inset-0 bg-bg-card/70 backdrop-blur-sm z-10 flex items-center justify-center gap-2">
-                    <RefreshCw className="w-5 h-5 text-instagram-pink animate-spin" />
-                    <span className="text-xs font-bold text-text-primary">Publishing post to API...</span>
+                    <RefreshCw className="w-5 h-5 text-blue-600 animate-spin" />
+                    <span className="text-xs font-bold text-text-primary">
+                      Publishing to LinkedIn...
+                    </span>
                   </div>
                 )}
 
@@ -99,27 +223,43 @@ export function PublishingView() {
                   </div>
                   <div className="space-y-1">
                     <h4 className="text-sm font-bold text-text-primary">{post.prompt}</h4>
-                    <p className="text-xs text-text-secondary line-clamp-2 leading-relaxed">{post.caption}</p>
+                    <p className="text-xs text-text-secondary line-clamp-2 leading-relaxed">
+                      {draftPreviewText(post)}
+                    </p>
                     <div className="flex items-center gap-3 pt-2 text-[10px] text-text-secondary font-semibold">
-                      <span className="flex items-center gap-1">
-                        <Instagram className="w-3 h-3 text-instagram-pink" /> Instagram
-                      </span>
                       <span className="flex items-center gap-1">
                         <Linkedin className="w-3 h-3 text-blue-600" /> LinkedIn
                       </span>
                       <span className="text-slate-300">|</span>
-                      <span>Scheduled: {post.scheduledAt ? new Date(post.scheduledAt).toLocaleDateString() : 'Pending'}</span>
+                      <span>
+                        Scheduled:{' '}
+                        {post.scheduledAt
+                          ? new Date(post.scheduledAt).toLocaleDateString()
+                          : 'Ready now'}
+                      </span>
+                      {linkedinConnected && !post.publishError && (
+                        <>
+                          <span className="text-slate-300">|</span>
+                          <span className="text-blue-600">Auto-posting shortly</span>
+                        </>
+                      )}
                     </div>
+                    {post.publishError && (
+                      <p className="pt-1 text-[10px] font-semibold text-red-600">
+                        {post.publishError}
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 <div className="shrink-0 flex items-center gap-3">
                   <button
                     onClick={() => handlePublishNow(post.id)}
-                    className="flex items-center gap-1.5 bg-[#262626] text-white px-4 py-2 rounded-full text-xs font-bold hover:bg-slate-800 transition"
+                    disabled={!linkedinConnected || publishingId !== null}
+                    className="flex items-center gap-1.5 bg-[#262626] text-white px-4 py-2 rounded-full text-xs font-bold hover:bg-slate-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    <span>Publish Now</span>
+                    <span>Publish to LinkedIn</span>
                   </button>
                 </div>
               </div>
@@ -128,21 +268,25 @@ export function PublishingView() {
             {scheduledPosts.length === 0 && (
               <div className="text-center py-12 space-y-2">
                 <Calendar className="w-8 h-8 text-slate-200 mx-auto" />
-                <p className="text-sm font-bold text-slate-400 italic">No posts scheduled in the queue.</p>
-                <p className="text-xs text-text-secondary">Go generate an AI draft and get client approval to queue it.</p>
+                <p className="text-sm font-bold text-slate-400 italic">
+                  No posts in the approved queue.
+                </p>
+                <p className="text-xs text-text-secondary">
+                  Approve a draft to queue it. It will auto-post when LinkedIn is connected.
+                </p>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Logs View */}
       {activeTab === 'logs' && (
         <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
-          <h3 className="text-base font-bold text-text-primary border-b border-border-primary pb-2">Publishing Status Logs</h3>
+          <h3 className="text-base font-bold text-text-primary border-b border-border-primary pb-2">
+            Publishing Status Logs
+          </h3>
 
           <div className="flex flex-col gap-4">
-            {/* Dynamic list */}
             {publishedLogs.map((log) => (
               <div
                 key={log.id}
@@ -156,57 +300,44 @@ export function PublishingView() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="text-sm font-bold text-text-primary">{log.prompt}</h4>
                       <span className="text-[10px] bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-bold">
-                        Published (API Success)
+                        Published to LinkedIn
                       </span>
                     </div>
-                    <p className="text-xs text-text-secondary line-clamp-1 italic">&quot;{log.caption}&quot;</p>
+                    <p className="text-xs text-text-secondary line-clamp-1 italic">
+                      &quot;{draftPreviewText(log)}&quot;
+                    </p>
                     <p className="text-[9px] text-text-secondary font-semibold mt-1">
-                      Published: {log.scheduledAt ? new Date(log.scheduledAt).toLocaleString() : 'Just now'}
+                      Published: {formatPublishedAt(log)}
+                      {log.externalPostId ? ` · Post ID: ${log.externalPostId}` : ''}
                     </p>
                   </div>
                 </div>
+                {log.externalPostId && (
+                  <a
+                    href={`https://www.linkedin.com/feed/update/${encodeURIComponent(log.externalPostId)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="shrink-0 inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    View on LinkedIn
+                  </a>
+                )}
               </div>
             ))}
 
-            {/* Static Mock Error Log Case */}
-            <div className="border border-red-200 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-red-50/10">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-red-50 border border-red-200 text-red-500 flex items-center justify-center shrink-0 mt-0.5">
-                  <AlertTriangle className="w-5 h-5" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="text-sm font-bold text-text-primary">Organic cotton launch teaser (Legacy)</h4>
-                    <span className="text-[10px] bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-bold">
-                      Connection Timeout (HTTP 504)
-                    </span>
-                  </div>
-                  <p className="text-xs text-text-secondary line-clamp-1 italic">&quot;We are excited to share a peek...&quot;</p>
-                  <p className="text-[9px] text-text-secondary font-semibold mt-1">
-                    Attempted: 2026-06-16 11:34:02
-                  </p>
-                </div>
+            {publishedLogs.length === 0 && (
+              <div className="text-center py-12 space-y-2">
+                <AlertTriangle className="w-8 h-8 text-slate-200 mx-auto" />
+                <p className="text-sm font-bold text-slate-400 italic">No publish logs yet.</p>
+                <p className="text-xs text-text-secondary">
+                  Successful LinkedIn publishes will appear here.
+                </p>
               </div>
-
-              <div className="shrink-0">
-                <button
-                  type="button"
-                  onClick={() => notifications.show({
-                    title: 'Simulating retry',
-                    message: 'Simulating publication retry... Success!',
-                    color: 'blue',
-                  })}
-                  className="flex items-center gap-1 bg-red-50 border border-red-200 hover:bg-red-100 text-red-700 px-3.5 py-1.5 rounded-full text-xs font-bold transition"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Retry API Publish</span>
-                </button>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       )}
     </div>
   );
 }
-

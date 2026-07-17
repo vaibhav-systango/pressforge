@@ -87,7 +87,7 @@ export async function callBackend<T>(
     return {
       data: null,
       response,
-      errorMessage: `Backend returned non-JSON from ${url}. Check NEXT_PUBLIC_API_BASE_URL (expected http://localhost:8000/api/v1).`,
+      errorMessage: `Backend returned non-JSON from ${url}. Check NEXT_PUBLIC_API_BASE_URL (expected .../api/v1).`,
     };
   }
 

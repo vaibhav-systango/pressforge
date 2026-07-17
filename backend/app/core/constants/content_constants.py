@@ -19,6 +19,8 @@ class DraftErrorCodes:
     WORKSPACE_NOT_FOUND = "WORKSPACE_NOT_FOUND"
     ACCESS_DENIED = "ACCESS_DENIED"
     INVALID_PAYLOAD = "INVALID_PAYLOAD"
+    NOT_APPROVED = "NOT_APPROVED"
+    ALREADY_PUBLISHED = "ALREADY_PUBLISHED"
 
 
 class DraftErrorMessages:
@@ -26,3 +28,5 @@ class DraftErrorMessages:
     WORKSPACE_NOT_FOUND = "Workspace not found."
     ACCESS_DENIED = "You do not have access to this draft."
     INVALID_PAYLOAD = "Invalid draft payload."
+    NOT_APPROVED = "Draft must be approved before publishing."
+    ALREADY_PUBLISHED = "Draft has already been published."

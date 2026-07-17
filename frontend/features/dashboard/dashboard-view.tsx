@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Select } from '@/components/common/select';
 import { useAppState } from '@/lib/queries/use-app-state';
+import { useLinkedInConnection } from '@/lib/hooks/queries/use-social-connection';
 import {
   Sparkles,
   Calendar,
@@ -12,19 +13,25 @@ import {
   ArrowUpRight,
   TrendingUp,
   ArrowRight,
-  Instagram,
   Linkedin,
+  Instagram,
   MessageSquare,
   AlertCircle,
   XCircle,
   Plus,
-  ChevronRight
+  ChevronRight,
 } from 'lucide-react';
 
 
 
 export function DashboardView() {
   const { state, isLoading } = useAppState();
+  const {
+    connection: linkedinConnection,
+    isLoading: isLinkedInLoading,
+    isConnecting: isLinkedInConnecting,
+    connectLinkedIn,
+  } = useLinkedInConnection();
   const [dashboardTimeframe, setDashboardTimeframe] = useState('Last 7 Days');
 
   if (isLoading) {
@@ -42,7 +49,7 @@ export function DashboardView() {
   }
 
   const activeWorkspace = state.workspaces.find((w) => w.id === state.activeWorkspaceId) || state.workspaces[0];
-  const connectedAccounts = state.connectedAccounts ?? { instagram: false, linkedin: false };
+  const linkedinConnected = linkedinConnection?.connected ?? state.connectedAccounts?.linkedin ?? false;
 
   const isClient = state.currentUserType === 'client';
   const currentClient = isClient ? state.clients.find(c => c.id === state.activeClientId) : null;
@@ -515,49 +522,38 @@ export function DashboardView() {
         {/* Right Column: Channels & Guidelines */}
         <div className="flex flex-col gap-6">
           <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-5">
-            <h3 className="text-base font-bold text-text-primary">Brand Voice & Channels</h3>
+            <h3 className="text-base font-bold text-text-primary">Social Channels</h3>
 
-            {/* Socials Connectors */}
             <div className="space-y-3">
-              <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Social Channels</h4>
-              <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2 text-text-secondary">
-                  <Instagram className="w-4 h-4 text-instagram-pink" /> Instagram
-                </span>
-                <span
-                  className={`text-xs font-bold ${
-                    connectedAccounts.instagram ? 'text-green-600' : 'text-slate-400'
-                  }`}
-                >
-                  {connectedAccounts.instagram ? 'Connected' : 'Disconnected'}
-                </span>
-              </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 text-text-secondary">
                   <Linkedin className="w-4 h-4 text-blue-600" /> LinkedIn
                 </span>
-                <span
-                  className={`text-xs font-bold ${
-                    connectedAccounts.linkedin ? 'text-green-600' : 'text-slate-400'
-                  }`}
-                >
-                  {connectedAccounts.linkedin ? 'Connected' : 'Disconnected'}
-                </span>
+                {linkedinConnected ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-green-600">Connected</span>
+                    <Link
+                      href="/app/settings"
+                      className="text-[10px] font-bold text-text-secondary hover:text-text-primary underline"
+                    >
+                      Manage
+                    </Link>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => connectLinkedIn('/app')}
+                    disabled={isLinkedInLoading || isLinkedInConnecting}
+                    className="rounded-lg bg-blue-600 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isLinkedInLoading
+                      ? 'Checking...'
+                      : isLinkedInConnecting
+                        ? 'Redirecting...'
+                        : 'Connect LinkedIn'}
+                  </button>
+                )}
               </div>
-            </div>
-
-            <div className="border-t border-border-primary pt-4 space-y-3">
-              <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Voice Rules</h4>
-              <div className="flex flex-wrap gap-1.5">
-                {activeWorkspace?.keywords?.map((kw) => (
-                  <span key={kw} className="text-[10px] bg-bg-app text-text-secondary px-2 py-0.5 rounded-full font-bold">
-                    #{kw}
-                  </span>
-                ))}
-              </div>
-              <p className="text-xs text-text-secondary italic">
-                Active tone: <span className="font-semibold text-text-primary capitalize">{activeWorkspace?.tone}</span>
-              </p>
             </div>
           </div>
 

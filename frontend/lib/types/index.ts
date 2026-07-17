@@ -137,6 +137,9 @@ export interface Draft {
   liCaption?: string;
   liHashtags?: string[];
   history?: DraftHistoryEntry[];
+  publishedAt?: number;
+  externalPostId?: string;
+  publishError?: string;
   // Content editor extras
   referenceUrls?: string[];
   referenceText?: string;
