@@ -31,6 +31,16 @@ class DraftRepository:
             .all()
         )
 
+    def list_approved(self, db: Session, *, limit: int = 50) -> list[Draft]:
+        """Oldest approved drafts first — candidates for the publish queue."""
+        return (
+            db.query(Draft)
+            .filter(Draft.status == "approved")
+            .order_by(Draft.createdAt.asc())
+            .limit(limit)
+            .all()
+        )
+
     def update(self, db: Session, draft: Draft, **kwargs) -> Draft:
         for key, value in kwargs.items():
             if value is not None or key in (
@@ -45,6 +55,7 @@ class DraftRepository:
                 "visualStyle",
                 "referenceText",
                 "platform",
+                "publishError",
             ):
                 setattr(draft, key, value)
         db.flush()

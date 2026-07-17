@@ -46,6 +46,23 @@ class SocialAccountRepository:
             query = query.filter(SocialAccount.organizationId.is_(None))
         return query.first()
 
+    def get_latest_active_for_context(
+        self,
+        db: Session,
+        *,
+        organization_id: str | None,
+        platform: str = SocialPlatform.INSTAGRAM.value,
+    ) -> SocialAccount | None:
+        query = db.query(SocialAccount).filter(
+            SocialAccount.platform == platform,
+            SocialAccount.status == SocialAccountStatus.ACTIVE.value,
+        )
+        if organization_id:
+            query = query.filter(SocialAccount.organizationId == organization_id)
+        else:
+            query = query.filter(SocialAccount.organizationId.is_(None))
+        return query.order_by(SocialAccount.connectedAt.desc()).first()
+
     def upsert(
         self,
         db: Session,

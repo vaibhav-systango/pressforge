@@ -3,10 +3,14 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from app.core.constants.content_constants import DraftErrorCodes
-from app.core.constants.linkedin_constants import LinkedInErrorCodes
+from app.core.constants.content_constants import DraftErrorCodes, DraftErrorMessages
+from app.core.constants.linkedin_constants import LinkedInErrorCodes, LinkedInErrorMessages
+from app.models.draft import Draft
 from app.models.user import User, generate_timestamp_ms
 from app.repositories.draft_repository import draft_repository
+from app.repositories.social_account_repository import social_account_repository
+from app.repositories.user_repository import user_repository
+from app.repositories.workspace_repository import workspace_repository
 from app.services.draft_service import draft_service, _draft_to_dict
 from app.services.linkedin_service import linkedin_service
 
@@ -34,6 +38,28 @@ def _build_linkedin_caption(draft) -> str:
         parts.append(" ".join(cleaned))
 
     return "\n\n".join(parts).strip()
+
+
+def _is_due_for_publish(scheduled_at: str | None, now: datetime) -> bool:
+    """Ready now if no schedule, or scheduled time has passed."""
+    if not scheduled_at or not str(scheduled_at).strip():
+        return True
+    try:
+        parsed = datetime.fromisoformat(str(scheduled_at).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed <= now
+    except ValueError:
+        # Unparseable schedule — attempt publish rather than block forever
+        return True
+
+
+def _message_for_publish_error(code: str) -> str:
+    return (
+        getattr(LinkedInErrorMessages, code, None)
+        or getattr(DraftErrorMessages, code, None)
+        or code
+    )
 
 
 class PublishService:
@@ -122,6 +148,88 @@ class PublishService:
             "publishedAt": now_ms,
             "message": "Published to LinkedIn successfully.",
         }
+
+    def _record_publish_error(self, db: Session, draft: Draft, code: str) -> None:
+        message = _message_for_publish_error(code)
+        # Re-load so we don't overwrite a concurrent successful publish
+        fresh = draft_repository.get_by_id(db, draft.id)
+        if not fresh or fresh.status != "approved":
+            return
+        if fresh.publishError == message:
+            return
+        draft_repository.update(
+            db,
+            fresh,
+            publishError=message,
+            updatedAt=generate_timestamp_ms(),
+        )
+        db.commit()
+
+    def process_publish_queue(self, db: Session) -> dict:
+        """
+        Auto-publish approved drafts when a LinkedIn account is connected.
+
+        Rules:
+        - Queue = status 'approved'
+        - Approved drafts publish immediately; scheduledAt is display metadata only
+        - Skip (stay queued) if LinkedIn not connected
+        - On success → status 'published' (clears from queue)
+        - On failure → stay approved, set publishError for retry next cycle
+        """
+        candidates = draft_repository.list_approved(db, limit=50)
+        published = 0
+        skipped = 0
+        failed = 0
+
+        for draft in candidates:
+            workspace = workspace_repository.get_by_id(db, draft.workspaceId)
+            if not workspace or not workspace.ownerUserId:
+                skipped += 1
+                continue
+
+            account = None
+            if workspace.organizationId:
+                account = social_account_repository.get_latest_active_for_context(
+                    db,
+                    organization_id=workspace.organizationId,
+                    platform=linkedin_service.PLATFORM,
+                )
+
+            publish_user_id = account.userId if account else workspace.ownerUserId
+            publish_user = user_repository.get_by_id(db, publish_user_id)
+            if not publish_user:
+                skipped += 1
+                continue
+
+            try:
+                self.publish_draft_to_linkedin(
+                    db,
+                    publish_user,
+                    draft.id,
+                    organization_id=workspace.organizationId,
+                )
+                published += 1
+                logger.info("Auto-published draft %s to LinkedIn", draft.id)
+            except ValueError as exc:
+                code = str(exc)
+                if code in (
+                    LinkedInErrorCodes.ACCOUNT_NOT_CONNECTED,
+                    DraftErrorCodes.ALREADY_PUBLISHED,
+                    DraftErrorCodes.NOT_APPROVED,
+                    DraftErrorCodes.DRAFT_NOT_FOUND,
+                ):
+                    # Not connected / already handled — leave queue untouched
+                    skipped += 1
+                    continue
+                self._record_publish_error(db, draft, code)
+                failed += 1
+                logger.warning("Auto-publish failed for draft %s: %s", draft.id, code)
+            except Exception as exc:
+                logger.error("Unexpected auto-publish error for draft %s: %s", draft.id, exc)
+                self._record_publish_error(db, draft, LinkedInErrorCodes.PUBLISH_FAILED)
+                failed += 1
+
+        return {"published": published, "skipped": skipped, "failed": failed}
 
 
 publish_service = PublishService()

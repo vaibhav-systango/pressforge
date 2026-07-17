@@ -27,7 +27,7 @@ class LinkedInService:
     PLATFORM_SLUG = "linkedin"
 
     def _callback_redirect_uri(self) -> str:
-        return f"{settings.SOCIAL_OAUTH_CALLBACK_BASE.rstrip('/')}/{self.PLATFORM_SLUG}/callback"
+        return f"{settings.oauth_callback_base}/{self.PLATFORM_SLUG}/callback"
 
     def _ensure_linkedin_configured(self) -> None:
         if not settings.LINKEDIN_CLIENT_ID or not settings.LINKEDIN_CLIENT_SECRET:

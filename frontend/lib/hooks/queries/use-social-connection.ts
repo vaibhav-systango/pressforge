@@ -25,8 +25,8 @@ async function startSocialConnect(platform: string): Promise<{ authorizationUrl:
   return res.json() as Promise<{ authorizationUrl: string }>;
 }
 
-async function disconnectSocialAccount(platform: string, accountId: string): Promise<void> {
-  const res = await fetch(`/api/social/${platform}/accounts/${accountId}`, {
+async function disconnectSocialAccount(platform: string): Promise<void> {
+  const res = await fetch(`/api/social/${platform}/connection`, {
     method: 'DELETE',
   });
   if (!res.ok) {
@@ -60,7 +60,7 @@ export function useSocialConnection(platform: string) {
   });
 
   const disconnectMutation = useMutation({
-    mutationFn: (accountId: string) => disconnectSocialAccount(platform, accountId),
+    mutationFn: () => disconnectSocialAccount(platform),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
     },
@@ -79,11 +79,10 @@ export function useSocialConnection(platform: string) {
   };
 
   const disconnect = () => {
-    const accountId = query.data?.account?.id;
-    if (!accountId) {
+    if (!query.data?.connected) {
       return;
     }
-    disconnectMutation.mutate(accountId);
+    disconnectMutation.mutate();
   };
 
   const accountName =

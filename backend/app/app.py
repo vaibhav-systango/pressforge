@@ -9,6 +9,7 @@ from sqlalchemy import text
 from app.core.config import settings
 from app.routers.router import api_router
 from app.database.database import engine
+from app.services.scheduler_service import start_scheduler, stop_scheduler
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,7 +22,11 @@ async def lifespan(app: FastAPI):
         logger.info("Database connected successfully!")
     except Exception as e:
         logger.error(f"Database connection failed: {e}")
-    yield
+    start_scheduler()
+    try:
+        yield
+    finally:
+        stop_scheduler()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

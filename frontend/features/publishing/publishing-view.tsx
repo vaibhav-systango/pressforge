@@ -3,7 +3,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppState } from '@/lib/queries/use-app-state';
 import { useLinkedInConnection } from '@/lib/hooks/queries/use-social-connection';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { notifications } from '@mantine/notifications';
 import {
   Send,
@@ -49,6 +49,15 @@ export function PublishingView() {
   const scheduledPosts = drafts.filter((d) => d.status === 'approved');
   const publishedLogs = drafts.filter((d) => d.status === 'published');
   const linkedinConnected = linkedinConnection?.connected ?? false;
+
+  // Keep queue in sync while auto-publish clears approved drafts in the background
+  useEffect(() => {
+    if (scheduledPosts.length === 0) return;
+    const id = window.setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: ['app-state'] });
+    }, 15_000);
+    return () => window.clearInterval(id);
+  }, [scheduledPosts.length, queryClient]);
 
   const handlePublishNow = async (draftId: string) => {
     setPublishingId(draftId);
@@ -127,7 +136,8 @@ export function PublishingView() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-text-primary">Publishing Hub</h1>
           <p className="text-sm text-text-secondary mt-1">
-            Publish approved drafts to LinkedIn and review publication history.
+            Approved drafts auto-post to LinkedIn when connected. Manual publish still works
+            anytime.
           </p>
         </div>
 
@@ -160,7 +170,7 @@ export function PublishingView() {
       {!isLinkedInLoading && !linkedinConnected && (
         <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 font-medium sm:flex-row sm:items-center sm:justify-between">
           <span>
-            Connect LinkedIn before publishing. Approved drafts stay queued until an account is
+            Connect LinkedIn to auto-post. Approved drafts stay in the queue until an account is
             connected.
           </span>
           <button
@@ -227,7 +237,18 @@ export function PublishingView() {
                           ? new Date(post.scheduledAt).toLocaleDateString()
                           : 'Ready now'}
                       </span>
+                      {linkedinConnected && !post.publishError && (
+                        <>
+                          <span className="text-slate-300">|</span>
+                          <span className="text-blue-600">Auto-posting shortly</span>
+                        </>
+                      )}
                     </div>
+                    {post.publishError && (
+                      <p className="pt-1 text-[10px] font-semibold text-red-600">
+                        {post.publishError}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -251,7 +272,7 @@ export function PublishingView() {
                   No posts in the approved queue.
                 </p>
                 <p className="text-xs text-text-secondary">
-                  Approve a draft first, then publish it to LinkedIn from here.
+                  Approve a draft to queue it. It will auto-post when LinkedIn is connected.
                 </p>
               </div>
             )}

@@ -112,6 +112,13 @@ async def platform_oauth_callback(
 
     try:
         account = service.handle_oauth_callback(db, code=code, state=state)
+        # Drain due approved posts now that an account is connected (best-effort)
+        try:
+            from app.services.publish_service import publish_service
+
+            publish_service.process_publish_queue(db)
+        except Exception as queue_exc:
+            logger.warning("Post-connect publish queue drain failed: %s", queue_exc)
         username = account.displayName or account.username or account.externalAccountId
         safe_username = quote(str(username), safe="")
         return RedirectResponse(
@@ -149,6 +156,28 @@ async def get_social_connection(
             "connected": account is not None,
             "account": service.to_account_response(account) if account else None,
         }
+    except ValueError as exc:
+        raise _social_http_exception(str(exc), platform_slug) from exc
+
+
+@router.delete(
+    "/{platform}/connection",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Disconnect the current user's social account for a platform",
+)
+async def disconnect_social_connection(
+    platform: str,
+    organizationId: str | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service, platform_slug = _resolve_service(platform)
+    try:
+        accounts = service.list_accounts(db, current_user, organization_id=organizationId)
+        if not accounts:
+            # Shared code string; message is resolved per-platform in _social_http_exception.
+            raise ValueError(LinkedInErrorCodes.ACCOUNT_NOT_FOUND)
+        service.disconnect_account(db, current_user, accounts[0].id)
     except ValueError as exc:
         raise _social_http_exception(str(exc), platform_slug) from exc
 

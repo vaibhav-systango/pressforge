@@ -54,3 +54,36 @@ export async function GET(
 
   return NextResponse.json(data);
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ platform: string }> },
+) {
+  const { platform } = await params;
+  const session = await resolveRequestSession();
+
+  if (!session.isAuthenticated || !session.accessToken) {
+    return jsonError('Authentication required', 401, 'TOKEN_MISSING');
+  }
+
+  const organizationId = new URL(request.url).searchParams.get('organizationId');
+  const query = organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : '';
+
+  const { errorMessage, response } = await callBackend<null>(
+    `/social/${platform}/connection${query}`,
+    {
+      method: 'DELETE',
+      accessToken: session.accessToken,
+    },
+  );
+
+  if (!response.ok) {
+    return jsonError(
+      errorMessage ?? 'Failed to disconnect social account',
+      response.status,
+      'SOCIAL_DISCONNECT_FAILED',
+    );
+  }
+
+  return new NextResponse(null, { status: 204 });
+}

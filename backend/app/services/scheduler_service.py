@@ -11,6 +11,9 @@ logger = logging.getLogger(__name__)
 
 _scheduler: BackgroundScheduler | None = None
 
+# How often to drain the approved publish queue
+PUBLISH_QUEUE_INTERVAL_SECONDS = 60
+
 
 def _run_token_refresh() -> None:
     db = SessionLocal()
@@ -41,6 +44,26 @@ def _cleanup_oauth_states() -> None:
         db.close()
 
 
+def _run_publish_queue() -> None:
+    from app.services.publish_service import publish_service
+
+    db = SessionLocal()
+    try:
+        result = publish_service.process_publish_queue(db)
+        if result["published"] or result["failed"]:
+            logger.info(
+                "Publish queue: published=%s skipped=%s failed=%s",
+                result["published"],
+                result["skipped"],
+                result["failed"],
+            )
+    except Exception as exc:
+        logger.error("Publish queue job failed: %s", exc)
+        db.rollback()
+    finally:
+        db.close()
+
+
 def start_scheduler() -> BackgroundScheduler:
     global _scheduler
     if _scheduler and _scheduler.running:
@@ -49,6 +72,13 @@ def start_scheduler() -> BackgroundScheduler:
     scheduler = BackgroundScheduler()
     scheduler.add_job(_run_token_refresh, CronTrigger(hour=2, minute=0), id="social_token_refresh")
     scheduler.add_job(_cleanup_oauth_states, IntervalTrigger(hours=1), id="oauth_state_cleanup")
+    scheduler.add_job(
+        _run_publish_queue,
+        IntervalTrigger(seconds=PUBLISH_QUEUE_INTERVAL_SECONDS),
+        id="publish_queue",
+        max_instances=1,
+        coalesce=True,
+    )
     scheduler.start()
     _scheduler = scheduler
     logger.info("Background scheduler started")
