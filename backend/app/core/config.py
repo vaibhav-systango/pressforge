@@ -62,6 +62,30 @@ class Settings(BaseSettings):
     # AI content generation
     GEMINI_API_KEY: str = Field(default="", description="Google Gemini API key for content generation")
     GEMINI_MODEL: str = Field(default="gemini-3.5-flash", description="Gemini model id")
+    GEMINI_FALLBACK_MODEL: str = Field(
+        default="gemini-3.1-flash-lite",
+        description="Fallback Gemini model id",
+    )
+
+    # Social OAuth
+    SOCIAL_OAUTH_CALLBACK_BASE: str = Field(
+        default="http://localhost:8000/api/v1/social",
+        description="Base URL for social OAuth callbacks",
+    )
+    TOKEN_ENCRYPTION_KEY: str = Field(
+        default="",
+        description="Fernet key (or secret used to derive one) for OAuth token encryption",
+    )
+
+    # Meta / Instagram OAuth
+    META_APP_ID: str = Field(default="")
+    META_APP_SECRET: str = Field(default="")
+    META_API_VERSION: str = Field(default="v17.0")
+    META_WEBHOOK_VERIFY_TOKEN: str = Field(default="")
+
+    # LinkedIn OAuth
+    LINKEDIN_CLIENT_ID: str = Field(default="")
+    LINKEDIN_CLIENT_SECRET: str = Field(default="")
 
     # Configuration for Pydantic Settings
     model_config = SettingsConfigDict(

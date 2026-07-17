@@ -1,6 +1,7 @@
 import json
 import logging
 import random
+import time
 import urllib.parse
 from typing import Any
 
@@ -14,6 +15,8 @@ from app.providers.cloudinary_provider import cloudinary_provider
 logger = logging.getLogger(__name__)
 
 VARIATION_NAMES = ("Variation A", "Variation B", "Variation C")
+_RETRYABLE_STATUS_CODES = frozenset({429, 500, 503})
+_MAX_ATTEMPTS_PER_MODEL = 3
 
 _RESPONSE_SCHEMA: dict[str, Any] = {
     "type": "OBJECT",
@@ -129,13 +132,35 @@ Rules:
 - Do not mention that you are an AI.
 """.strip()
 
-    def _call_gemini(self, prompt_instructions: str) -> dict[str, Any]:
-        self._ensure_configured()
-        model = settings.GEMINI_MODEL
+    def _model_candidates(self) -> list[str]:
+        models: list[str] = []
+        for model in (settings.GEMINI_MODEL, settings.GEMINI_FALLBACK_MODEL):
+            if model and model not in models:
+                models.append(model)
+        return models
+
+    @staticmethod
+    def _error_detail(response: httpx.Response) -> str:
+        try:
+            return response.json().get("error", {}).get("message", "") or ""
+        except Exception:
+            return response.text[:300]
+
+    def _post_generate_content(
+        self, client: httpx.Client, model: str, payload: dict[str, Any]
+    ) -> httpx.Response:
         url = (
             f"https://generativelanguage.googleapis.com/v1beta/models/"
             f"{model}:generateContent"
         )
+        return client.post(
+            url,
+            params={"key": settings.GEMINI_API_KEY},
+            json=payload,
+        )
+
+    def _call_gemini(self, prompt_instructions: str) -> dict[str, Any]:
+        self._ensure_configured()
         payload = {
             "contents": [{"parts": [{"text": prompt_instructions}]}],
             "generationConfig": {
@@ -143,41 +168,85 @@ Rules:
                 "responseSchema": _RESPONSE_SCHEMA,
             },
         }
+        models = self._model_candidates()
+        last_was_overload = False
+        last_exc: Exception | None = None
+
         try:
             with httpx.Client(timeout=90.0) as client:
-                response = client.post(
-                    url,
-                    params={"key": settings.GEMINI_API_KEY},
-                    json=payload,
-                )
-                if response.is_error:
-                    # Avoid logging the API key from the request URL.
-                    detail = ""
-                    try:
-                        detail = response.json().get("error", {}).get("message", "")
-                    except Exception:
-                        detail = response.text[:300]
-                    logger.error(
-                        "Gemini API call failed: %s %s model=%s detail=%s",
-                        response.status_code,
-                        response.reason_phrase,
-                        model,
-                        detail,
-                    )
-                    response.raise_for_status()
-                body = response.json()
+                for model_index, model in enumerate(models):
+                    for attempt in range(_MAX_ATTEMPTS_PER_MODEL):
+                        try:
+                            response = self._post_generate_content(client, model, payload)
+                        except httpx.TimeoutException as exc:
+                            last_exc = exc
+                            last_was_overload = False
+                            logger.warning(
+                                "Gemini timeout model=%s attempt=%s/%s",
+                                model,
+                                attempt + 1,
+                                _MAX_ATTEMPTS_PER_MODEL,
+                            )
+                            if attempt + 1 < _MAX_ATTEMPTS_PER_MODEL:
+                                time.sleep(min(2**attempt, 8) + random.uniform(0, 0.5))
+                                continue
+                            break
+
+                        if not response.is_error:
+                            body = response.json()
+                            try:
+                                text = body["candidates"][0]["content"]["parts"][0]["text"]
+                                return json.loads(text)
+                            except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
+                                logger.error(
+                                    "Failed to parse Gemini response: %s | body=%s",
+                                    exc,
+                                    body,
+                                )
+                                raise ValueError(ContentErrorCodes.GENERATION_FAILED) from exc
+
+                        detail = self._error_detail(response)
+                        status_code = response.status_code
+                        retryable = status_code in _RETRYABLE_STATUS_CODES
+                        last_was_overload = status_code in {429, 503}
+                        logger.error(
+                            "Gemini API call failed: %s %s model=%s attempt=%s/%s detail=%s",
+                            status_code,
+                            response.reason_phrase,
+                            model,
+                            attempt + 1,
+                            _MAX_ATTEMPTS_PER_MODEL,
+                            detail,
+                        )
+
+                        if retryable and attempt + 1 < _MAX_ATTEMPTS_PER_MODEL:
+                            delay = min(2**attempt, 8) + random.uniform(0, 0.5)
+                            time.sleep(delay)
+                            continue
+
+                        if retryable and model_index + 1 < len(models):
+                            logger.warning(
+                                "Falling back from model=%s to model=%s after overload",
+                                model,
+                                models[model_index + 1],
+                            )
+                            break
+
+                        if last_was_overload:
+                            raise ValueError(ContentErrorCodes.GENERATION_OVERLOADED)
+                        raise ValueError(ContentErrorCodes.GENERATION_FAILED)
         except ValueError:
             raise
         except Exception as exc:
-            logger.error("Gemini API call failed for model=%s: %s", model, type(exc).__name__)
+            logger.error(
+                "Gemini API call failed: %s",
+                type(exc).__name__,
+            )
             raise ValueError(ContentErrorCodes.GENERATION_FAILED) from exc
 
-        try:
-            text = body["candidates"][0]["content"]["parts"][0]["text"]
-            return json.loads(text)
-        except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
-            logger.error("Failed to parse Gemini response: %s | body=%s", exc, body)
-            raise ValueError(ContentErrorCodes.GENERATION_FAILED) from exc
+        if last_was_overload:
+            raise ValueError(ContentErrorCodes.GENERATION_OVERLOADED) from last_exc
+        raise ValueError(ContentErrorCodes.GENERATION_FAILED) from last_exc
 
     def build_pollinations_url(self, prompt: str, aspect_ratio: str = "1:1") -> str:
         sizes = {

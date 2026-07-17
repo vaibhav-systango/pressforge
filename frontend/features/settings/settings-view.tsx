@@ -1,7 +1,12 @@
 'use client';
 
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
 import { useAuth } from '@/lib/hooks/queries/use-auth';
+import {
+  consumeSocialOAuthReturnTo,
+  useLinkedInConnection,
+} from '@/lib/hooks/queries/use-social-connection';
 import { useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
 import {
@@ -10,10 +15,10 @@ import {
 } from '@/lib/auth/me-user';
 import { formatOrganizationRole } from '@/lib/invitations/role-hierarchy';
 import { PageLoader } from '@/components/common/page-loader';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Settings, User, Lock, ShieldAlert, 
-  Check, ToggleLeft, ToggleRight, Trash2, 
+  Check, Trash2, 
   Building2, Sparkles
 } from 'lucide-react';
 import { PasswordInput } from '@/components/common/password-input';
@@ -24,10 +29,24 @@ import { validatePassword, validateFullName, validateOrganizationName } from '@/
 export function SettingsView() {
   const { state, updateState } = useAppState();
   const { user, isLoading: isUserLoading } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+  const {
+    connection: linkedinConnection,
+    accountName: linkedinAccountName,
+    isLoading: isLinkedInLoading,
+    isConnecting: isLinkedInConnecting,
+    isDisconnecting: isLinkedInDisconnecting,
+    connectError: linkedinConnectError,
+    disconnectError: linkedinDisconnectError,
+    connectLinkedIn,
+    disconnectLinkedIn,
+    refresh: refreshLinkedInConnection,
+  } = useLinkedInConnection();
 
   const isClient = user?.userType === 'client' || state.currentUserType === 'client';
-  const showSocialIntegrations = user?.userType === 'client' || state.currentUserType === 'client' || user?.userType === 'individual' || state.currentUserType === 'individual';
+  const showSocialIntegrations = true;
 
   // Modal confirm states
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -67,9 +86,36 @@ export function SettingsView() {
   const [isSavingPassword, setIsSavingPassword] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
-  // Integration toggles
-  const [instagramConnected, setInstagramConnected] = useState(true);
-  const [linkedinConnected, setLinkedinConnected] = useState(false);
+  // Integration state
+  const [linkedinOAuthMessage] = useState<string | null>(() =>
+    searchParams.get('platform') === 'linkedin' && searchParams.get('status') === 'connected'
+      ? 'LinkedIn connected successfully.'
+      : null,
+  );
+  const [linkedinOAuthError] = useState<string | null>(() => {
+    if (searchParams.get('platform') !== 'linkedin' || searchParams.get('status') !== 'error') {
+      return null;
+    }
+    const reason = searchParams.get('reason');
+    return reason ? `LinkedIn connection failed: ${reason}` : 'LinkedIn connection failed.';
+  });
+  const linkedinConnected = linkedinConnection?.connected ?? false;
+
+  useEffect(() => {
+    if (searchParams.get('platform') !== 'linkedin') return;
+
+    const status = searchParams.get('status');
+    if (status === 'connected') {
+      refreshLinkedInConnection();
+      const returnTo = consumeSocialOAuthReturnTo();
+      router.replace(returnTo ?? '/app/settings');
+      return;
+    } else if (status === 'error') {
+      consumeSocialOAuthReturnTo();
+    }
+
+    router.replace('/app/settings');
+  }, [refreshLinkedInConnection, router, searchParams]);
 
 
 
@@ -504,19 +550,12 @@ export function SettingsView() {
                     </div>
                     <div>
                       <p className="font-bold text-text-primary">Instagram API</p>
-                      <p className="text-[9px] text-green-600 font-bold">Connected</p>
+                      <p className="text-[9px] font-bold text-text-secondary">Coming soon</p>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => setInstagramConnected(!instagramConnected)}
-                    className="text-text-secondary hover:text-text-primary transition"
-                  >
-                    {instagramConnected ? (
-                      <ToggleRight className="w-7 h-7 text-instagram-pink" />
-                    ) : (
-                      <ToggleLeft className="w-7 h-7" />
-                    )}
-                  </button>
+                  <span className="rounded-lg border border-border-primary px-3 py-2 text-[10px] font-bold text-text-secondary">
+                    Unavailable
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-between text-xs">
@@ -526,20 +565,56 @@ export function SettingsView() {
                     </div>
                     <div>
                       <p className="font-bold text-text-primary">LinkedIn API</p>
-                      <p className="text-[9px] text-text-secondary">Disconnected</p>
+                      <p
+                        className={`text-[9px] font-bold ${
+                          linkedinConnected ? 'text-green-600' : 'text-text-secondary'
+                        }`}
+                      >
+                        {isLinkedInLoading
+                          ? 'Checking connection...'
+                          : linkedinConnected
+                            ? `Connected${linkedinAccountName ? ` as ${linkedinAccountName}` : ''}`
+                            : 'Disconnected'}
+                      </p>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => setLinkedinConnected(!linkedinConnected)}
-                    className="text-text-secondary hover:text-text-primary transition"
-                  >
-                    {linkedinConnected ? (
-                      <ToggleRight className="w-7 h-7 text-instagram-pink" />
-                    ) : (
-                      <ToggleLeft className="w-7 h-7" />
-                    )}
-                  </button>
+                  {linkedinConnected ? (
+                    <button
+                      type="button"
+                      onClick={() => disconnectLinkedIn()}
+                      disabled={isLinkedInLoading || isLinkedInDisconnecting}
+                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isLinkedInDisconnecting ? 'Disconnecting...' : 'Disconnect'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => connectLinkedIn('/app/settings')}
+                      disabled={isLinkedInLoading || isLinkedInConnecting}
+                      className="rounded-lg bg-blue-600 px-3 py-2 text-[10px] font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isLinkedInConnecting ? 'Redirecting...' : 'Connect LinkedIn'}
+                    </button>
+                  )}
                 </div>
+
+                {linkedinOAuthMessage && (
+                  <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-[10px] font-semibold text-green-700">
+                    {linkedinOAuthMessage}
+                  </p>
+                )}
+                {(linkedinOAuthError || linkedinConnectError || linkedinDisconnectError) && (
+                  <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-semibold text-red-700">
+                    {linkedinOAuthError ||
+                      (linkedinConnectError instanceof Error
+                        ? linkedinConnectError.message
+                        : null) ||
+                      (linkedinDisconnectError instanceof Error
+                        ? linkedinDisconnectError.message
+                        : 'Unable to update LinkedIn connection.')}
+                  </p>
+                )}
               </div>
             </div>
           )}

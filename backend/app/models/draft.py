@@ -36,6 +36,10 @@ class Draft(Base):
     referenceText = Column(Text, nullable=True)
     history = Column(JSON, nullable=False, default=list)
 
+    publishedAt = Column(BigInteger, nullable=True)
+    externalPostId = Column(String, nullable=True)
+    publishError = Column(Text, nullable=True)
+
     createdAt = Column(BigInteger, nullable=False, default=generate_timestamp_ms)
     updatedAt = Column(
         BigInteger,

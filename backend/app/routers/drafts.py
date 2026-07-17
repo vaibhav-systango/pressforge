@@ -13,8 +13,11 @@ from app.schemas.draft import (
     UpdateDraftRequest,
     DraftResponse,
     DraftListResponse,
+    PublishDraftResponse,
 )
 from app.services.draft_service import draft_service
+from app.services.publish_service import publish_service
+from app.core.constants.linkedin_constants import LinkedInErrorCodes, LinkedInErrorMessages
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -36,12 +39,58 @@ _DRAFT_ERROR_MAP = {
         status.HTTP_400_BAD_REQUEST,
         DraftErrorMessages.INVALID_PAYLOAD,
     ),
+    DraftErrorCodes.NOT_APPROVED: (
+        status.HTTP_400_BAD_REQUEST,
+        DraftErrorMessages.NOT_APPROVED,
+    ),
+    DraftErrorCodes.ALREADY_PUBLISHED: (
+        status.HTTP_400_BAD_REQUEST,
+        DraftErrorMessages.ALREADY_PUBLISHED,
+    ),
+}
+
+_LINKEDIN_PUBLISH_ERROR_MAP = {
+    LinkedInErrorCodes.ACCOUNT_NOT_CONNECTED: (
+        status.HTTP_400_BAD_REQUEST,
+        LinkedInErrorMessages.ACCOUNT_NOT_CONNECTED,
+    ),
+    LinkedInErrorCodes.TOKEN_EXPIRED: (
+        status.HTTP_401_UNAUTHORIZED,
+        LinkedInErrorMessages.TOKEN_EXPIRED,
+    ),
+    LinkedInErrorCodes.TOKEN_REVOKED: (
+        status.HTTP_401_UNAUTHORIZED,
+        LinkedInErrorMessages.TOKEN_REVOKED,
+    ),
+    LinkedInErrorCodes.EMPTY_CAPTION: (
+        status.HTTP_400_BAD_REQUEST,
+        LinkedInErrorMessages.EMPTY_CAPTION,
+    ),
+    LinkedInErrorCodes.IMAGE_UPLOAD_FAILED: (
+        status.HTTP_502_BAD_GATEWAY,
+        LinkedInErrorMessages.IMAGE_UPLOAD_FAILED,
+    ),
+    LinkedInErrorCodes.PUBLISH_FAILED: (
+        status.HTTP_502_BAD_GATEWAY,
+        LinkedInErrorMessages.PUBLISH_FAILED,
+    ),
+    LinkedInErrorCodes.LINKEDIN_NOT_CONFIGURED: (
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        LinkedInErrorMessages.LINKEDIN_NOT_CONFIGURED,
+    ),
+    LinkedInErrorCodes.ORG_MEMBERSHIP_REQUIRED: (
+        status.HTTP_403_FORBIDDEN,
+        LinkedInErrorMessages.ORG_MEMBERSHIP_REQUIRED,
+    ),
 }
 
 
 def _raise_draft_error(code: str) -> None:
     if code in _DRAFT_ERROR_MAP:
         status_code, detail = _DRAFT_ERROR_MAP[code]
+        raise HTTPException(status_code=status_code, detail=detail)
+    if code in _LINKEDIN_PUBLISH_ERROR_MAP:
+        status_code, detail = _LINKEDIN_PUBLISH_ERROR_MAP[code]
         raise HTTPException(status_code=status_code, detail=detail)
     logger.error("Unexpected draft error: %s", code)
     raise HTTPException(
@@ -116,3 +165,31 @@ def update_draft(
         )
     except ValueError as exc:
         _raise_draft_error(str(exc))
+
+
+@router.post(
+    "/{draft_id}/publish",
+    response_model=PublishDraftResponse,
+    summary="Publish an approved draft to LinkedIn",
+)
+def publish_draft(
+    draft_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    organizationId: str | None = None,
+):
+    try:
+        return publish_service.publish_draft_to_linkedin(
+            db,
+            current_user,
+            draft_id,
+            organization_id=organizationId,
+        )
+    except ValueError as exc:
+        _raise_draft_error(str(exc))
+    except Exception as exc:
+        logger.error("Unexpected publish error for draft %s: %s", draft_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred.",
+        ) from exc
