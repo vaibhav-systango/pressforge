@@ -226,6 +226,13 @@ class LinkedInService:
             organization_id=resolved_org_id,
             platform=self.PLATFORM,
         )
+        if not account and user.accountType == "ORG_CLIENT" and resolved_org_id is not None:
+            account = social_account_repository.get_for_user_context(
+                db,
+                user_id=user.id,
+                organization_id=None,
+                platform=self.PLATFORM,
+            )
         if not account:
             raise ValueError(LinkedInErrorCodes.ACCOUNT_NOT_CONNECTED)
 

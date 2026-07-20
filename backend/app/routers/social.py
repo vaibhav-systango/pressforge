@@ -151,6 +151,36 @@ async def get_social_connection(
     try:
         accounts = service.list_accounts(db, current_user, organization_id=organizationId)
         account = accounts[0] if accounts else None
+
+        if not account:
+            from app.services.workspace_service import workspace_service
+            from app.models.organization_member import OrganizationMember, MemberWorkspace, OrganizationRole
+            from app.models.social_account import SocialAccount, SocialAccountStatus
+            from app.models.workspace import Workspace
+
+            active_ws_id = workspace_service._get_active_workspace_id(db, current_user.id)
+            if active_ws_id:
+                workspace = db.query(Workspace).filter(Workspace.id == active_ws_id).first()
+                if workspace:
+                    client_members = db.query(OrganizationMember).filter(
+                        OrganizationMember.role == OrganizationRole.CLIENT.value,
+                        (OrganizationMember.workspaceId == workspace.id) |
+                        OrganizationMember.id.in_(
+                            db.query(MemberWorkspace.memberId).filter(MemberWorkspace.workspaceId == workspace.id)
+                        )
+                    ).all()
+
+                    client_user_ids = [m.userId for m in client_members]
+                    if client_user_ids:
+                        client_account = db.query(SocialAccount).filter(
+                            SocialAccount.userId.in_(client_user_ids),
+                            SocialAccount.platform == service.PLATFORM,
+                            SocialAccount.status == SocialAccountStatus.ACTIVE.value
+                        ).order_by(SocialAccount.connectedAt.desc()).first()
+
+                        if client_account:
+                            account = client_account
+
         return {
             "platform": platform_slug,
             "connected": account is not None,
