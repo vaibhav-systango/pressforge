@@ -87,11 +87,37 @@ class PublishService:
         if not caption:
             raise ValueError(LinkedInErrorCodes.EMPTY_CAPTION)
 
-        account = linkedin_service.get_connected_account(
-            db,
-            user,
-            organization_id=organization_id,
-        )
+        # Check if there is an active client account connected to this workspace
+        from app.models.organization_member import OrganizationMember, MemberWorkspace, OrganizationRole
+        from app.models.social_account import SocialAccount, SocialAccountStatus
+
+        workspace = workspace_repository.get_by_id(db, draft.workspaceId)
+        allocated_client_account = None
+        if workspace:
+            client_members = db.query(OrganizationMember).filter(
+                OrganizationMember.role == OrganizationRole.CLIENT.value,
+                (OrganizationMember.workspaceId == workspace.id) |
+                OrganizationMember.id.in_(
+                    db.query(MemberWorkspace.memberId).filter(MemberWorkspace.workspaceId == workspace.id)
+                )
+            ).all()
+
+            client_user_ids = [m.userId for m in client_members]
+            if client_user_ids:
+                allocated_client_account = db.query(SocialAccount).filter(
+                    SocialAccount.userId.in_(client_user_ids),
+                    SocialAccount.platform == linkedin_service.PLATFORM,
+                    SocialAccount.status == SocialAccountStatus.ACTIVE.value
+                ).order_by(SocialAccount.connectedAt.desc()).first()
+
+        if allocated_client_account:
+            account = allocated_client_account
+        else:
+            account = linkedin_service.get_connected_account(
+                db,
+                user,
+                organization_id=organization_id,
+            )
 
         try:
             external_post_id = linkedin_service.create_ugc_post(
@@ -187,8 +213,31 @@ class PublishService:
                 skipped += 1
                 continue
 
+            # Check if any CLIENT user assigned to this workspace has connected their LinkedIn account
+            from app.models.organization_member import OrganizationMember, MemberWorkspace, OrganizationRole
+            from app.models.social_account import SocialAccount, SocialAccountStatus
+
+            allocated_client_account = None
+            client_members = db.query(OrganizationMember).filter(
+                OrganizationMember.role == OrganizationRole.CLIENT.value,
+                (OrganizationMember.workspaceId == workspace.id) |
+                OrganizationMember.id.in_(
+                    db.query(MemberWorkspace.memberId).filter(MemberWorkspace.workspaceId == workspace.id)
+                )
+            ).all()
+
+            client_user_ids = [m.userId for m in client_members]
+            if client_user_ids:
+                allocated_client_account = db.query(SocialAccount).filter(
+                    SocialAccount.userId.in_(client_user_ids),
+                    SocialAccount.platform == linkedin_service.PLATFORM,
+                    SocialAccount.status == SocialAccountStatus.ACTIVE.value
+                ).order_by(SocialAccount.connectedAt.desc()).first()
+
             account = None
-            if workspace.organizationId:
+            if allocated_client_account:
+                account = allocated_client_account
+            elif workspace.organizationId:
                 account = social_account_repository.get_latest_active_for_context(
                     db,
                     organization_id=workspace.organizationId,
@@ -206,7 +255,7 @@ class PublishService:
                     db,
                     publish_user,
                     draft.id,
-                    organization_id=workspace.organizationId,
+                    organization_id=account.organizationId if account else workspace.organizationId,
                 )
                 published += 1
                 logger.info("Auto-published draft %s to LinkedIn", draft.id)
