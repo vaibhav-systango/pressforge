@@ -253,10 +253,10 @@ console.log(state)
             {isClient ? (
               // Restricted client navigation view
               <>
-                <div className="px-3 py-1.5 mb-1 text-[10px] font-bold text-instagram-pink uppercase tracking-wider bg-pink-50/40 dark:bg-pink-950/20 rounded-lg flex items-center gap-1.5">
+                {/* <div className="px-3 py-1.5 mb-1 text-[10px] font-bold text-instagram-pink uppercase tracking-wider bg-pink-50/40 dark:bg-pink-950/20 rounded-lg flex items-center gap-1.5">
                   <ShieldAlert className="w-3.5 h-3.5" />
                   <span>Client Access Portal</span>
-                </div>
+                </div> */}
 
                 {/* <NavLink
                   href="/app"
@@ -273,7 +273,7 @@ console.log(state)
                   <span>Dashboard</span>
                 </NavLink> */}
 
-                <NavLink
+                {/* <NavLink
                   href="/app/connect"
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
@@ -287,7 +287,7 @@ console.log(state)
                   <span className="font-semibold text-instagram-pink">
                     Connect Channels
                   </span>
-                </NavLink>
+                </NavLink> */}
 
                 <NavLink
                   href="/app/approvals"
