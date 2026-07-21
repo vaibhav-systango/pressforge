@@ -9,9 +9,9 @@ import { useParams } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
 import { notifications } from '@mantine/notifications';
 import React, { useState } from 'react';
-import { 
-  ChevronLeft, Save, Sparkles, Clock, X, Plus, Heart, 
-  MessageCircle, Send as ShareIcon, Bookmark, Undo, Link2, 
+import {
+  ChevronLeft, Save, Sparkles, Clock, X, Plus, Heart,
+  MessageCircle, Send as ShareIcon, Bookmark, Undo, Link2,
   RefreshCw, Send, Edit3, Linkedin, Share2, ThumbsUp, MoreHorizontal,
   Instagram, Check
 } from 'lucide-react';
@@ -366,15 +366,14 @@ export function ContentDetailView() {
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight text-text-primary">{draft.prompt}</h1>
             <span
-              className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                draft.status === 'approved'
+              className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${draft.status === 'approved'
                   ? 'bg-green-55 dark:bg-green-950/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-900'
                   : draft.status === 'pending_approval'
-                  ? 'bg-yellow-55 dark:bg-yellow-950/20 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-900'
-                  : draft.status === 'rejected'
-                  ? 'bg-red-55 dark:bg-red-950/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900'
-                  : 'bg-bg-app border border-border-primary text-text-secondary'
-              }`}
+                    ? 'bg-yellow-55 dark:bg-yellow-950/20 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-900'
+                    : draft.status === 'rejected'
+                      ? 'bg-red-55 dark:bg-red-950/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900'
+                      : 'bg-bg-app border border-border-primary text-text-secondary'
+                }`}
             >
               {draft.status.replace('_', ' ')}
             </span>
@@ -428,11 +427,10 @@ export function ContentDetailView() {
               <button
                 type="button"
                 onClick={() => handleTogglePlatform('instagram')}
-                className={`flex items-center justify-between p-3 rounded-xl border text-xs font-bold transition duration-200 cursor-pointer ${
-                  targetPlatforms.includes('instagram')
+                className={`flex items-center justify-between p-3 rounded-xl border text-xs font-bold transition duration-200 cursor-pointer ${targetPlatforms.includes('instagram')
                     ? 'border-instagram-pink bg-pink-500/5 text-instagram-pink'
                     : 'border-border-primary bg-bg-app text-text-secondary hover:text-text-primary hover:border-border-primary'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <Instagram className="w-4 h-4" />
@@ -451,11 +449,10 @@ export function ContentDetailView() {
               <button
                 type="button"
                 onClick={() => handleTogglePlatform('linkedin')}
-                className={`flex items-center justify-between p-3 rounded-xl border text-xs font-bold transition duration-200 cursor-pointer ${
-                  targetPlatforms.includes('linkedin')
+                className={`flex items-center justify-between p-3 rounded-xl border text-xs font-bold transition duration-200 cursor-pointer ${targetPlatforms.includes('linkedin')
                     ? 'border-blue-600 bg-blue-600/5 text-blue-600'
                     : 'border-border-primary bg-bg-app text-text-secondary hover:text-text-primary hover:border-border-primary'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <Linkedin className="w-4 h-4" />
@@ -597,11 +594,10 @@ export function ContentDetailView() {
               {targetPlatforms.includes('instagram') && (
                 <button
                   onClick={() => setActivePlatformTab('instagram')}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 border-b-2 text-xs font-bold transition cursor-pointer ${
-                    activePlatformTab === 'instagram'
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 border-b-2 text-xs font-bold transition cursor-pointer ${activePlatformTab === 'instagram'
                       ? 'border-instagram-pink text-instagram-pink font-extrabold'
                       : 'border-transparent text-text-secondary hover:text-text-primary'
-                  }`}
+                    }`}
                 >
                   <Instagram className="w-4 h-4" />
                   <span>Instagram</span>
@@ -610,11 +606,10 @@ export function ContentDetailView() {
               {targetPlatforms.includes('linkedin') && (
                 <button
                   onClick={() => setActivePlatformTab('linkedin')}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 border-b-2 text-xs font-bold transition cursor-pointer ${
-                    activePlatformTab === 'linkedin'
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 border-b-2 text-xs font-bold transition cursor-pointer ${activePlatformTab === 'linkedin'
                       ? 'border-blue-600 text-blue-600 font-extrabold'
                       : 'border-transparent text-text-secondary hover:text-text-primary'
-                  }`}
+                    }`}
                 >
                   <Linkedin className="w-4 h-4" />
                   <span>LinkedIn</span>
@@ -642,9 +637,9 @@ export function ContentDetailView() {
                 {/* Image */}
                 <div className="w-full aspect-square bg-bg-app flex items-center justify-center overflow-hidden border-b border-border-primary relative">
                   {imageUrl ? (
-                    <Image 
-                      src={imageUrl} 
-                      alt="Draft Visual" 
+                    <Image
+                      src={imageUrl}
+                      alt="Draft Visual"
                       fill
                       unoptimized
                       className="object-cover"
@@ -712,13 +707,13 @@ export function ContentDetailView() {
                 {/* Attachment image */}
                 {imageUrl && (
                   <div className="border border-border-primary rounded-lg overflow-hidden bg-bg-app">
-                    <Image 
-                      src={imageUrl} 
-                      alt="Attachment" 
+                    <Image
+                      src={imageUrl}
+                      alt="Attachment"
                       width={600}
                       height={400}
                       unoptimized
-                      className="w-full object-cover max-h-56" 
+                      className="w-full object-cover max-h-56"
                     />
                     <div className="p-2 border-t border-border-primary">
                       <p className="font-bold text-[10px] truncate text-text-primary">{goal} Update</p>
@@ -754,13 +749,12 @@ export function ContentDetailView() {
         {/* Right Column: AI Tweak, Manual Edits & Version History (lg:col-span-3) */}
         <div className="lg:col-span-3 space-y-6">
           {/* AI Polish Tools */}
-          <div className="bg-bg-card border border-border-primary rounded-2xl p-5 shadow-sm space-y-4">
+          {/* <div className="bg-bg-card border border-border-primary rounded-2xl p-5 shadow-sm space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1.5 border-b border-border-primary pb-2">
               <Sparkles className="w-4 h-4 text-instagram-pink" />
               <span>Polish & Tweak with AI</span>
             </h3>
 
-            {/* Scope selector */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[9px] font-semibold text-text-secondary">Tweak Scope</label>
               <div className="flex gap-1.5 bg-bg-app p-1 border border-border-primary rounded-lg text-[9px] font-bold">
@@ -840,7 +834,7 @@ export function ContentDetailView() {
                 </button>
               </div>
             </div>
-          </div>
+          </div> */}
 
           {/* Platform Manual Edits */}
           <div className="bg-bg-card border border-border-primary rounded-2xl p-5 shadow-sm space-y-4">
@@ -937,7 +931,7 @@ export function ContentDetailView() {
           </div>
 
           {/* Version History & Restoration */}
-          <div className="bg-bg-card border border-border-primary rounded-2xl p-5 shadow-sm space-y-4">
+          {/* <div className="bg-bg-card border border-border-primary rounded-2xl p-5 shadow-sm space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary border-b border-border-primary pb-2 flex items-center gap-1.5">
               <Clock className="w-4 h-4 text-text-secondary" />
               <span>Version History</span>
@@ -946,7 +940,6 @@ export function ContentDetailView() {
             <div className="relative border-l-2 border-border-primary pl-3 ml-1.5 space-y-4 py-1.5 max-h-[300px] overflow-y-auto pr-1">
               {history.map((hist, index) => (
                 <div key={index} className="relative text-[10px]">
-                  {/* Marker dot */}
                   <span className={`absolute -left-[18.5px] top-1 w-2 h-2 rounded-full border border-bg-card ${
                     index === 0 ? 'bg-instagram-pink animate-pulse' : 'bg-slate-300'
                   }`} />
@@ -982,7 +975,7 @@ export function ContentDetailView() {
                 </div>
               ))}
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { Sparkles, Instagram, Linkedin, Check, Link2, X, Building, RefreshCw } from 'lucide-react';
 import { Select } from '@/components/common/select';
 import type { Workspace } from '@/lib/types';
+import { useAppState } from '@/lib/queries/use-app-state';
+import { useAuth } from '@/lib/hooks/queries/use-auth';
 
 const TONES = [
   "professional",
@@ -105,6 +107,20 @@ export function GenerationSettingsForm({
   generating,
   onGenerateSubmit,
 }: GenerationSettingsFormProps) {
+  const { state } = useAppState();
+  const { user } = useAuth();
+
+  const isClient = user?.userType === 'client' || state.currentUserType === 'client';
+  const isIndividual =
+    user?.userType === 'individual' ||
+    state.currentUserType === 'individual' ||
+    state.accountType === 'individual';
+
+  const isWorkspaceSelected = !!state.activeWorkspaceId;
+  const isClientSelected = isClient || isIndividual || !!state.activeClientId;
+
+  const isSubmitDisabled = generating || !isWorkspaceSelected || !isClientSelected;
+
   // Local input fields
   const [urlInput, setUrlInput] = useState('');
   const [keywordInput, setKeywordInput] = useState('');
@@ -517,7 +533,7 @@ export function GenerationSettingsForm({
 
         <button
           type="submit"
-          disabled={generating}
+          disabled={isSubmitDisabled}
           className="w-full flex items-center justify-center gap-2 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3 rounded-full text-xs font-bold hover:opacity-95 transition shadow-sm disabled:opacity-50 cursor-pointer"
         >
           {generating ? (
@@ -525,6 +541,10 @@ export function GenerationSettingsForm({
               <RefreshCw className="w-4 h-4 animate-spin" />
               <span>Analyzing references & generating copies...</span>
             </>
+          ) : !isWorkspaceSelected ? (
+            <span>Select a Workspace to Generate</span>
+          ) : !isClientSelected ? (
+            <span>Select a Client to Generate</span>
           ) : (
             <>
               <Sparkles className="w-4 h-4" />
