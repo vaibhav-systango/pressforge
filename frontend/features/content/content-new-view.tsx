@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
+import { useAuth } from '@/lib/hooks/queries/use-auth';
 import { notifications } from '@mantine/notifications';
 import type { Workspace } from '@/lib/types';
 import { Sparkles, Instagram, Send, Save, RefreshCw, Linkedin } from 'lucide-react';
@@ -43,6 +44,7 @@ interface LocalHistoryItem {
 export function ContentNewView() {
   const router = useRouter();
   const { state, addDraft } = useAppState();
+  const { user } = useAuth();
 
   const activeWorkspace =
     state.workspaces.find((w) => w.id === state.activeWorkspaceId) ||
@@ -124,10 +126,27 @@ export function ContentNewView() {
       });
       return;
     }
+
+    const isClient =
+      user?.userType === "client" || state.currentUserType === "client";
+    const isIndividual =
+      user?.userType === "individual" ||
+      state.currentUserType === "individual" ||
+      state.accountType === "individual";
+
     if (!state.activeWorkspaceId) {
       notifications.show({
         title: 'Validation error',
         message: 'Select or create a workspace before generating content.',
+        color: 'red',
+      });
+      return;
+    }
+
+    if (!isClient && !isIndividual && !state.activeClientId) {
+      notifications.show({
+        title: 'Validation error',
+        message: 'Select a client before generating content.',
         color: 'red',
       });
       return;
@@ -600,7 +619,6 @@ export function ContentNewView() {
                 onSelectVariation={handleSelectVariation}
               />
 
-              {/* Render Selected Preview Layout */}
               <PostPreview
                 activePlatformTab={activePlatformTab}
                 localBrandName={localBrandName}
@@ -611,6 +629,7 @@ export function ContentNewView() {
                 liCaption={liCaption}
                 liHashtags={liHashtags}
                 localWebsite={localWebsite}
+                generating={generating}
               />
 
               {/* Save / Launch Actions */}
@@ -648,15 +667,15 @@ export function ContentNewView() {
         <div className="lg:col-span-3 space-y-6">
           {generated && (
             <div className="space-y-6 animate-fade-in">
-              <TweakInstructionPanel
+              {/* <TweakInstructionPanel
                 tweakScope={tweakScope}
                 setTweakScope={setTweakScope}
                 tweakInstruction={tweakInstruction}
                 setTweakInstruction={setTweakInstruction}
                 onApplyTweak={handleApplyTweak}
-              />
+              /> */}
 
-              <ManualEditPanel
+              {/* <ManualEditPanel
                 activePlatformTab={activePlatformTab}
                 caption={caption}
                 setCaption={setCaption}
@@ -670,13 +689,13 @@ export function ContentNewView() {
                 setLinkedinHashtags={setLinkedinHashtags}
                 liImageBrief={liImageBrief}
                 setLinkedinImageBrief={setLinkedinImageBrief}
-              />
+              /> */}
 
-              <VersionHistoryPanel
+              {/* <VersionHistoryPanel
                 history={history}
                 activePlatformTab={activePlatformTab}
                 onRestoreVersion={handleRestoreVersion}
-              />
+              /> */}
             </div>
           )}
         </div>

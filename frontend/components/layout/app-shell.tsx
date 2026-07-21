@@ -258,7 +258,7 @@ console.log(state)
                   <span>Client Access Portal</span>
                 </div>
 
-                <NavLink
+                {/* <NavLink
                   href="/app"
                   end
                   className={({ isActive }) =>
@@ -271,7 +271,7 @@ console.log(state)
                 >
                   <LayoutDashboard className="w-4 h-4" />
                   <span>Dashboard</span>
-                </NavLink>
+                </NavLink> */}
 
                 <NavLink
                   href="/app/connect"
@@ -310,7 +310,7 @@ console.log(state)
                   )}
                 </NavLink>
 
-                <NavLink
+                {/* <NavLink
                   href="/app/analytics"
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
@@ -322,7 +322,7 @@ console.log(state)
                 >
                   <BarChart3 className="w-4 h-4" />
                   <span>Performance Stats</span>
-                </NavLink>
+                </NavLink> */}
 
                 <NavLink
                   href="/app/settings"
@@ -405,7 +405,7 @@ console.log(state)
                 </NavLink>
 
 
-                <NavLink
+                {/* <NavLink
                   href="/app/analytics"
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
@@ -417,10 +417,10 @@ console.log(state)
                 >
                   <BarChart3 className="w-4 h-4" />
                   <span>Analytics</span>
-                </NavLink>
+                </NavLink> */}
 
                 <div className="border-t border-border-primary my-2 pt-2 flex flex-col gap-1.5">
-                  <NavLink
+                  {/* <NavLink
                     href="/app"
                     end
                     className={({ isActive }) =>
@@ -433,7 +433,7 @@ console.log(state)
                   >
                     <LayoutDashboard className="w-4 h-4" />
                     <span>Dashboard</span>
-                  </NavLink>
+                  </NavLink> */}
 
                   {!isIndividual && (
                     <NavLink

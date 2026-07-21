@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { Heart, MessageCircle, Send as ShareIcon, Bookmark, MoreHorizontal, ThumbsUp, Share2, Send } from 'lucide-react';
+import { Heart, MessageCircle, Send as ShareIcon, Bookmark, MoreHorizontal, ThumbsUp, Share2, Send, RefreshCw } from 'lucide-react';
 
 interface PostPreviewProps {
   activePlatformTab: 'instagram' | 'linkedin';
@@ -14,6 +14,7 @@ interface PostPreviewProps {
   liCaption: string;
   liHashtags: string[];
   localWebsite: string;
+  generating?: boolean;
 }
 
 export function PostPreview({
@@ -26,6 +27,7 @@ export function PostPreview({
   liCaption,
   liHashtags,
   localWebsite,
+  generating = false,
 }: PostPreviewProps) {
   if (activePlatformTab === 'instagram') {
     return (
@@ -46,20 +48,30 @@ export function PostPreview({
           </div>
         </div>
 
-        <div className="w-full aspect-square bg-bg-app flex items-center justify-center overflow-hidden border-b border-border-primary relative">
-          {generatedImageUrl && (
-            <Image
-              src={generatedImageUrl}
-              alt="Mockup"
-              fill
-              unoptimized
-              className="object-cover"
-            />
-          )}
-          <span className="absolute bottom-2 right-2 bg-black/60 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-sm uppercase">
-            {goal}
-          </span>
-        </div>
+        {generating ? (
+          <div className="w-full aspect-square bg-bg-app flex flex-col items-center justify-center gap-3 text-text-secondary animate-pulse border-b border-border-primary relative">
+            <RefreshCw className="w-7 h-7 animate-spin text-instagram-pink" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-secondary">Generating AI Image...</span>
+            <span className="absolute bottom-2 right-2 bg-black/60 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-sm uppercase">
+              {goal}
+            </span>
+          </div>
+        ) : (
+          <div className="w-full aspect-square bg-bg-app flex items-center justify-center overflow-hidden border-b border-border-primary relative">
+            {generatedImageUrl && (
+              <Image
+                src={generatedImageUrl}
+                alt="Mockup"
+                fill
+                unoptimized
+                className="object-cover"
+              />
+            )}
+            <span className="absolute bottom-2 right-2 bg-black/60 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-sm uppercase">
+              {goal}
+            </span>
+          </div>
+        )}
 
         <div className="p-3 flex items-center justify-between">
           <div className="flex items-center gap-3 text-text-primary">
@@ -70,17 +82,25 @@ export function PostPreview({
           <Bookmark className="w-4.5 h-4.5 text-text-primary hover:opacity-80 transition cursor-pointer" />
         </div>
 
-        <div className="px-3 pb-3 space-y-1 text-[11px] text-text-primary">
-          <p className="leading-relaxed">
-            <span className="font-bold mr-1">
-              {localBrandName || "brand"}
-            </span>
-            {caption}
-          </p>
-          <p className="text-instagram-pink font-semibold">
-            {hashtags.map((h) => `#${h}`).join(" ")}
-          </p>
-        </div>
+        {generating ? (
+          <div className="px-3 pb-4 space-y-2 animate-pulse">
+            <div className="h-3.5 bg-bg-app rounded-md w-5/6"></div>
+            <div className="h-3.5 bg-bg-app rounded-md w-2/3"></div>
+            <div className="h-3 bg-bg-app rounded-md w-1/3"></div>
+          </div>
+        ) : (
+          <div className="px-3 pb-3 space-y-1 text-[11px] text-text-primary">
+            <p className="leading-relaxed">
+              <span className="font-bold mr-1">
+                {localBrandName || "brand"}
+              </span>
+              {caption}
+            </p>
+            <p className="text-instagram-pink font-semibold">
+              {hashtags.map((h) => `#${h}`).join(" ")}
+            </p>
+          </div>
+        )}
       </div>
     );
   }
@@ -117,15 +137,35 @@ export function PostPreview({
       </div>
 
       {/* LinkedIn Copy */}
-      <div className="space-y-2 text-text-primary text-[11px] leading-relaxed whitespace-pre-wrap">
-        <p>{liCaption}</p>
-        <p className="text-blue-700 dark:text-blue-400 font-semibold">
-          {liHashtags.map((h) => `#${h}`).join(" ")}
-        </p>
-      </div>
+      {generating ? (
+        <div className="space-y-2 animate-pulse py-1">
+          <div className="h-3.5 bg-bg-app rounded-md w-11/12"></div>
+          <div className="h-3.5 bg-bg-app rounded-md w-full"></div>
+          <div className="h-3.5 bg-bg-app rounded-md w-4/5"></div>
+          <div className="h-3 bg-bg-app rounded-md w-1/2"></div>
+        </div>
+      ) : (
+        <div className="space-y-2 text-text-primary text-[11px] leading-relaxed whitespace-pre-wrap">
+          <p>{liCaption}</p>
+          <p className="text-blue-700 dark:text-blue-400 font-semibold">
+            {liHashtags.map((h) => `#${h}`).join(" ")}
+          </p>
+        </div>
+      )}
 
       {/* Attachment card */}
-      {generatedImageUrl && (
+      {generating ? (
+        <div className="border border-border-primary rounded-lg overflow-hidden bg-bg-app animate-pulse">
+          <div className="w-full h-48 flex flex-col items-center justify-center gap-3 text-text-secondary">
+            <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-secondary">Generating AI Image...</span>
+          </div>
+          <div className="p-3 border-t border-border-primary bg-bg-card space-y-2">
+            <div className="h-3.5 bg-bg-app rounded-md w-1/3"></div>
+            <div className="h-2.5 bg-bg-app rounded-md w-1/4"></div>
+          </div>
+        </div>
+      ) : generatedImageUrl ? (
         <div className="border border-border-primary rounded-lg overflow-hidden bg-bg-app">
           <Image
             src={generatedImageUrl}
@@ -148,7 +188,7 @@ export function PostPreview({
             </p>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* LinkedIn Footer Actions */}
       <div className="border-t border-border-primary pt-2 flex items-center justify-between text-text-secondary text-[10px] font-bold">
