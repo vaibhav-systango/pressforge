@@ -534,30 +534,9 @@ export function DashboardView() {
                 <span className="flex items-center gap-2 text-text-secondary">
                   <Linkedin className="w-4 h-4 text-blue-600" /> LinkedIn
                 </span>
-                {linkedinConnected ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-green-600">Connected</span>
-                    <Link
-                      href="/app/settings"
-                      className="text-[10px] font-bold text-text-secondary hover:text-text-primary underline"
-                    >
-                      Manage
-                    </Link>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => connectLinkedIn('/app')}
-                    disabled={isLinkedInLoading || isLinkedInConnecting}
-                    className="rounded-lg bg-blue-600 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {isLinkedInLoading
-                      ? 'Checking...'
-                      : isLinkedInConnecting
-                        ? 'Redirecting...'
-                        : 'Connect LinkedIn'}
-                  </button>
-                )}
+                <span className="text-xs font-bold text-text-secondary">
+                  Managed by Client
+                </span>
               </div>
             </div>
           </div>

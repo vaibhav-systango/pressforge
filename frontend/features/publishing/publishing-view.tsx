@@ -2,6 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppState } from '@/lib/queries/use-app-state';
+import { useAuth } from '@/lib/hooks/queries/use-auth';
 import { useLinkedInConnection } from '@/lib/hooks/queries/use-social-connection';
 import React, { useEffect, useState } from 'react';
 import { notifications } from '@mantine/notifications';
@@ -34,6 +35,7 @@ function formatPublishedAt(draft: Draft): string {
 export function PublishingView() {
   const queryClient = useQueryClient();
   const { state } = useAppState();
+  const { user } = useAuth();
   const {
     connection: linkedinConnection,
     isLoading: isLinkedInLoading,
@@ -49,6 +51,7 @@ export function PublishingView() {
   const scheduledPosts = drafts.filter((d) => d.status === 'approved');
   const publishedLogs = drafts.filter((d) => d.status === 'published');
   const linkedinConnected = linkedinConnection?.connected ?? false;
+  const isClient = user?.userType === 'client' || state.currentUserType === 'client';
 
   // Keep queue in sync while auto-publish clears approved drafts in the background
   useEffect(() => {
@@ -167,7 +170,7 @@ export function PublishingView() {
         </div>
       </div>
 
-      {!isLinkedInLoading && !linkedinConnected && (
+      {isClient && !isLinkedInLoading && !linkedinConnected && (
         <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 font-medium sm:flex-row sm:items-center sm:justify-between">
           <span>
             Connect LinkedIn to auto-post. Approved drafts stay in the queue until an account is
@@ -237,7 +240,7 @@ export function PublishingView() {
                           ? new Date(post.scheduledAt).toLocaleDateString()
                           : 'Ready now'}
                       </span>
-                      {linkedinConnected && !post.publishError && (
+                      {(linkedinConnected || !isClient) && !post.publishError && (
                         <>
                           <span className="text-slate-300">|</span>
                           <span className="text-blue-600">Auto-posting shortly</span>
@@ -255,7 +258,7 @@ export function PublishingView() {
                 <div className="shrink-0 flex items-center gap-3">
                   <button
                     onClick={() => handlePublishNow(post.id)}
-                    disabled={!linkedinConnected || publishingId !== null}
+                    disabled={(isClient && !linkedinConnected) || publishingId !== null}
                     className="flex items-center gap-1.5 bg-[#262626] text-white px-4 py-2 rounded-full text-xs font-bold hover:bg-slate-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Send className="w-3.5 h-3.5" />
