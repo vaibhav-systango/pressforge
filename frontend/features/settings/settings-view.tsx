@@ -46,7 +46,7 @@ export function SettingsView() {
   } = useLinkedInConnection();
 
   const isClient = user?.userType === 'client' || state.currentUserType === 'client';
-  const showSocialIntegrations = true;
+  const showSocialIntegrations = isClient;
 
   // Modal confirm states
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);

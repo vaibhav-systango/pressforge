@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import { useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
+import { useAuth } from '@/lib/hooks/queries/use-auth';
+import { useLinkedInConnection } from '@/lib/hooks/queries/use-social-connection';
 import { notifications } from '@mantine/notifications';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ChevronLeft, Check, X, CornerDownLeft, MessageSquare, MoreVertical, Send,
   Heart, MessageCircle, Bookmark, ThumbsUp, Share2, Instagram, Linkedin 
@@ -35,12 +36,44 @@ const getSimulatedImage = (promptText: string) => {
 export function ApprovalDetailView() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const { state, updateDraft } = useAppState();
+  const { user } = useAuth();
   const draft = state.drafts.find((d) => d.id === id);
   const [feedback, setFeedback] = useState('');
   const [activeTab, setActiveTab] = useState<'instagram' | 'linkedin'>(
     draft?.platform === 'linkedin' ? 'linkedin' : 'instagram',
   );
+
+  const {
+    connection: linkedinConnection,
+    connectLinkedIn,
+    isLoading: isLinkedInLoading,
+    refresh: refreshLinkedInConnection,
+  } = useLinkedInConnection();
+
+  useEffect(() => {
+    if (searchParams.get('platform') !== 'linkedin') return;
+
+    const status = searchParams.get('status');
+    if (status === 'connected') {
+      refreshLinkedInConnection();
+      notifications.show({
+        title: 'Connected',
+        message: 'LinkedIn connected successfully.',
+        color: 'green',
+      });
+    } else if (status === 'error') {
+      const reason = searchParams.get('reason');
+      notifications.show({
+        title: 'Connection Failed',
+        message: reason ? `LinkedIn connection failed: ${reason}` : 'LinkedIn connection failed.',
+        color: 'red',
+      });
+    }
+
+    router.replace(`/app/approvals/${id}`);
+  }, [refreshLinkedInConnection, router, searchParams, id]);
 
   if (!draft) {
     return (
@@ -57,7 +90,21 @@ export function ApprovalDetailView() {
   const activeWorkspace = state.workspaces.find((w) => w.id === draft.workspaceId) || state.workspaces[0];
   const imageUrl = draft.imageUrl || getSimulatedImage(draft.prompt ?? '');
 
+  const isClient = user?.userType === 'client' || state.currentUserType === 'client';
+  const isLinkedInRequired = draft.platform === 'linkedin' || draft.platform === 'both';
+  const linkedinConnected = linkedinConnection?.connected ?? false;
+  const isApprovalDisabled = isClient && isLinkedInRequired && !isLinkedInLoading && !linkedinConnected;
+
   const handleApprove = () => {
+    if (isApprovalDisabled) {
+      notifications.show({
+        title: 'LinkedIn Account Required',
+        message: 'You must connect your LinkedIn account to approve this post.',
+        color: 'red',
+      });
+      return;
+    }
+
     const nextVersion = (draft.version ?? 1) + 1;
     updateDraft({
       ...draft,
@@ -163,11 +210,33 @@ export function ApprovalDetailView() {
               <p className="text-xs text-text-secondary mt-1">Review the preview on the right and select an action.</p>
             </div>
 
+            {isApprovalDisabled && (
+              <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900/50 p-4 text-xs space-y-2">
+                <p className="font-semibold text-red-800 dark:text-red-400">
+                  LinkedIn Account Required
+                </p>
+                <p className="text-red-700 dark:text-red-300">
+                  Please connect your LinkedIn account to approve this post. As a standard, a client's account must be connected to where the post is published.
+                </p>
+                <button
+                  onClick={() => connectLinkedIn(`/app/approvals/${draft.id}`)}
+                  className="mt-1 bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-[10px] transition shadow-xs cursor-pointer animate-pulse"
+                >
+                  Connect LinkedIn
+                </button>
+              </div>
+            )}
+
             {/* Actions Panel */}
             <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border-primary">
               <button
                 onClick={handleApprove}
-                className="w-full flex items-center justify-center gap-2 bg-[#E1306C] text-white py-3 rounded-full text-xs font-bold hover:opacity-95 transition shadow-sm"
+                disabled={isApprovalDisabled}
+                className={`w-full flex items-center justify-center gap-2 text-white py-3 rounded-full text-xs font-bold transition shadow-sm ${
+                  isApprovalDisabled
+                    ? 'bg-slate-400 cursor-not-allowed opacity-50'
+                    : 'bg-[#E1306C] hover:opacity-95'
+                }`}
               >
                 <Check className="w-4 h-4" />
                 <span>Approve & Schedule</span>
@@ -387,7 +456,12 @@ export function ApprovalDetailView() {
             <div className="bg-bg-card p-3 flex gap-2 border-t border-border-primary shrink-0">
               <button
                 onClick={handleApprove}
-                className="flex-1 bg-[#E1306C] text-white py-2 rounded-full text-xs font-bold hover:opacity-95 transition shadow-sm text-center"
+                disabled={isApprovalDisabled}
+                className={`flex-1 text-white py-2 rounded-full text-xs font-bold transition shadow-sm text-center ${
+                  isApprovalDisabled
+                    ? 'bg-slate-400 cursor-not-allowed opacity-50'
+                    : 'bg-[#E1306C] hover:opacity-95'
+                }`}
               >
                 Approve Post
               </button>
