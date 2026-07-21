@@ -240,7 +240,7 @@ export function DashboardView() {
 
           {/* Right: Quick actions */}
           <div className="lg:col-span-4 space-y-6">
-            {/* Create Post Idea Card */}
+            {/* Suggest a Post Idea Card (Commented out)
             <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-instagram-pink" />
@@ -257,6 +257,7 @@ export function DashboardView() {
                 <span>Create New Post Draft</span>
               </Link>
             </div>
+            */}
 
             {/* Workspace details card */}
             <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">

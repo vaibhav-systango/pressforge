@@ -31,13 +31,13 @@ export function ClientWorkspaceView({
           </div>
         </div>
 
-        <Link 
+        {/* <Link 
           href="/app/content/new"
           className="bg-instagram-pink text-white hover:opacity-90 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>Create Post</span>
-        </Link>
+        </Link> */}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
