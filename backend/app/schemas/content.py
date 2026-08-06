@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 
 class GenerateContentRequest(BaseModel):
     workspaceId: str = Field(..., min_length=1)
-    prompt: str = Field(..., min_length=1)
+    prompt: str | None = Field(default="", min_length=0)
     platforms: list[str] = Field(default_factory=lambda: ["instagram"])
     goal: str | None = None
     cta: str | None = None

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useAppState } from '@/lib/queries/use-app-state';
+import { useAuth } from '@/lib/hooks/queries/use-auth';
 import React, { useState } from 'react';
 import { MessageSquare, ArrowRight, CheckCircle2, XCircle, AlertCircle, Instagram, Linkedin } from 'lucide-react';
 
@@ -9,10 +10,11 @@ import { MessageSquare, ArrowRight, CheckCircle2, XCircle, AlertCircle, Instagra
 
 export function ApprovalsListView() {
   const { state } = useAppState();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
-  const isClient = state.currentUserType === 'client';
-
-
+  const isClient = user?.userType === 'client' || state.currentUserType === 'client';
+  const isIndividual = user?.userType === 'individual' || state.currentUserType === 'individual' || state.accountType === 'individual';
+  const canApprove = isClient || isIndividual;
 
   // Filter drafts for current workspace by status
   const drafts = state.drafts.filter((d) => d.workspaceId === state.activeWorkspaceId);
@@ -33,10 +35,10 @@ export function ApprovalsListView() {
       {/* Header */}
       <div className="border-b border-border-primary pb-5">
         <h1 className="text-2xl font-bold tracking-tight text-text-primary">
-          {isClient ? 'My Approvals' : 'Client Approvals'}
+          {isClient || isIndividual ? 'My Approvals' : 'Client Approvals'}
         </h1>
         <p className="text-sm text-text-secondary mt-1">
-          {isClient
+          {isClient || isIndividual
             ? 'Review and approve posts generated for your workspace.'
             : 'Review posts currently sent to client phone preview, or inspect approvals history.'}
         </p>
@@ -54,7 +56,7 @@ export function ApprovalsListView() {
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-text-secondary uppercase tracking-wide">
-              {isClient ? 'Awaiting My Approval' : 'Awaiting Client'}
+              {isClient ? 'Awaiting My Approval' : isIndividual ? 'Awaiting Approval' : 'Awaiting Client'}
             </span>
             <AlertCircle className="w-4.5 h-4.5 text-yellow-500" />
           </div>
@@ -100,7 +102,7 @@ export function ApprovalsListView() {
       <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
         <h3 className="text-base font-bold text-text-primary border-b border-border-primary pb-2">
           {activeTab === 'pending'
-            ? (isClient ? 'Awaiting My Approval' : 'Pending Approvals')
+            ? (isClient ? 'Awaiting My Approval' : isIndividual ? 'Pending Approvals' : 'Pending Approvals')
             : activeTab === 'approved'
             ? (isClient ? 'Approved by Me' : 'Approved & Scheduled')
             : (isClient ? 'Feedback Sent / Rejected' : 'Feedback / Rejected')}
@@ -130,18 +132,18 @@ export function ApprovalsListView() {
               </div>
 
               <div className="shrink-0 flex items-center gap-3 self-end sm:self-center">
-                {activeTab === 'pending' ? (
+                {activeTab === 'pending' && canApprove ? (
                   <Link
-                    href={`/app/approvals/${draft.id }`}
-                    className="flex items-center gap-1.5 bg-[#E1306C] text-white px-4 py-2 rounded-full text-xs font-bold hover:opacity-95 transition shadow-sm"
+                    href={`/app/approvals/${draft.id}`}
+                    className="flex items-center gap-1.5 bg-gradient-to-r from-[#F58529] to-[#DD2A7B] text-white px-4 py-2 rounded-xl text-xs font-bold hover:opacity-95 transition shadow-xs whitespace-nowrap cursor-pointer"
                   >
-                    <span>{isClient ? 'Review & Approve' : 'Simulate Chat Link'}</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <span>Review & Approve</span>
+                    <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                   </Link>
                 ) : (
                   <Link
-                    href={`/app/content/${draft.id }`}
-                    className="text-xs font-bold text-text-secondary hover:underline py-2"
+                    href={`/app/content/${draft.id}`}
+                    className="text-xs font-bold text-text-secondary hover:text-text-primary hover:underline py-2 whitespace-nowrap cursor-pointer"
                   >
                     View History
                   </Link>

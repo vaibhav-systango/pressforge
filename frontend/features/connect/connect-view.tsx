@@ -1,13 +1,14 @@
 'use client';
 
 
-import { NavLink } from '@/components/navigation/nav-link';
+import { useRouter } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
 import React, { useState } from 'react';
-import { Plus, Trash, Link as LinkIcon } from 'lucide-react';
+import { Plus, Trash, Link as LinkIcon, ChevronLeft } from 'lucide-react';
 import { Select } from '@/components/common/select';
 
 export function ConnectView() {
+  const router = useRouter();
   const { state, updateState } = useAppState();
 
 
@@ -32,7 +33,13 @@ export function ConnectView() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-lg font-bold">Connect Channels</h2>
-        <NavLink href="/app" className="text-sm text-text-secondary">Back to Dashboard</NavLink>
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary transition cursor-pointer"
+        >
+          <ChevronLeft className="w-4 h-4" /> Back
+        </button>
       </div>
 
       <p className="text-sm text-text-secondary mb-4">Connect multiple social channels. Add Instagram, LinkedIn, or other accounts to publish posts.</p>

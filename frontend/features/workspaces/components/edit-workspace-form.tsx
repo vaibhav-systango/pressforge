@@ -193,7 +193,7 @@ export function EditWorkspaceForm({
               <p className="text-[10px] text-text-secondary">
                 Select the primary communication style of your brand voice.
               </p>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                 {TONES.map((t) => {
                   const IconComponent = TONE_ICONS[t];
                   return (
@@ -252,7 +252,7 @@ export function EditWorkspaceForm({
               <p className="text-[10px] text-text-secondary">
                 Add words or phrases that define your brand identity (e.g. #eco, #vegan).
               </p>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   placeholder="Add tag"
@@ -272,12 +272,12 @@ export function EditWorkspaceForm({
                       setKeywordError(validateKeyword(keywordInput.trim()));
                     }
                   }}
-                  className="flex-1 border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none"
+                  className="flex-1 min-w-0 border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none"
                 />
                 <button
                   type="button"
                   onClick={handleAddKeyword}
-                  className="bg-instagram-pink hover:opacity-90 text-white border-0 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
+                  className="w-full sm:w-auto shrink-0 bg-instagram-pink hover:opacity-90 text-white border-0 px-4 py-2.5 sm:py-2 rounded-xl text-xs font-bold transition cursor-pointer"
                 >
                   Add
                 </button>
@@ -309,7 +309,7 @@ export function EditWorkspaceForm({
               <p className="text-[10px] text-text-secondary">
                 Define specific constraints or guidelines for the AI generation model.
               </p>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   placeholder="e.g. Always capitalize PR title"
@@ -329,12 +329,12 @@ export function EditWorkspaceForm({
                       setRuleError(validateRule(ruleInput.trim()));
                     }
                   }}
-                  className="flex-1 border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none"
+                  className="flex-1 min-w-0 border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none"
                 />
                 <button
                   type="button"
                   onClick={handleAddRule}
-                  className="bg-instagram-pink hover:opacity-90 text-white border-0 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
+                  className="w-full sm:w-auto shrink-0 bg-instagram-pink hover:opacity-90 text-white border-0 px-4 py-2.5 sm:py-2 rounded-xl text-xs font-bold transition cursor-pointer"
                 >
                   Add
                 </button>

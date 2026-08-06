@@ -1,11 +1,11 @@
 "use client";
 
 import { NavLink } from "@/components/navigation/nav-link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAppState } from "@/lib/queries/use-app-state";
 import { useAuth } from "@/lib/hooks/queries/use-auth";
 import type { AppState, ClientUser, Workspace } from "@/lib/types";
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { InfiniteScroll } from "@/components/common/infinite-scroll";
@@ -22,14 +22,14 @@ import {
   Settings,
   ChevronDown,
   Plus,
-  Bell,
-  Sparkles,
   RefreshCw,
   LogOut,
   Building,
   ShieldAlert,
   Users,
   User,
+  Menu,
+  X,
 } from "lucide-react";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -37,9 +37,41 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [showOrgMenu, setShowOrgMenu] = useState(false);
   const [showClientMenu, setShowClientMenu] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  const workspaceMenuRef = useRef<HTMLDivElement>(null);
+  const orgMenuRef = useRef<HTMLDivElement>(null);
+  const clientMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      const target = event.target as Node;
+      if (workspaceMenuRef.current && !workspaceMenuRef.current.contains(target)) {
+        setShowWorkspaceMenu(false);
+      }
+      if (orgMenuRef.current && !orgMenuRef.current.contains(target)) {
+        setShowOrgMenu(false);
+      }
+      if (clientMenuRef.current && !clientMenuRef.current.contains(target)) {
+        setShowClientMenu(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, []);
 
   const [clientSearch, setClientSearch] = useState("");
   const debouncedClientSearch = useDebounce(clientSearch, 200);
@@ -119,6 +151,18 @@ console.log(state)
     user?.userType === "individual" ||
     state.currentUserType === "individual" ||
     state.accountType === "individual";
+
+  const availableClients = activeClients.length > 0 ? activeClients : state.clients;
+
+  useEffect(() => {
+    if (user && !isClient && !isIndividual && availableClients.length > 0) {
+      const isSelectedValid = availableClients.some((c) => c.id === state.activeClientId);
+      if (!state.activeClientId || !isSelectedValid) {
+        handleClientSelect(availableClients[0]);
+      }
+    }
+  }, [user, isClient, isIndividual, availableClients, state.activeClientId, handleClientSelect]);
+
   const displayUserName = user?.name || state.currentUserName || "User";
   const displayOrgName = user?.organizationName || state.organizationName || "Forge Agencies";
   const userInitials = displayUserName
@@ -148,8 +192,8 @@ console.log(state)
 
   // Selected client for organization header dropdown based on activeClientId
   const selectedClient =
-    state.clients.find((c) => c.id === state.activeClientId) ||
-    activeClients.find((c) => c.id === state.activeClientId);
+    availableClients.find((c) => c.id === state.activeClientId) ||
+    availableClients[0];
 
   // Calculate pending approvals count
   const pendingApprovalsCount = state.drafts.filter(
@@ -166,23 +210,42 @@ console.log(state)
 
   const handleLogout = async () => {
     await logout();
-    router.push("/auth/login");
+    window.location.href = "/auth/login";
   };
 
   return (
     <div className="flex min-h-screen bg-bg-app text-text-primary transition-colors duration-200">
+      {/* Mobile Drawer Overlay Backdrop */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden transition-opacity"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar Nav */}
-      <aside className="w-64 border-r border-border-primary bg-bg-card flex flex-col justify-between fixed h-screen z-10 transition-colors duration-200">
+      <aside
+        className={`w-64 border-r border-border-primary bg-bg-card flex flex-col justify-between fixed top-0 bottom-0 left-0 h-screen z-50 lg:z-10 transition-transform duration-300 ease-in-out ${
+          mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        }`}
+      >
         <div className="p-6 flex flex-col gap-6 overflow-y-auto">
-          {/* Logo */}
-          <div className="flex items-center gap-2">
+          {/* Logo & Mobile Close */}
+          <div className="flex items-center justify-between">
             <span className="text-xl font-bold tracking-tight text-text-primary flex items-center">
               PRESSFORGE<span className="text-instagram-pink ml-0.5">.AI</span>
             </span>
+            <button
+              onClick={() => setMobileMenuOpen(false)}
+              className="p-1 rounded-lg hover:bg-bg-hover text-text-secondary lg:hidden"
+              aria-label="Close sidebar"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           {/* Workspace Switcher */}
-          <div className="relative">
+          <div className="relative" ref={workspaceMenuRef}>
             <button
               onClick={() =>
                 !isClient && setShowWorkspaceMenu(!showWorkspaceMenu)
@@ -523,37 +586,51 @@ console.log(state)
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 pl-64 flex flex-col min-h-screen">
+      <div className="flex-1 pl-0 lg:pl-64 flex flex-col min-h-screen min-w-0">
         {/* Top Header Bar */}
-        <header className="h-16 border-b border-border-primary bg-bg-card px-8 flex items-center justify-between sticky top-0 z-9 transition-colors duration-200">
-          <div className="flex items-center gap-4">
+        <header className="min-h-16 py-2 border-b border-border-primary bg-bg-card px-3 sm:px-8 flex items-center justify-between sticky top-0 z-30 transition-colors duration-200">
+          <div className="flex items-center gap-1.5 sm:gap-4 py-1 min-w-0">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-1.5 rounded-lg hover:bg-bg-hover text-text-primary lg:hidden shrink-0"
+              aria-label="Toggle Navigation Menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
             {/* Org Switcher & Client Selector */}
             {!isClient ? (
               isIndividual ? (
                 /* Individual: Only user's name selected, no org dropdown, no client dropdown */
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-primary text-xs font-semibold text-text-primary bg-bg-app">
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border-primary text-xs font-semibold text-text-primary bg-bg-app shrink-0">
                   <User className="w-3.5 h-3.5 text-instagram-pink" />
-                  <span>{displayUserName}</span>
+                  <span className="truncate max-w-[100px] xs:max-w-[140px] sm:max-w-none">{displayUserName}</span>
                 </div>
               ) : (
                 /* Organization: Org dropdown + Client dropdown */
-                <div className="flex items-center gap-3">
-                  <div className="relative">
+                <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
+                  <div className="relative" ref={orgMenuRef}>
                     <button
-                      onClick={() => setShowOrgMenu(!showOrgMenu)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-primary text-xs font-semibold text-text-primary hover:bg-bg-hover transition duration-150"
+                      onClick={() => {
+                        setShowOrgMenu((prev) => !prev);
+                        setShowClientMenu(false);
+                      }}
+                      className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg border border-border-primary text-xs font-semibold text-text-primary hover:bg-bg-hover transition duration-150 shrink-0"
                     >
-                      <Building className="w-3.5 h-3.5" />
-                      <span>{displayOrgName}</span>
-                      <ChevronDown className="w-3 h-3 text-text-secondary" />
+                      <Building className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate max-w-[80px] xs:max-w-[120px] sm:max-w-none">{displayOrgName}</span>
+                      <ChevronDown className="w-3 h-3 text-text-secondary shrink-0" />
                     </button>
 
                     {showOrgMenu && (
-                      <div className="absolute top-full left-0 mt-1 bg-bg-card border border-border-primary rounded-lg shadow-lg z-20 py-1 w-48 transition-colors duration-200">
+                      <div className="absolute top-full left-0 mt-1 bg-bg-card border border-border-primary rounded-lg shadow-xl z-50 py-1 w-48 max-w-[calc(100vw-2rem)] transition-colors duration-200">
                         <div className="px-3 py-1 text-[10px] text-text-secondary font-semibold tracking-wider uppercase">
                           Brand Org
                         </div>
-                        <button className="w-full text-left px-3 py-2 text-xs font-semibold text-text-primary hover:bg-bg-hover bg-bg-app">
+                        <button 
+                          onClick={() => setShowOrgMenu(false)}
+                          className="w-full text-left px-3 py-2 text-xs font-semibold text-text-primary hover:bg-bg-hover bg-bg-app"
+                        >
                           {displayOrgName}
                         </button>
                       </div>
@@ -561,20 +638,23 @@ console.log(state)
                   </div>
 
                   {/* Client Switcher */}
-                  <div className="relative">
+                  <div className="relative" ref={clientMenuRef}>
                     <button
-                      onClick={() => setShowClientMenu(!showClientMenu)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-primary text-xs font-semibold text-text-primary hover:bg-bg-hover transition duration-150"
+                      onClick={() => {
+                        setShowClientMenu((prev) => !prev);
+                        setShowOrgMenu(false);
+                      }}
+                      className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg border border-border-primary text-xs font-semibold text-text-primary hover:bg-bg-hover transition duration-150 shrink-0"
                     >
-                      <Users className="w-3.5 h-3.5 text-text-secondary" />
-                      <span>
+                      <Users className="w-3.5 h-3.5 text-text-secondary shrink-0" />
+                      <span className="truncate max-w-[80px] xs:max-w-[120px] sm:max-w-none">
                         {selectedClient ? selectedClient.name : "Select Client"}
                       </span>
-                      <ChevronDown className="w-3 h-3 text-text-secondary" />
+                      <ChevronDown className="w-3 h-3 text-text-secondary shrink-0" />
                     </button>
 
                     {showClientMenu && (
-                      <div className="absolute top-full left-0 mt-1 bg-bg-card border border-border-primary rounded-lg shadow-lg z-20 py-1 w-64 transition-colors duration-200">
+                      <div className="absolute top-full right-0 sm:left-auto sm:right-0 mt-1 bg-bg-card border border-border-primary rounded-lg shadow-xl z-50 py-1 w-64 max-w-[calc(100vw-2rem)] transition-colors duration-200">
                         <div className="px-3 py-1 text-[10px] text-text-secondary font-semibold tracking-wider uppercase">
                           Select Client
                         </div>
@@ -622,16 +702,16 @@ console.log(state)
                 </div>
               )
             ) : (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-pink-200 dark:border-pink-900 bg-pink-50/50 dark:bg-pink-950/20 text-xs font-bold text-instagram-pink">
-                <Building className="w-3.5 h-3.5" />
-                <span>{displayOrgName}</span>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-pink-200 dark:border-pink-900 bg-pink-50/50 dark:bg-pink-950/20 text-xs font-bold text-instagram-pink shrink-0">
+                <Building className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate max-w-[120px] sm:max-w-none">{displayOrgName}</span>
               </div>
             )}
 
-            <div className="h-4 w-[1px] bg-border-primary"></div>
+            <div className="h-4 w-[1px] bg-border-primary shrink-0 hidden md:block"></div>
 
             {/* Quick Stats Summary */}
-            <p className="text-xs text-text-secondary hidden sm:block">
+            <p className="text-xs text-text-secondary hidden md:block shrink-0">
               Active Workspace:{" "}
               <span className="font-semibold text-text-primary">
                 {activeWorkspace?.name}
@@ -639,35 +719,14 @@ console.log(state)
             </p>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0 ml-2">
             {/* Theme Toggle Button */}
             <ThemeToggle />
-
-            {/* Notifications Indicator - Hide for clients */}
-            {!isClient && (
-              <button className="p-1.5 rounded-lg hover:bg-bg-hover text-text-secondary hover:text-text-primary relative transition duration-150">
-                <Bell className="w-4 h-4" />
-                {pendingApprovalsCount > 0 && (
-                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-instagram-pink"></span>
-                )}
-              </button>
-            )}
-
-            {/* Quick Create AI Draft Button - Hide for clients */}
-            {!isClient && (
-              <NavLink
-                href="/app/content/new"
-                className="flex items-center gap-1.5 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white px-4 py-2 rounded-full text-xs font-semibold hover:opacity-95 transition duration-150 shadow-sm"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Create AI Draft</span>
-              </NavLink>
-            )}
           </div>
         </header>
 
         {/* Dynamic Route Content */}
-        <main className="p-8 flex-1 flex flex-col bg-bg-app transition-colors duration-200">
+        <main className="p-4 sm:p-6 lg:p-8 flex-1 flex flex-col bg-bg-app transition-colors duration-200 min-w-0 overflow-x-hidden">
           {children}
         </main>
       </div>

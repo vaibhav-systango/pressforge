@@ -9,6 +9,7 @@ import {
 } from '@/lib/hooks/queries/use-social-connection';
 import { useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
+import { clearAccessToken } from '@/lib/auth/token-storage';
 import {
   formatAccountTypeLabel,
   formatMeTimestamp,
@@ -46,7 +47,8 @@ export function SettingsView() {
   } = useLinkedInConnection();
 
   const isClient = user?.userType === 'client' || state.currentUserType === 'client';
-  const showSocialIntegrations = isClient;
+  const isIndividual = user?.userType === 'individual' || state.currentUserType === 'individual' || state.accountType === 'individual';
+  const showSocialIntegrations = isClient || isIndividual;
 
   // Modal confirm states
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -256,6 +258,8 @@ export function SettingsView() {
       
       // Perform client logout/redirect
       await fetch('/api/auth/logout', { method: 'POST' });
+      clearAccessToken();
+      queryClient.clear();
       setShowDeleteConfirm(false);
       window.location.href = '/';
     } catch (err) {
@@ -396,7 +400,7 @@ export function SettingsView() {
           </div>
 
           {/* Agency Settings (Only for agency users) */}
-          {!isClient && (
+          {!isClient && !isIndividual && (
             <div key={state.organizationName || 'loading-org'} className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm">
               <h3 className="text-sm font-bold text-text-primary border-b border-border-primary pb-2.5 mb-4 flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-text-secondary" />

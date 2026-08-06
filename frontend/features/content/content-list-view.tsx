@@ -2,11 +2,16 @@
 
 import Link from 'next/link';
 import { useAppState } from '@/lib/queries/use-app-state';
+import { useAuth } from '@/lib/hooks/queries/use-auth';
 import React, { useState } from 'react';
 import { Sparkles, Instagram, Linkedin } from 'lucide-react';
 
 export function ContentListView() {
   const { state } = useAppState();
+  const { user } = useAuth();
+  const isClient = user?.userType === 'client' || state.currentUserType === 'client';
+  const isIndividual = user?.userType === 'individual' || state.currentUserType === 'individual' || state.accountType === 'individual';
+  const canApprove = isClient || isIndividual;
   const [listTab, setListTab] = useState<'all' | 'draft' | 'pending' | 'approved' | 'published'>('all');
 
   // Filter drafts for current workspace
@@ -47,18 +52,18 @@ export function ContentListView() {
       {/* List View */}
       <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-6">
         {/* Sub tabs */}
-        <div className="flex flex-wrap gap-1 border-b border-border-primary pb-3">
+        <div className="flex gap-1 border-b border-border-primary pb-3 overflow-x-auto flex-nowrap">
           {[
             { id: 'all', label: 'All Drafts' },
             { id: 'draft', label: 'Drafts' },
-            ...(state.accountType !== 'individual' ? [{ id: 'pending', label: 'Pending Approval' }] : []),
+            { id: 'pending', label: 'Pending Approval' },
             { id: 'approved', label: 'Scheduled' },
             { id: 'published', label: 'Published' }
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setListTab(tab.id as 'pending' | 'draft' | 'approved' | 'published' | 'all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition duration-150 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition duration-150 cursor-pointer whitespace-nowrap shrink-0 ${
                 listTab === tab.id
                   ? 'bg-bg-app border border-border-primary text-text-primary'
                   : 'text-text-secondary hover:text-text-primary'
@@ -70,7 +75,7 @@ export function ContentListView() {
         </div>
 
         {/* Table */}
-        <div className="overflow-hidden border border-border-primary rounded-xl">
+        <div className="overflow-x-auto border border-border-primary rounded-xl">
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="bg-bg-app border-b border-border-primary text-[10px] font-bold text-text-secondary tracking-wide uppercase">
@@ -121,7 +126,7 @@ export function ContentListView() {
                   </td>
                   <td className="p-4 text-right shrink-0">
                     <Link
-                      href={draft.status === 'pending_approval' ? `/app/approvals/${draft.id}` : `/app/content/${draft.id}`}
+                      href={draft.status === 'pending_approval' && canApprove ? `/app/approvals/${draft.id}` : `/app/content/${draft.id}`}
                       className="text-xs font-bold text-instagram-pink hover:underline"
                     >
                       Open details

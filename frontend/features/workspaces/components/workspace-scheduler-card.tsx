@@ -126,7 +126,7 @@ export function WorkspaceSchedulerCard({
           />
         </div>
 
-        <div className="md:col-span-4 flex items-center justify-between mt-2 pt-2 border-t border-dashed border-border-primary">
+        <div className="md:col-span-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-2 pt-2 border-t border-dashed border-border-primary">
           <div className="flex items-center gap-2">
             <input 
               type="checkbox" 
@@ -143,7 +143,7 @@ export function WorkspaceSchedulerCard({
             type="button"
             disabled={isAddingSchedule}
             onClick={onAddSchedule} 
-            className={`bg-instagram-pink text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm min-w-[160px] justify-center ${isAddingSchedule ? 'opacity-60 cursor-not-allowed' : 'hover:opacity-90 cursor-pointer'}`}
+            className={`w-full sm:w-auto bg-instagram-pink text-white px-4 py-2.5 sm:py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm shrink-0 ${isAddingSchedule ? 'opacity-60 cursor-not-allowed' : 'hover:opacity-90 cursor-pointer'}`}
           >
             {isAddingSchedule ? (
               <>

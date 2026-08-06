@@ -25,10 +25,18 @@ function applyWorkspaceData(state: AppState, data: WorkspaceListResponse | null 
     return state;
   }
 
+  const mappedWorkspaces = data.workspaces.map(mapWorkspaceResponse);
+  const isCurrentActiveValid = mappedWorkspaces.some((w) => w.id === state.activeWorkspaceId);
+  const activeWorkspaceId = data.activeWorkspaceId && mappedWorkspaces.some((w) => w.id === data.activeWorkspaceId)
+    ? data.activeWorkspaceId
+    : isCurrentActiveValid
+    ? state.activeWorkspaceId
+    : (mappedWorkspaces[0]?.id ?? null);
+
   return {
     ...state,
-    workspaces: data.workspaces.map(mapWorkspaceResponse),
-    activeWorkspaceId: data.activeWorkspaceId ?? state.activeWorkspaceId,
+    workspaces: mappedWorkspaces,
+    activeWorkspaceId,
   };
 }
 
@@ -88,29 +96,22 @@ export async function GET() {
       });
 
       const accessToken = session.accessToken!;
-      const clientId = state.activeClientId;
-      const workspacesQuery = clientId ? `?clientId=${encodeURIComponent(clientId)}` : '';
+      const cookieStore = await cookies();
+      let orgId = cookieStore.get(ORGANIZATION_ID_COOKIE)?.value;
 
-      const [profileResult, workspacesResult, draftsResult] = await Promise.all([
-        callBackend<BackendUserResponse>('/auth/me', { accessToken }),
-        callBackend<WorkspaceListResponse>(`/workspaces${workspacesQuery}`, { accessToken }),
-        callBackend<{ drafts: Draft[] }>('/drafts', { accessToken }),
-      ]);
-
-      const { state: profileState, patch: profilePatch } = applyProfileData(state, profileResult.data);
-      if (Object.keys(profilePatch).length > 0) {
-        updateSession(auth.sessionId, profilePatch);
+      let profileResult;
+      try {
+        profileResult = await callBackend<BackendUserResponse>('/auth/me', { accessToken });
+        if (!orgId && profileResult.data?.organizationId) {
+          orgId = profileResult.data.organizationId;
+        }
+      } catch (e) {
+        console.error('Failed to fetch profile in state route', e);
       }
-      const profileMerged = applyWorkspaceData(profileState, workspacesResult.data);
-      const draftsMerged = draftsResult.data
-        ? { ...profileMerged, drafts: draftsResult.data.drafts }
-        : profileMerged;
 
       let clients: AppState['clients'] | undefined;
-      try {
-        const cookieStore = await cookies();
-        const orgId = cookieStore.get(ORGANIZATION_ID_COOKIE)?.value;
 
+      try {
         if (orgId) {
           const { data: clientsData } = await callBackend<Record<string, unknown>[]>(
             `/organizations/${orgId}/clients`,
@@ -153,6 +154,33 @@ export async function GET() {
       } catch (e) {
         console.error('Failed to sync backend clients to app state', e);
       }
+
+      let activeClientId = state.activeClientId;
+      if (clients && clients.length > 0) {
+        const clientExists = clients.some((c) => c.id === activeClientId);
+        if (!activeClientId || !clientExists) {
+          activeClientId = clients[0].id;
+        }
+      }
+
+      const workspacesQuery = activeClientId ? `?clientId=${encodeURIComponent(activeClientId)}` : '';
+
+      const [workspacesResult, draftsResult] = await Promise.all([
+        callBackend<WorkspaceListResponse>(`/workspaces${workspacesQuery}`, { accessToken }),
+        callBackend<{ drafts: Draft[] }>('/drafts', { accessToken }),
+      ]);
+
+      const stateWithClient = { ...state, activeClientId };
+      updateSession(auth.sessionId, { activeClientId });
+
+      const { state: profileState, patch: profilePatch } = applyProfileData(stateWithClient, profileResult?.data);
+      if (Object.keys(profilePatch).length > 0) {
+        updateSession(auth.sessionId, profilePatch);
+      }
+      const profileMerged = applyWorkspaceData(profileState, workspacesResult.data);
+      const draftsMerged = draftsResult.data
+        ? { ...profileMerged, drafts: draftsResult.data.drafts }
+        : profileMerged;
 
       const mergedState = clients ? { ...draftsMerged, clients } : draftsMerged;
 

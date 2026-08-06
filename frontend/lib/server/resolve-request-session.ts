@@ -43,6 +43,10 @@ async function resolveAuthenticatedSession(accessToken: string): Promise<Request
         const decoded = Buffer.from(payloadB64, 'base64').toString('utf-8');
         const raw = JSON.parse(decoded) as Record<string, unknown>;
         if (raw && raw.sub) {
+          const exp = typeof raw.exp === 'number' ? raw.exp : undefined;
+          if (exp && exp * 1000 < Date.now()) {
+            return null;
+          }
           return {
             sessionId: raw.sub as string,
             accessToken,

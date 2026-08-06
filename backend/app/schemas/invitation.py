@@ -34,6 +34,7 @@ class ClientResponse(BaseModel):
     expiresAt: int | None = None
     isAccepted: bool
     workspaceId: str | None = None
+    workspaceIds: list[str] | None = None
     plan: str | None = "Free"
 
     model_config = ConfigDict(from_attributes=True)

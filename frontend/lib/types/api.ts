@@ -70,7 +70,7 @@ export interface BackendTokenResponse {
 }
 
 export interface AiGenerateRequest {
-  prompt: string;
+  prompt?: string;
   workspaceId: string;
   platforms?: Array<'instagram' | 'linkedin'>;
   goal?: string;

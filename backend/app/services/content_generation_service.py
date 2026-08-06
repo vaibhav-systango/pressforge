@@ -14,8 +14,6 @@ logger = logging.getLogger(__name__)
 class ContentGenerationService:
     def generate(self, db: Session, user: User, data: dict) -> dict:
         prompt = (data.get("prompt") or "").strip()
-        if not prompt:
-            raise ValueError(ContentErrorCodes.INVALID_PROMPT)
 
         workspace_id = data.get("workspaceId")
         workspace = workspace_repository.get_by_id(db, workspace_id)

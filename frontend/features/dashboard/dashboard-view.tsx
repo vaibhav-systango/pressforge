@@ -6,6 +6,7 @@ import { Select } from '@/components/common/select';
 import { useAppState } from '@/lib/queries/use-app-state';
 import { useAuth } from '@/lib/hooks/queries/use-auth';
 import { useLinkedInConnection } from '@/lib/hooks/queries/use-social-connection';
+import { useDashboardStats } from '@/lib/hooks/queries/use-dashboard-stats';
 import {
   Sparkles,
   Calendar,
@@ -21,26 +22,34 @@ import {
   XCircle,
   Plus,
   ChevronRight,
+  Building,
+  Users,
+  ShieldCheck,
 } from 'lucide-react';
 
-
-
 export function DashboardView() {
-  const { state, isLoading } = useAppState();
+  const [timeframe, setTimeframe] = useState('Last 7 Days');
+  const { state, isLoading: isAppStateLoading } = useAppState();
   const { user } = useAuth();
+  const { data: stats, isLoading: isStatsLoading } = useDashboardStats(timeframe);
   const {
     connection: linkedinConnection,
+    accountName: linkedinAccountName,
     isLoading: isLinkedInLoading,
     isConnecting: isLinkedInConnecting,
+    isDisconnecting: isLinkedInDisconnecting,
     connectLinkedIn,
+    disconnectLinkedIn,
   } = useLinkedInConnection();
-  const [dashboardTimeframe, setDashboardTimeframe] = useState('Last 7 Days');
 
-  if (isLoading) {
+  const isLoading = isAppStateLoading || isStatsLoading;
+
+  if (isLoading || !stats) {
     return (
       <div className="flex flex-col gap-8 animate-fade-in">
         <div className="h-32 rounded-3xl bg-bg-card border border-border-primary animate-pulse" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="h-28 rounded-2xl bg-bg-card border border-border-primary animate-pulse" />
           <div className="h-28 rounded-2xl bg-bg-card border border-border-primary animate-pulse" />
           <div className="h-28 rounded-2xl bg-bg-card border border-border-primary animate-pulse" />
           <div className="h-28 rounded-2xl bg-bg-card border border-border-primary animate-pulse" />
@@ -50,36 +59,61 @@ export function DashboardView() {
     );
   }
 
+  // Active workspace & client resolution
   const activeWorkspace = state.workspaces.find((w) => w.id === state.activeWorkspaceId) || state.workspaces[0];
   const linkedinConnected = linkedinConnection?.connected ?? state.connectedAccounts?.linkedin ?? false;
 
-  const isClient = state.currentUserType === 'client';
-  const currentClient = isClient ? state.clients.find(c => c.id === state.activeClientId) : null;
-  const clientName = currentClient ? currentClient.name : 'Valued Client';
+  // Role detection
+  const userType = user?.userType || state.currentUserType || 'agency';
+  const orgRole = (user?.organizationRole || state.orgUsers.find(u => u.email === user?.email)?.role || 'admin').toLowerCase();
 
-  // Client workspace details
-  const clientDrafts = state.drafts.filter((d) => d.workspaceId === state.activeWorkspaceId);
-  const clientPending = clientDrafts.filter((d) => d.status === 'pending_approval');
-  const clientApproved = clientDrafts.filter((d) => d.status === 'approved' || d.status === 'published');
-  const clientRejected = clientDrafts.filter((d) => d.status === 'rejected');
+  const isClient = userType === 'client';
+  const isIndividual = userType === 'individual' || state.accountType === 'individual';
+  const isMember = userType === 'agency' && orgRole === 'member';
+  const isAdmin = userType === 'agency' && (orgRole === 'admin' || orgRole === 'owner');
 
-  // Get active workspace data for agency
-  const drafts = state.drafts.filter((d) => d.workspaceId === state.activeWorkspaceId);
-  const approvedCount = drafts.filter((d) => d.status === 'approved').length;
-  const pendingCount = drafts.filter((d) => d.status === 'pending_approval').length;
+  const currentClient = isClient ? state.clients.find(c => c.id === state.activeClientId || c.workspaceId === activeWorkspace?.id) : null;
+  const clientName = currentClient ? currentClient.name : user?.name || 'Valued Client';
 
+  // Determine accessible workspaces based on user role (Organization, Individual, Member, Client)
+  const clientObj = isClient ? state.clients.find(c => c.id === state.activeClientId || c.workspaceId === activeWorkspace?.id) : null;
+  const clientWsIds = clientObj?.workspaceIds || (clientObj?.workspaceId ? [clientObj.workspaceId] : []);
+  
+  const accessibleWorkspaces = isClient
+    ? (clientWsIds.length > 0 ? state.workspaces.filter(w => clientWsIds.includes(w.id)) : state.workspaces)
+    : state.workspaces;
 
-  // Calculate approval rate dynamically
-  const totalDecided = drafts.filter((d) => d.status === 'approved' || d.status === 'rejected').length;
-  const approvedDecided = drafts.filter((d) => d.status === 'approved').length;
-  const approvalRate = totalDecided > 0 ? Math.round((approvedDecided / totalDecided) * 100) : 92;
+  const accessibleWsIds = accessibleWorkspaces.map(w => w.id);
 
-  // Mock score health
-  const healthScore = activeWorkspace?.id === 'acme-brand' ? 92 : activeWorkspace?.id === 'ecolife' ? 84 : 54;
-  const healthLabel = healthScore >= 85 ? 'Low Churn Risk' : healthScore >= 60 ? 'Medium Churn Risk' : 'High Churn Risk';
-  const healthColor = healthScore >= 85 ? 'text-green-600 border-green-200 bg-green-50' : healthScore >= 60 ? 'text-yellow-600 border-yellow-200 bg-yellow-50' : 'text-red-600 border-red-200 bg-red-50';
-  const healthGaugeColor = healthScore >= 85 ? '#10B981' : healthScore >= 60 ? '#F59E0B' : '#EF4444';
+  // Aggregate drafts across all accessible workspaces for this role
+  const roleDrafts = state.drafts.filter((d) => accessibleWsIds.length > 0 ? accessibleWsIds.includes(d.workspaceId) : true);
+  const drafts = roleDrafts.length > 0 ? roleDrafts : state.drafts;
+  const clientPending = drafts.filter((d) => d.status === 'pending_approval');
+  const clientApproved = drafts.filter((d) => d.status === 'approved' || d.status === 'published');
+  const clientRejected = drafts.filter((d) => d.status === 'rejected');
 
+  // KPI Metrics from API stats endpoint
+  const weeklyReach = stats.kpis.weeklyReach;
+  const weeklyReachGrowth = stats.kpis.weeklyReachGrowth;
+  const approvalRate = stats.kpis.approvalRate;
+  const scheduledCount = stats.kpis.scheduledQueueCount;
+  const pendingCount = stats.kpis.pendingReviewCount;
+
+  // Health Score from API stats
+  const healthScore = stats.healthScore.score;
+  const healthLabel = stats.healthScore.label;
+  const healthColor = stats.healthScore.color;
+  const healthGaugeColor = stats.healthScore.gaugeColor;
+
+  // Performance numbers from API
+  const perfImpressions = stats.workspacePerformance.impressions;
+  const perfEngagement = stats.workspacePerformance.engagementRate;
+  const perfFollowers = stats.workspacePerformance.netFollowers;
+  const perfReplies = stats.workspacePerformance.prReplies;
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // ROLE 1: CLIENT PORTAL DASHBOARD
+  // ───────────────────────────────────────────────────────────────────────────
   if (isClient) {
     return (
       <div className="flex flex-col gap-8 animate-fade-in text-text-primary">
@@ -94,7 +128,7 @@ export function DashboardView() {
               Welcome back, {clientName}!
             </h1>
             <p className="text-text-secondary text-sm max-w-xl">
-              Collaborate and review content drafts for the <span className="font-semibold text-text-primary">{activeWorkspace?.name}</span> workspace. You can approve drafts, request revisions, and suggest new content ideas.
+              Collaborate and review content drafts for the <span className="font-semibold text-text-primary">{activeWorkspace?.name || 'Brand'}</span> workspace. Approve ready drafts, request revisions, or review scheduling.
             </p>
           </div>
         </div>
@@ -134,12 +168,12 @@ export function DashboardView() {
           </div>
         </div>
 
-        {/* Workspace Performance Stats Quick View */}
+        {/* Workspace Performance Metrics from API */}
         <div className="bg-bg-card border border-border-primary rounded-3xl p-6 shadow-sm">
           <div className="flex items-center justify-between border-b border-border-primary pb-3 mb-4">
             <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-instagram-pink" />
-              <span>Workspace Performance Metrics</span>
+              <span>Workspace Performance Metrics (API Engine)</span>
             </h3>
             <Link href="/app/analytics" className="text-xs font-semibold text-instagram-pink hover:underline">
               View Detailed Analytics
@@ -148,38 +182,29 @@ export function DashboardView() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-bg-app/40 border border-border-primary rounded-2xl p-4 space-y-1">
               <span className="text-[10px] uppercase font-bold text-text-secondary">Impressions</span>
-              <p className="text-xl font-extrabold text-text-primary">
-                {activeWorkspace?.id === 'acme-brand' ? '248.5K' : activeWorkspace?.id === 'ecolife' ? '112.4K' : '89.1K'}
-              </p>
+              <p className="text-xl font-extrabold text-text-primary">{perfImpressions}</p>
               <span className="text-[9px] text-green-600 font-bold">+18.2% vs last month</span>
             </div>
             <div className="bg-bg-app/40 border border-border-primary rounded-2xl p-4 space-y-1">
               <span className="text-[10px] uppercase font-bold text-text-secondary">Engagement Rate</span>
-              <p className="text-xl font-extrabold text-text-primary">
-                {activeWorkspace?.id === 'acme-brand' ? '4.82%' : activeWorkspace?.id === 'ecolife' ? '5.15%' : '4.70%'}
-              </p>
+              <p className="text-xl font-extrabold text-text-primary">{perfEngagement}</p>
               <span className="text-[9px] text-green-600 font-bold">+0.4% industry avg</span>
             </div>
             <div className="bg-bg-app/40 border border-border-primary rounded-2xl p-4 space-y-1">
               <span className="text-[10px] uppercase font-bold text-text-secondary">Net Followers</span>
-              <p className="text-xl font-extrabold text-text-primary">
-                {activeWorkspace?.id === 'acme-brand' ? '+1,842' : activeWorkspace?.id === 'ecolife' ? '+850' : '+508'}
-              </p>
+              <p className="text-xl font-extrabold text-text-primary">{perfFollowers}</p>
               <span className="text-[9px] text-green-600 font-bold">+8.3% acceleration</span>
             </div>
             <div className="bg-bg-app/40 border border-border-primary rounded-2xl p-4 space-y-1">
               <span className="text-[10px] uppercase font-bold text-text-secondary">PR Target Replies</span>
-              <p className="text-xl font-extrabold text-text-primary">
-                {activeWorkspace?.id === 'acme-brand' ? '4 Replies' : activeWorkspace?.id === 'ecolife' ? '3 Replies' : '5 Replies'}
-              </p>
+              <p className="text-xl font-extrabold text-text-primary">{perfReplies}</p>
               <span className="text-[9px] text-text-secondary font-medium">From Tier-1 editors</span>
             </div>
           </div>
         </div>
 
-        {/* Main Grid split */}
+        {/* Pending Approvals List */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left: Pending Approvals list */}
           <div className="lg:col-span-8 bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b border-border-primary pb-3">
               <h3 className="text-base font-bold text-text-primary flex items-center gap-2">
@@ -202,7 +227,7 @@ export function DashboardView() {
                     <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <h4 className="text-sm font-bold text-text-primary truncate">{draft.prompt}</h4>
-                        <span className="text-[10px] text-text-secondary font-semibold shrink-0">v{draft.version}.0</span>
+                        <span className="text-[10px] text-text-secondary font-semibold shrink-0">v{draft.version || 1}.0</span>
                       </div>
                       <p className="text-xs text-text-secondary line-clamp-2 leading-relaxed">{draft.caption}</p>
                       <div className="flex items-center gap-1.5 pt-1">
@@ -215,10 +240,10 @@ export function DashboardView() {
                   <div className="shrink-0 flex items-center self-end sm:self-center">
                     <Link
                       href={`/app/approvals/${draft.id}`}
-                      className="flex items-center gap-1.5 bg-instagram-pink text-white px-4 py-2 rounded-full text-xs font-bold hover:opacity-95 transition shadow-sm"
+                      className="flex items-center gap-1.5 bg-gradient-to-r from-[#F58529] to-[#DD2A7B] text-white px-4 py-2 rounded-xl text-xs font-bold hover:opacity-95 transition shadow-xs whitespace-nowrap cursor-pointer"
                     >
                       <span>Review & Approve</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                     </Link>
                   </div>
                 </div>
@@ -238,51 +263,75 @@ export function DashboardView() {
             </div>
           </div>
 
-          {/* Right: Quick actions */}
+          {/* Right sidebar */}
           <div className="lg:col-span-4 space-y-6">
-            {/* Suggest a Post Idea Card (Commented out)
-            <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-instagram-pink" />
-                <h3 className="text-sm font-bold text-text-primary">Suggest a Post Idea</h3>
-              </div>
-              <p className="text-xs text-text-secondary leading-relaxed">
-                Have a campaign concept, update, or social announcement? Run it through our brand-tuned AI writer to auto-generate a draft for approval.
-              </p>
-              <Link
-                href="/app/content/new"
-                className="w-full flex items-center justify-center gap-1.5 bg-text-primary hover:opacity-90 text-bg-card py-2.5 rounded-full text-xs font-bold transition shadow-sm cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Create New Post Draft</span>
-              </Link>
-            </div>
-            */}
-
-            {/* Workspace details card */}
             <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
               <div className="flex items-between justify-between border-b border-border-primary pb-2.5">
                 <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">Workspace Profile</h3>
                 <Link href="/app/workspaces" className="text-[11px] text-instagram-pink font-semibold hover:underline">
-                  View Profile
+                  View Details
                 </Link>
               </div>
 
               <div className="space-y-3 text-xs">
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] text-text-secondary font-bold uppercase">Active Writing Tone</span>
-                  <p className="font-semibold text-text-primary capitalize">{activeWorkspace?.tone}</p>
+                  <span className="text-[10px] text-text-secondary font-bold uppercase">Writing Tone</span>
+                  <p className="font-semibold text-text-primary capitalize">{activeWorkspace?.tone || activeWorkspace?.brandVoice || 'Professional'}</p>
                 </div>
 
                 <div className="flex flex-col gap-1">
                   <span className="text-[10px] text-text-secondary font-bold uppercase">Brand Keywords</span>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {activeWorkspace?.keywords?.map((kw) => (
+                    {(activeWorkspace?.keywords || ['brand', 'marketing', 'growth']).map((kw) => (
                       <span key={kw} className="bg-bg-app border border-border-primary text-text-primary px-2 py-0.5 rounded text-[10px] font-medium">
                         #{kw}
                       </span>
                     ))}
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Social Channels */}
+            <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
+              <h3 className="text-base font-bold text-text-primary">Social Channels</h3>
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Linkedin className="w-4 h-4 text-blue-600 shrink-0" />
+                    <div className="min-w-0">
+                      <span className="font-semibold text-text-primary block truncate">LinkedIn</span>
+                      {linkedinConnected && linkedinAccountName && (
+                        <span className="text-xs text-text-secondary block truncate">
+                          {linkedinAccountName}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {linkedinConnected ? (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs font-bold text-green-600 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 px-2.5 py-1 rounded-full whitespace-nowrap">
+                        Connected
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => disconnectLinkedIn()}
+                        disabled={isLinkedInLoading || isLinkedInDisconnecting}
+                        className="text-xs font-bold text-red-500 hover:text-red-600 transition disabled:opacity-50 cursor-pointer"
+                      >
+                        {isLinkedInDisconnecting ? '...' : 'Disconnect'}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => connectLinkedIn('/app')}
+                      disabled={isLinkedInLoading || isLinkedInConnecting}
+                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow-sm disabled:opacity-50 cursor-pointer"
+                    >
+                      {isLinkedInConnecting ? 'Connecting...' : 'Connect'}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -292,10 +341,178 @@ export function DashboardView() {
     );
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // ROLE 2: MEMBER DASHBOARD (Agency Team Member)
+  // ───────────────────────────────────────────────────────────────────────────
+  if (isMember) {
+    return (
+      <div className="flex flex-col gap-8 animate-fade-in text-text-primary">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full font-bold uppercase">
+                Team Member View
+              </span>
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-text-primary">
+              Welcome Back, {user?.name || 'Team Member'}
+            </h1>
+            <p className="text-sm text-text-secondary mt-1">
+              Content operations & draft management for workspace <span className="font-semibold text-text-primary">{activeWorkspace?.name}</span>.
+            </p>
+          </div>
+          <Link
+            href="/app/content/new"
+            className="bg-gradient-to-r from-[#F58529] to-[#DD2A7B] text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5 hover:opacity-95 transition cursor-pointer self-start md:self-auto"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Generate New Draft</span>
+          </Link>
+        </div>
+
+        {/* Member KPIs */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="bg-bg-card border border-border-primary rounded-2xl p-5 shadow-sm">
+            <span className="text-xs font-semibold text-text-secondary uppercase">Assigned Drafts</span>
+            <p className="text-3xl font-extrabold text-text-primary mt-3">{drafts.length}</p>
+            <p className="text-xs text-text-secondary mt-1">Total in {activeWorkspace?.name}</p>
+          </div>
+          <div className="bg-bg-card border border-border-primary rounded-2xl p-5 shadow-sm">
+            <span className="text-xs font-semibold text-text-secondary uppercase">Awaiting Action</span>
+            <p className="text-3xl font-extrabold text-yellow-600 mt-3">{pendingCount}</p>
+            <p className="text-xs text-text-secondary mt-1">Pending client review</p>
+          </div>
+          <div className="bg-bg-card border border-border-primary rounded-2xl p-5 shadow-sm">
+            <span className="text-xs font-semibold text-text-secondary uppercase">Approved Posts</span>
+            <p className="text-3xl font-extrabold text-green-600 mt-3">{scheduledCount}</p>
+            <p className="text-xs text-text-secondary mt-1">Ready for publication</p>
+          </div>
+          <div className="bg-bg-card border border-border-primary rounded-2xl p-5 shadow-sm">
+            <span className="text-xs font-semibold text-text-secondary uppercase">Approval Rate</span>
+            <p className="text-3xl font-extrabold text-text-primary mt-3">{approvalRate}%</p>
+            <p className="text-xs text-text-secondary mt-1">Client accept ratio</p>
+          </div>
+        </div>
+
+        {/* Chart + Recent Drafts */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm lg:col-span-2 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-text-primary">Engagement Trend</h3>
+                <p className="text-xs text-text-secondary">Workspace reach velocity (API Data)</p>
+              </div>
+              <Select
+                value={timeframe}
+                onChange={(e) => setTimeframe(e.target.value)}
+                options={['Last 7 Days', 'Last 30 Days']}
+                className="py-1 px-2.5 text-xs font-semibold"
+                containerClassName="w-36"
+              />
+            </div>
+            <div className="w-full h-56 flex items-end">
+              <svg viewBox="0 0 500 200" className="w-full h-full">
+                <line x1="0" y1="50" x2="500" y2="50" stroke="#F1F1F1" strokeWidth="1" />
+                <line x1="0" y1="100" x2="500" y2="100" stroke="#F1F1F1" strokeWidth="1" />
+                <line x1="0" y1="150" x2="500" y2="150" stroke="#F1F1F1" strokeWidth="1" />
+                <path
+                  d={stats.chartData.svgPath}
+                  fill="none"
+                  stroke="url(#igGradMember)"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                />
+                <defs>
+                  <linearGradient id="igGradMember" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#F58529" />
+                    <stop offset="50%" stopColor="#DD2A7B" />
+                    <stop offset="100%" stopColor="#515BD4" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+          </div>
+
+          <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
+            <h3 className="text-base font-bold text-text-primary">Quick Actions</h3>
+            <div className="space-y-3">
+              <Link
+                href="/app/content/new"
+                className="w-full flex items-center justify-between p-3.5 border border-border-primary rounded-xl hover:border-instagram-pink transition group"
+              >
+                <div className="flex items-center gap-3">
+                  <Sparkles className="w-5 h-5 text-instagram-pink" />
+                  <div>
+                    <p className="text-xs font-bold text-text-primary">Create AI Content Brief</p>
+                    <p className="text-[10px] text-text-secondary">Generate brand-tuned drafts</p>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-text-secondary group-hover:translate-x-1 transition" />
+              </Link>
+              <Link
+                href="/app/approvals"
+                className="w-full flex items-center justify-between p-3.5 border border-border-primary rounded-xl hover:border-yellow-500 transition group"
+              >
+                <div className="flex items-center gap-3">
+                  <MessageSquare className="w-5 h-5 text-yellow-500" />
+                  <div>
+                    <p className="text-xs font-bold text-text-primary">Check Approvals Queue</p>
+                    <p className="text-[10px] text-text-secondary">{pendingCount} drafts pending</p>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-text-secondary group-hover:translate-x-1 transition" />
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Drafts List */}
+        <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-bold text-text-primary">Recent Content Drafts</h3>
+            <Link href="/app/content" className="text-xs font-semibold text-instagram-pink hover:underline">
+              View All Drafts
+            </Link>
+          </div>
+          <div className="flex flex-col gap-3">
+            {drafts.slice(0, 5).map((draft) => (
+              <div
+                key={draft.id}
+                className="border border-border-primary p-4 rounded-xl flex items-center justify-between hover:bg-bg-app transition duration-150"
+              >
+                <div className="flex flex-col gap-1 pr-4 truncate">
+                  <p className="text-sm font-semibold text-text-primary truncate">{draft.prompt}</p>
+                  <p className="text-xs text-text-secondary truncate max-w-lg">{draft.caption}</p>
+                </div>
+                <div className="shrink-0 flex items-center gap-2">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                    draft.status === 'approved'
+                      ? 'bg-green-50 text-green-700 border border-green-200'
+                      : draft.status === 'pending_approval'
+                      ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+                      : 'bg-bg-app text-text-secondary'
+                  }`}>
+                    {draft.status.replace('_', ' ')}
+                  </span>
+                  <Link href={`/app/content/${draft.id}`} className="text-xs font-bold text-text-secondary hover:text-text-primary p-1">
+                    <ArrowUpRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // ROLE 3: ADMIN DASHBOARD (Agency Owner / Admin)
+  // ───────────────────────────────────────────────────────────────────────────
   const displayOrgName = user?.organizationName || state.organizationName || user?.name || "Forge Agencies";
 
   return (
-    <div className="flex flex-col gap-8 animate-fade-in">
+    <div className="flex flex-col gap-8 animate-fade-in text-text-primary">
       {/* Welcome Block */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -303,12 +520,12 @@ export function DashboardView() {
             Welcome Back, {displayOrgName}
           </h1>
           <p className="text-sm text-text-secondary mt-1">
-            Here is the current status of the <span className="font-semibold text-text-primary">{activeWorkspace?.name}</span> workspace.
+            Executive status report for the <span className="font-semibold text-text-primary">{activeWorkspace?.name || 'Active'}</span> workspace (Powered by API Engine).
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-text-secondary bg-bg-card border border-border-primary rounded-full px-3 py-1.5 font-medium shadow-sm">
+        <div className="flex items-center gap-2 text-xs text-text-secondary bg-bg-card border border-border-primary rounded-full px-3 py-1.5 font-medium shadow-sm self-start md:self-auto">
           <Clock className="w-3.5 h-3.5" />
-          <span>Last automated scan: 2 hours ago</span>
+          <span>Last API sync: Live</span>
         </div>
       </div>
 
@@ -319,18 +536,18 @@ export function DashboardView() {
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-text-secondary tracking-wide uppercase">Weekly Reach</span>
             <span className="text-green-500 text-xs font-bold flex items-center gap-0.5">
-              <TrendingUp className="w-3 h-3" /> +12.4%
+              <TrendingUp className="w-3 h-3" /> {weeklyReachGrowth}
             </span>
           </div>
-          <p className="text-3xl font-extrabold text-text-primary mt-4">148.5K</p>
-          <p className="text-xs text-text-secondary mt-2">Organic impressions across socials</p>
+          <p className="text-3xl font-extrabold text-text-primary mt-4">{weeklyReach}</p>
+          <p className="text-xs text-text-secondary mt-2">Organic impressions across channels</p>
         </div>
 
         {/* KPI 2: Approvals */}
         <div className="bg-bg-card border border-border-primary rounded-2xl p-5 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-text-secondary tracking-wide uppercase">Approval Rate</span>
-            <span className="text-text-secondary text-[10px] bg-bg-app px-1.5 py-0.5 rounded-full font-medium">All Time</span>
+            <span className="text-text-secondary text-[10px] bg-bg-app px-1.5 py-0.5 rounded-full font-medium">API Metric</span>
           </div>
           <p className="text-3xl font-extrabold text-text-primary mt-4">{approvalRate}%</p>
           <p className="text-xs text-text-secondary mt-2">Ratio of drafts approved by client</p>
@@ -342,7 +559,7 @@ export function DashboardView() {
             <span className="text-xs font-semibold text-text-secondary tracking-wide uppercase">Scheduled Queue</span>
             <Calendar className="w-4 h-4 text-text-secondary" />
           </div>
-          <p className="text-3xl font-extrabold text-text-primary mt-4">{approvedCount}</p>
+          <p className="text-3xl font-extrabold text-text-primary mt-4">{scheduledCount}</p>
           <p className="text-xs text-text-secondary mt-2">Approved posts ready to publish</p>
         </div>
 
@@ -359,7 +576,7 @@ export function DashboardView() {
             )}
           </div>
           <p className="text-3xl font-extrabold text-text-primary mt-4">{pendingCount}</p>
-          <p className="text-xs text-text-secondary mt-2">Awaiting WhatsApp approval</p>
+          <p className="text-xs text-text-secondary mt-2">Pending client review</p>
         </div>
       </div>
 
@@ -370,11 +587,11 @@ export function DashboardView() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-base font-bold text-text-primary">Weekly Engagement Trend</h3>
-              <p className="text-xs text-text-secondary">Likes, shares, and comments count</p>
+              <p className="text-xs text-text-secondary">Likes, shares, and interactions (API calculated)</p>
             </div>
             <Select
-              value={dashboardTimeframe}
-              onChange={(e) => setDashboardTimeframe(e.target.value)}
+              value={timeframe}
+              onChange={(e) => setTimeframe(e.target.value)}
               options={['Last 7 Days', 'Last 30 Days']}
               className="py-1 px-2.5 text-xs font-semibold"
               containerClassName="w-36"
@@ -384,34 +601,35 @@ export function DashboardView() {
           {/* SVG Line Graph */}
           <div className="w-full h-56 flex items-end">
             <svg viewBox="0 0 500 200" className="w-full h-full">
-              {/* Grid Lines */}
               <line x1="0" y1="50" x2="500" y2="50" stroke="#F1F1F1" strokeWidth="1" />
               <line x1="0" y1="100" x2="500" y2="100" stroke="#F1F1F1" strokeWidth="1" />
               <line x1="0" y1="150" x2="500" y2="150" stroke="#F1F1F1" strokeWidth="1" />
-              {/* Chart Line */}
               <path
-                d="M 20 160 Q 80 80, 140 120 T 260 60 T 380 90 T 480 30"
+                d={stats.chartData.svgPath}
                 fill="none"
-                stroke="url(#igGrad)"
+                stroke="url(#igGradAdmin)"
                 strokeWidth="4"
                 strokeLinecap="round"
               />
-              {/* Gradients */}
               <defs>
-                <linearGradient id="igGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <linearGradient id="igGradAdmin" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stopColor="#F58529" />
                   <stop offset="50%" stopColor="#DD2A7B" />
                   <stop offset="100%" stopColor="#515BD4" />
                 </linearGradient>
               </defs>
-              {/* Axis labels */}
-              <text x="20" y="190" fill="#737373" fontSize="10" fontWeight="bold">Mon</text>
-              <text x="100" y="190" fill="#737373" fontSize="10" fontWeight="bold">Tue</text>
-              <text x="180" y="190" fill="#737373" fontSize="10" fontWeight="bold">Wed</text>
-              <text x="260" y="190" fill="#737373" fontSize="10" fontWeight="bold">Thu</text>
-              <text x="340" y="190" fill="#737373" fontSize="10" fontWeight="bold">Fri</text>
-              <text x="420" y="190" fill="#737373" fontSize="10" fontWeight="bold">Sat</text>
-              <text x="470" y="190" fill="#737373" fontSize="10" fontWeight="bold">Sun</text>
+              {stats.chartData.points.map((pt, idx) => (
+                <text
+                  key={idx}
+                  x={20 + idx * Math.floor(450 / Math.max(1, stats.chartData.points.length - 1))}
+                  y="190"
+                  fill="#737373"
+                  fontSize="10"
+                  fontWeight="bold"
+                >
+                  {pt.label}
+                </text>
+              ))}
             </svg>
           </div>
         </div>
@@ -420,11 +638,10 @@ export function DashboardView() {
         <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm flex flex-col justify-between items-center text-center">
           <div className="w-full text-left">
             <h3 className="text-base font-bold text-text-primary">Client Health Score</h3>
-            <p className="text-xs text-text-secondary">Algorithmic churn risk prediction</p>
+            <p className="text-xs text-text-secondary">Algorithmic churn risk score (API)</p>
           </div>
 
           <div className="relative flex items-center justify-center my-6">
-            {/* SVG circular gauge */}
             <svg className="w-36 h-36" viewBox="0 0 100 100">
               <circle
                 className="text-slate-100"
@@ -458,22 +675,13 @@ export function DashboardView() {
             <span className={`inline-block border px-3 py-1 rounded-full text-xs font-bold ${healthColor}`}>
               {healthLabel}
             </span>
-            {healthScore < 60 && (
-              <div className="flex items-start gap-2 bg-red-50 text-red-700 p-2.5 rounded-xl border border-red-100 text-left text-[11px] leading-relaxed">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>
-                  High Risk: Low overall brand engagement and schedule gaps. Update publication frequency in settings.
-                </span>
-              </div>
-            )}
           </div>
         </div>
       </div>
 
-      {/* Grid: Recent Activity & Workspace Config */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Recent Drafts */}
-        <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm lg:col-span-2 space-y-4">
+      {/* Recent Activity */}
+      <div className={`grid grid-cols-1 ${isIndividual ? 'lg:grid-cols-3' : ''} gap-8`}>
+        <div className={`bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm ${isIndividual ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-4`}>
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-text-primary">Recent Content Drafts</h3>
             <Link href="/app/content" className="text-xs font-semibold text-instagram-pink hover:underline">
@@ -482,7 +690,7 @@ export function DashboardView() {
           </div>
 
           <div className="flex flex-col gap-3">
-            {drafts.slice(0, 3).map((draft) => (
+            {drafts.slice(0, 4).map((draft) => (
               <div
                 key={draft.id}
                 className="border border-border-primary p-4 rounded-xl flex items-center justify-between hover:bg-bg-app transition duration-150"
@@ -506,11 +714,7 @@ export function DashboardView() {
                     {draft.status.replace('_', ' ')}
                   </span>
                   <Link
-                    href={
-                      draft.status === 'pending_approval'
-                        ? `/app/approvals/${draft.id}`
-                        : `/app/content/${draft.id}`
-                    }
+                    href={`/app/content/${draft.id}`}
                     className="text-xs font-bold text-text-secondary hover:text-text-primary p-1"
                   >
                     <ArrowUpRight className="w-4 h-4" />
@@ -524,26 +728,55 @@ export function DashboardView() {
           </div>
         </div>
 
-        {/* Right Column: Channels & Guidelines */}
-        <div className="flex flex-col gap-6">
-          <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-5">
-            <h3 className="text-base font-bold text-text-primary">Social Channels</h3>
+        {/* Social Channels for Individual */}
+        {isIndividual && (
+          <div className="flex flex-col gap-6">
+            <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
+              <h3 className="text-base font-bold text-text-primary">Social Channels</h3>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2 text-text-secondary">
-                  <Linkedin className="w-4 h-4 text-blue-600" /> LinkedIn
-                </span>
-                <span className="text-xs font-bold text-text-secondary">
-                  Managed by Client
-                </span>
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Linkedin className="w-4 h-4 text-blue-600 shrink-0" />
+                    <div className="min-w-0">
+                      <span className="font-semibold text-text-primary block truncate">LinkedIn</span>
+                      {linkedinConnected && linkedinAccountName && (
+                        <span className="text-xs text-text-secondary block truncate">
+                          {linkedinAccountName}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {linkedinConnected ? (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs font-bold text-green-600 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 px-2.5 py-1 rounded-full whitespace-nowrap">
+                        Connected
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => disconnectLinkedIn()}
+                        disabled={isLinkedInLoading || isLinkedInDisconnecting}
+                        className="text-xs font-bold text-red-500 hover:text-red-600 transition disabled:opacity-50 cursor-pointer"
+                      >
+                        {isLinkedInDisconnecting ? '...' : 'Disconnect'}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => connectLinkedIn('/app')}
+                      disabled={isLinkedInLoading || isLinkedInConnecting}
+                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow-sm disabled:opacity-50 cursor-pointer"
+                    >
+                      {isLinkedInConnecting ? 'Connecting...' : 'Connect'}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-
-        </div>
+        )}
       </div>
     </div>
   );
 }
-

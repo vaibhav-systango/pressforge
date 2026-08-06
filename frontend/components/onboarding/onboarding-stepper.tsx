@@ -71,6 +71,9 @@ export function OnboardingStepper({ currentStep }: StepperProps) {
           );
         })}
       </div>
+      <p className="text-center text-xs font-semibold text-instagram-pink mt-3 sm:hidden">
+        Step {currentStep} of {steps.length}: {steps.find((s) => s.number === currentStep)?.label}
+      </p>
     </div>
   );
 }
