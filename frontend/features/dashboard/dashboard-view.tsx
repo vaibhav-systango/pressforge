@@ -219,10 +219,10 @@ export function DashboardView() {
                   <div className="shrink-0 flex items-center self-end sm:self-center">
                     <Link
                       href={`/app/approvals/${draft.id}`}
-                      className="flex items-center gap-1.5 bg-instagram-pink text-white px-4 py-2 rounded-full text-xs font-bold hover:opacity-95 transition shadow-sm"
+                      className="flex items-center gap-1.5 bg-gradient-to-r from-[#F58529] to-[#DD2A7B] text-white px-4 py-2 rounded-xl text-xs font-bold hover:opacity-95 transition shadow-xs whitespace-nowrap cursor-pointer"
                     >
                       <span>Review & Approve</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                     </Link>
                   </div>
                 </div>

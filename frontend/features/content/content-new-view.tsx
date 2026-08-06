@@ -109,6 +109,9 @@ export function ContentNewView() {
   // Version History list
   const [history, setHistory] = useState<LocalHistoryItem[]>([]);
 
+  // Mobile Step State for responsive view switcher
+  const [mobileStep, setMobileStep] = useState<'form' | 'preview'>('form');
+
   // Toggle platform checkbox
   const handleTogglePlatform = (platform: "instagram" | "linkedin") => {
     if (targetPlatforms.includes(platform)) {
@@ -237,6 +240,7 @@ export function ContentNewView() {
       setHistory([initialHistoryItem]);
 
       setGenerated(true);
+      setMobileStep('preview');
     } catch (err) {
       notifications.show({
         title: 'Generation failed',
@@ -527,9 +531,32 @@ export function ContentNewView() {
         </p>
       </div>
 
+      {generated && (
+        <div className="flex bg-bg-card border border-border-primary rounded-xl p-1 lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileStep('form')}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition cursor-pointer ${
+              mobileStep === 'form' ? 'bg-bg-app text-instagram-pink border border-border-primary shadow-xs' : 'text-text-secondary'
+            }`}
+          >
+            1. Prompt & Options
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileStep('preview')}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition cursor-pointer ${
+              mobileStep === 'preview' ? 'bg-bg-app text-instagram-pink border border-border-primary shadow-xs' : 'text-text-secondary'
+            }`}
+          >
+            2. Live Preview & Actions
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Input Settings & references (lg:col-span-5) */}
-        <div className="lg:col-span-5 space-y-6">
+        <div className={`lg:col-span-5 space-y-6 ${generated && mobileStep === 'preview' ? 'hidden lg:block' : 'block'}`}>
           <GenerationSettingsForm
             prompt={prompt}
             setPrompt={setPrompt}
@@ -566,7 +593,7 @@ export function ContentNewView() {
         </div>
 
         {/* Middle Column: Live Platform Previews (lg:col-span-4) */}
-        <div className="lg:col-span-4 space-y-6">
+        <div className={`lg:col-span-4 space-y-6 ${generated && mobileStep === 'form' ? 'hidden lg:block' : 'block'}`}>
           {!generated && !generating ? (
             <div className="bg-bg-card border border-border-primary rounded-2xl p-10 text-center space-y-3 min-h-[450px] flex flex-col items-center justify-center">
               <Sparkles className="w-10 h-10 text-border-primary" />

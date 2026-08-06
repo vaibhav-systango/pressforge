@@ -52,7 +52,7 @@ export function ContentListView() {
       {/* List View */}
       <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-6">
         {/* Sub tabs */}
-        <div className="flex flex-wrap gap-1 border-b border-border-primary pb-3">
+        <div className="flex gap-1 border-b border-border-primary pb-3 overflow-x-auto flex-nowrap">
           {[
             { id: 'all', label: 'All Drafts' },
             { id: 'draft', label: 'Drafts' },
@@ -63,7 +63,7 @@ export function ContentListView() {
             <button
               key={tab.id}
               onClick={() => setListTab(tab.id as 'pending' | 'draft' | 'approved' | 'published' | 'all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition duration-150 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition duration-150 cursor-pointer whitespace-nowrap shrink-0 ${
                 listTab === tab.id
                   ? 'bg-bg-app border border-border-primary text-text-primary'
                   : 'text-text-secondary hover:text-text-primary'
@@ -75,7 +75,7 @@ export function ContentListView() {
         </div>
 
         {/* Table */}
-        <div className="overflow-hidden border border-border-primary rounded-xl">
+        <div className="overflow-x-auto border border-border-primary rounded-xl">
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="bg-bg-app border-b border-border-primary text-[10px] font-bold text-text-secondary tracking-wide uppercase">

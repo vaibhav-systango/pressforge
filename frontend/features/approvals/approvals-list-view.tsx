@@ -135,15 +135,15 @@ export function ApprovalsListView() {
                 {activeTab === 'pending' && canApprove ? (
                   <Link
                     href={`/app/approvals/${draft.id}`}
-                    className="flex items-center gap-1.5 bg-[#E1306C] text-white px-4 py-2 rounded-full text-xs font-bold hover:opacity-95 transition shadow-sm"
+                    className="flex items-center gap-1.5 bg-gradient-to-r from-[#F58529] to-[#DD2A7B] text-white px-4 py-2 rounded-xl text-xs font-bold hover:opacity-95 transition shadow-xs whitespace-nowrap cursor-pointer"
                   >
                     <span>Review & Approve</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                   </Link>
                 ) : (
                   <Link
                     href={`/app/content/${draft.id}`}
-                    className="text-xs font-bold text-text-secondary hover:underline py-2"
+                    className="text-xs font-bold text-text-secondary hover:text-text-primary hover:underline py-2 whitespace-nowrap cursor-pointer"
                   >
                     View History
                   </Link>

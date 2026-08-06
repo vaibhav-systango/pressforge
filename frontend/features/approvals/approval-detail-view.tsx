@@ -250,24 +250,26 @@ export function ApprovalDetailView() {
             )}
 
             {/* Actions Panel */}
-            <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border-primary">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-border-primary">
               <button
+                type="button"
                 onClick={handleApprove}
                 disabled={isApprovalDisabled}
-                className={`w-full flex items-center justify-center gap-2 text-white py-3 rounded-full text-xs font-bold transition shadow-sm ${
+                className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-bold transition whitespace-nowrap shadow-xs ${
                   isApprovalDisabled
-                    ? 'bg-slate-400 cursor-not-allowed opacity-50'
-                    : 'bg-[#E1306C] hover:opacity-95'
+                    ? 'bg-slate-200 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 border border-border-primary cursor-not-allowed'
+                    : 'bg-gradient-to-r from-[#F58529] to-[#DD2A7B] hover:opacity-95 text-white cursor-pointer'
                 }`}
               >
-                <Check className="w-4 h-4" />
+                <Check className="w-4 h-4 shrink-0" />
                 <span>Approve & Schedule</span>
               </button>
               <button
+                type="button"
                 onClick={handleRejectOnly}
-                className="w-full flex items-center justify-center gap-2 bg-bg-app hover:bg-slate-200 border border-border-primary text-text-primary py-3 rounded-full text-xs font-bold transition"
+                className="w-full flex items-center justify-center gap-2 bg-bg-app hover:bg-bg-hover border border-border-primary text-text-primary px-4 py-3 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer shadow-xs"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4 shrink-0" />
                 <span>Reject Draft</span>
               </button>
             </div>
@@ -287,8 +289,9 @@ export function ApprovalDetailView() {
                 className="border border-border-primary rounded-xl p-3 text-xs focus:border-[#E1306C] outline-none transition min-h-[90px] resize-y"
               />
               <button
+                type="button"
                 onClick={handleFeedback}
-                className="w-full flex items-center justify-center gap-1.5 bg-[#262626] text-white py-2.5 rounded-full text-xs font-bold hover:opacity-95 transition"
+                className="w-full flex items-center justify-center gap-1.5 bg-text-primary text-bg-card hover:opacity-90 py-2.5 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
               >
                 <CornerDownLeft className="w-3.5 h-3.5" />
                 <span>Submit Revision Feedback</span>
@@ -298,8 +301,8 @@ export function ApprovalDetailView() {
         </div>
 
         {/* Right Side: Simulated Smartphone Frame */}
-        <div className="lg:col-span-6 flex justify-center">
-          <div className="w-[320px] h-[600px] border-[8px] border-[#1e293b] rounded-[32px] bg-bg-app overflow-hidden shadow-2xl relative flex flex-col">
+        <div className="lg:col-span-6 flex justify-center w-full">
+          <div className="max-w-full w-[320px] h-[600px] border-[8px] border-[#1e293b] rounded-[32px] bg-bg-app overflow-hidden shadow-2xl relative flex flex-col">
             {/* Top Notch/Speaker */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-[#1e293b] rounded-b-xl z-20 flex items-center justify-center">
               <div className="w-12 h-1 bg-[#374151] rounded-full mb-1"></div>
@@ -477,22 +480,24 @@ export function ApprovalDetailView() {
             {/* Bottom Actions Frame */}
             <div className="bg-bg-card p-3 flex gap-2 border-t border-border-primary shrink-0">
               <button
+                type="button"
                 onClick={handleApprove}
                 disabled={isApprovalDisabled}
-                className={`flex-1 text-white py-2 rounded-full text-xs font-bold transition shadow-sm text-center ${
+                className={`flex-1 text-white py-2 rounded-xl text-xs font-bold transition shadow-xs text-center ${
                   isApprovalDisabled
-                    ? 'bg-slate-400 cursor-not-allowed opacity-50'
-                    : 'bg-[#E1306C] hover:opacity-95'
+                    ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-border-primary'
+                    : 'bg-gradient-to-r from-[#F58529] to-[#DD2A7B] hover:opacity-95 cursor-pointer'
                 }`}
               >
                 Approve Post
               </button>
               <button
+                type="button"
                 onClick={() => {
                   const el = document.querySelector('textarea');
                   if (el) el.focus();
                 }}
-                className="flex-1 bg-bg-app hover:bg-slate-200 border border-border-primary text-text-primary py-2 rounded-full text-xs font-bold transition text-center"
+                className="flex-1 bg-bg-app hover:bg-bg-hover border border-border-primary text-text-primary py-2 rounded-xl text-xs font-bold transition text-center cursor-pointer shadow-xs"
               >
                 Request Edits
               </button>

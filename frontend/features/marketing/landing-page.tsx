@@ -113,7 +113,7 @@ export function LandingPage() {
               </div>
             </div>
             <div className="md:col-span-3 space-y-6">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="border border-[#EFEFEF] p-4 rounded-xl space-y-2">
                   <div className="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center text-instagram-pink font-bold">1</div>
                   <p className="text-xs font-semibold text-[#737373]">Total Reach</p>

@@ -87,6 +87,9 @@ export function ContentDetailView() {
   // History state locally synced with draft history
   const [history, setHistory] = useState<DraftHistoryEntry[]>(draft?.history || []);
 
+  // Mobile step switcher state
+  const [mobileStep, setMobileStep] = useState<'preview' | 'guidelines' | 'edits'>('preview');
+
   if (!draft) {
     return (
       <div className="text-center py-12">
@@ -404,9 +407,42 @@ export function ContentDetailView() {
         </div>
       </div>
 
+      {/* Mobile Tab Switcher */}
+      <div className="flex bg-bg-card border border-border-primary rounded-xl p-1 lg:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileStep('preview')}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition cursor-pointer ${
+            mobileStep === 'preview' ? 'bg-bg-app text-instagram-pink border border-border-primary shadow-xs' : 'text-text-secondary'
+          }`}
+        >
+          Preview
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileStep('guidelines')}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition cursor-pointer ${
+            mobileStep === 'guidelines' ? 'bg-bg-app text-instagram-pink border border-border-primary shadow-xs' : 'text-text-secondary'
+          }`}
+        >
+          Guidelines
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileStep('edits')}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition cursor-pointer ${
+            mobileStep === 'edits' ? 'bg-bg-app text-instagram-pink border border-border-primary shadow-xs' : 'text-text-secondary'
+          }`}
+        >
+          Manual Edits
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: General Configuration & References (lg:col-span-5) */}
-        <div className="lg:col-span-5 bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-6">
+        <div className={`lg:col-span-5 bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-6 ${
+          mobileStep === 'guidelines' ? 'block' : 'hidden lg:block'
+        }`}>
           <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider flex items-center gap-1.5 border-b border-border-primary pb-2">
             <Edit3 className="w-4 h-4 text-text-secondary" />
             <span>Post Guidelines</span>
@@ -581,7 +617,9 @@ export function ContentDetailView() {
         </div>
 
         {/* Middle Column: Live Visual Previews (lg:col-span-4) */}
-        <div className="lg:col-span-4 space-y-6">
+        <div className={`lg:col-span-4 space-y-6 ${
+          mobileStep === 'preview' ? 'block' : 'hidden lg:block'
+        }`}>
           <div className="space-y-4 relative">
             {tweaking && (
               <div className="absolute inset-0 bg-bg-card/75 backdrop-blur-xs z-30 flex flex-col items-center justify-center gap-2 rounded-2xl">
@@ -748,7 +786,9 @@ export function ContentDetailView() {
         </div>
 
         {/* Right Column: AI Tweak, Manual Edits & Version History (lg:col-span-3) */}
-        <div className="lg:col-span-3 space-y-6">
+        <div className={`lg:col-span-3 space-y-6 ${
+          mobileStep === 'edits' ? 'block' : 'hidden lg:block'
+        }`}>
           {/* AI Polish Tools */}
           {/* <div className="bg-bg-card border border-border-primary rounded-2xl p-5 shadow-sm space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1.5 border-b border-border-primary pb-2">
