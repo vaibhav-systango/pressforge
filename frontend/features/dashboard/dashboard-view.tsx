@@ -30,9 +30,12 @@ export function DashboardView() {
   const { user } = useAuth();
   const {
     connection: linkedinConnection,
+    accountName: linkedinAccountName,
     isLoading: isLinkedInLoading,
     isConnecting: isLinkedInConnecting,
+    isDisconnecting: isLinkedInDisconnecting,
     connectLinkedIn,
+    disconnectLinkedIn,
   } = useLinkedInConnection();
   const [dashboardTimeframe, setDashboardTimeframe] = useState('Last 7 Days');
 
@@ -53,7 +56,8 @@ export function DashboardView() {
   const activeWorkspace = state.workspaces.find((w) => w.id === state.activeWorkspaceId) || state.workspaces[0];
   const linkedinConnected = linkedinConnection?.connected ?? state.connectedAccounts?.linkedin ?? false;
 
-  const isClient = state.currentUserType === 'client';
+  const isClient = user?.userType === 'client' || state.currentUserType === 'client';
+  const isIndividual = user?.userType === 'individual' || state.currentUserType === 'individual' || state.accountType === 'individual';
   const currentClient = isClient ? state.clients.find(c => c.id === state.activeClientId) : null;
   const clientName = currentClient ? currentClient.name : 'Valued Client';
 
@@ -286,6 +290,42 @@ export function DashboardView() {
                 </div>
               </div>
             </div>
+
+            {/* Social Channels Card for Client */}
+            <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
+              <h3 className="text-base font-bold text-text-primary">Social Channels</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-2 text-text-secondary font-medium">
+                    <Linkedin className="w-4 h-4 text-blue-600" /> LinkedIn
+                  </span>
+                  {linkedinConnected ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-green-600 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 px-2.5 py-1 rounded-full">
+                        {linkedinAccountName ? `Connected (${linkedinAccountName})` : 'Connected'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => disconnectLinkedIn()}
+                        disabled={isLinkedInLoading || isLinkedInDisconnecting}
+                        className="text-xs font-bold text-red-500 hover:text-red-600 transition disabled:opacity-50"
+                      >
+                        {isLinkedInDisconnecting ? '...' : 'Disconnect'}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => connectLinkedIn('/app')}
+                      disabled={isLinkedInLoading || isLinkedInConnecting}
+                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow-sm disabled:opacity-50"
+                    >
+                      {isLinkedInConnecting ? 'Connecting...' : 'Connect'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -359,7 +399,7 @@ export function DashboardView() {
             )}
           </div>
           <p className="text-3xl font-extrabold text-text-primary mt-4">{pendingCount}</p>
-          <p className="text-xs text-text-secondary mt-2">Awaiting WhatsApp approval</p>
+          <p className="text-xs text-text-secondary mt-2">Awaiting approval</p>
         </div>
       </div>
 
@@ -471,9 +511,9 @@ export function DashboardView() {
       </div>
 
       {/* Grid: Recent Activity & Workspace Config */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className={`grid grid-cols-1 ${isIndividual ? 'lg:grid-cols-3' : ''} gap-8`}>
         {/* Left Column: Recent Drafts */}
-        <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm lg:col-span-2 space-y-4">
+        <div className={`bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm ${isIndividual ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-4`}>
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-text-primary">Recent Content Drafts</h3>
             <Link href="/app/content" className="text-xs font-semibold text-instagram-pink hover:underline">
@@ -520,24 +560,46 @@ export function DashboardView() {
           </div>
         </div>
 
-        {/* Right Column: Channels & Guidelines */}
-        <div className="flex flex-col gap-6">
-          <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-5">
-            <h3 className="text-base font-bold text-text-primary">Social Channels</h3>
+        {/* Right Column: Channels for Individual user */}
+        {isIndividual && (
+          <div className="flex flex-col gap-6">
+            <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
+              <h3 className="text-base font-bold text-text-primary">Social Channels</h3>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2 text-text-secondary">
-                  <Linkedin className="w-4 h-4 text-blue-600" /> LinkedIn
-                </span>
-                <span className="text-xs font-bold text-text-secondary">
-                  Managed by Client
-                </span>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-2 text-text-secondary font-medium">
+                    <Linkedin className="w-4 h-4 text-blue-600" /> LinkedIn
+                  </span>
+                  {linkedinConnected ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-green-600 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 px-2.5 py-1 rounded-full">
+                        {linkedinAccountName ? `Connected (${linkedinAccountName})` : 'Connected'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => disconnectLinkedIn()}
+                        disabled={isLinkedInLoading || isLinkedInDisconnecting}
+                        className="text-xs font-bold text-red-500 hover:text-red-600 transition disabled:opacity-50"
+                      >
+                        {isLinkedInDisconnecting ? '...' : 'Disconnect'}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => connectLinkedIn('/app')}
+                      disabled={isLinkedInLoading || isLinkedInConnecting}
+                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow-sm disabled:opacity-50"
+                    >
+                      {isLinkedInConnecting ? 'Connecting...' : 'Connect'}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-
-        </div>
+        )}
       </div>
     </div>
   );

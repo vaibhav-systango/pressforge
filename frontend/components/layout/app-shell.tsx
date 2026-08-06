@@ -22,8 +22,6 @@ import {
   Settings,
   ChevronDown,
   Plus,
-  Bell,
-  Sparkles,
   RefreshCw,
   LogOut,
   Building,
@@ -680,27 +678,6 @@ console.log(state)
           <div className="flex items-center gap-4">
             {/* Theme Toggle Button */}
             <ThemeToggle />
-
-            {/* Notifications Indicator - Hide for clients */}
-            {!isClient && (
-              <button className="p-1.5 rounded-lg hover:bg-bg-hover text-text-secondary hover:text-text-primary relative transition duration-150">
-                <Bell className="w-4 h-4" />
-                {pendingApprovalsCount > 0 && (
-                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-instagram-pink"></span>
-                )}
-              </button>
-            )}
-
-            {/* Quick Create AI Draft Button - Hide for clients */}
-            {!isClient && (
-              <NavLink
-                href="/app/content/new"
-                className="flex items-center gap-1.5 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white px-4 py-2 rounded-full text-xs font-semibold hover:opacity-95 transition duration-150 shadow-sm"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Create AI Draft</span>
-              </NavLink>
-            )}
           </div>
         </header>
 

@@ -256,7 +256,7 @@ export function ContentDetailView() {
   const handleSave = (statusToUpdate?: 'draft' | 'pending_approval') => {
     const updatedStatus = statusToUpdate || draft.status;
     const actionDesc = statusToUpdate === 'pending_approval'
-      ? 'Resubmitted for WhatsApp approval'
+      ? 'Resubmitted for approval'
       : 'Saved changes manually';
 
     const originalLiCaption = draft.liCaption ?? draft.caption;

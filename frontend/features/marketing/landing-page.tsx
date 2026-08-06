@@ -45,7 +45,7 @@ export function LandingPage() {
         </h1>
 
         <p className="text-[#737373] text-lg md:text-xl max-w-2xl mt-6 leading-relaxed">
-          From workspace brand voices and automated drafts to WhatsApp client previews, scheduling, journalist target campaigns, and continuous learning analytics.
+          From workspace brand voices and automated drafts to client previews, scheduling, journalist target campaigns, and continuous learning analytics.
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-4 mt-10">
@@ -152,7 +152,7 @@ export function LandingPage() {
               </div>
               <h3 className="text-lg font-bold text-[#262626]">3.Client Approvals</h3>
               <p className="text-sm text-[#737373] leading-relaxed">
-                Send posts directly to clients via a simulated WhatsApp link. Clients approve, reject, or comment.
+                Send posts directly to clients via a simulated link. Clients approve, reject, or comment.
               </p>
             </div>
 
