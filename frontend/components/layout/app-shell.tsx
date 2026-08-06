@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAppState } from "@/lib/queries/use-app-state";
 import { useAuth } from "@/lib/hooks/queries/use-auth";
 import type { AppState, ClientUser, Workspace } from "@/lib/types";
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { InfiniteScroll } from "@/components/common/infinite-scroll";
@@ -40,6 +40,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [showOrgMenu, setShowOrgMenu] = useState(false);
   const [showClientMenu, setShowClientMenu] = useState(false);
+
+  const workspaceMenuRef = useRef<HTMLDivElement>(null);
+  const orgMenuRef = useRef<HTMLDivElement>(null);
+  const clientMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      const target = event.target as Node;
+      if (workspaceMenuRef.current && !workspaceMenuRef.current.contains(target)) {
+        setShowWorkspaceMenu(false);
+      }
+      if (orgMenuRef.current && !orgMenuRef.current.contains(target)) {
+        setShowOrgMenu(false);
+      }
+      if (clientMenuRef.current && !clientMenuRef.current.contains(target)) {
+        setShowClientMenu(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, []);
 
   const [clientSearch, setClientSearch] = useState("");
   const debouncedClientSearch = useDebounce(clientSearch, 200);
@@ -182,7 +208,7 @@ console.log(state)
           </div>
 
           {/* Workspace Switcher */}
-          <div className="relative">
+          <div className="relative" ref={workspaceMenuRef}>
             <button
               onClick={() =>
                 !isClient && setShowWorkspaceMenu(!showWorkspaceMenu)
@@ -538,7 +564,7 @@ console.log(state)
               ) : (
                 /* Organization: Org dropdown + Client dropdown */
                 <div className="flex items-center gap-3">
-                  <div className="relative">
+                  <div className="relative" ref={orgMenuRef}>
                     <button
                       onClick={() => setShowOrgMenu(!showOrgMenu)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-primary text-xs font-semibold text-text-primary hover:bg-bg-hover transition duration-150"
@@ -561,7 +587,7 @@ console.log(state)
                   </div>
 
                   {/* Client Switcher */}
-                  <div className="relative">
+                  <div className="relative" ref={clientMenuRef}>
                     <button
                       onClick={() => setShowClientMenu(!showClientMenu)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-primary text-xs font-semibold text-text-primary hover:bg-bg-hover transition duration-150"
