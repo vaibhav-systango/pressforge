@@ -155,13 +155,13 @@ console.log(state)
   const availableClients = activeClients.length > 0 ? activeClients : state.clients;
 
   useEffect(() => {
-    if (!isClient && !isIndividual && availableClients.length > 0) {
+    if (user && !isClient && !isIndividual && availableClients.length > 0) {
       const isSelectedValid = availableClients.some((c) => c.id === state.activeClientId);
       if (!state.activeClientId || !isSelectedValid) {
         handleClientSelect(availableClients[0]);
       }
     }
-  }, [isClient, isIndividual, availableClients, state.activeClientId, handleClientSelect]);
+  }, [user, isClient, isIndividual, availableClients, state.activeClientId, handleClientSelect]);
 
   const displayUserName = user?.name || state.currentUserName || "User";
   const displayOrgName = user?.organizationName || state.organizationName || "Forge Agencies";
@@ -210,7 +210,7 @@ console.log(state)
 
   const handleLogout = async () => {
     await logout();
-    router.push("/auth/login");
+    window.location.href = "/auth/login";
   };
 
   return (

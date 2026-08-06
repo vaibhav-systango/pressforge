@@ -6,6 +6,7 @@ import type { AppState, Workspace, ClientUser, Schedule, Draft, Campaign } from 
 import { INITIAL_STATE } from '@/lib/data/mock-data';
 import { workspaceToCreateRequest, workspaceToUpdateRequest } from '@/lib/workspaces/map-workspace';
 import { useAuth } from '@/lib/hooks/queries/use-auth';
+import { clearAccessToken } from '@/lib/auth/token-storage';
 
 
 // ── Fetcher ───────────────────────────────────────────────────────────────────
@@ -377,8 +378,11 @@ export function useAppState() {
   };
 
   const logout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    queryClient.setQueryData(['app-state'], null);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {}
+    clearAccessToken();
+    queryClient.clear();
   };
 
   return {

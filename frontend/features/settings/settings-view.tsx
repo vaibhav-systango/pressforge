@@ -9,6 +9,7 @@ import {
 } from '@/lib/hooks/queries/use-social-connection';
 import { useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
+import { clearAccessToken } from '@/lib/auth/token-storage';
 import {
   formatAccountTypeLabel,
   formatMeTimestamp,
@@ -257,6 +258,8 @@ export function SettingsView() {
       
       // Perform client logout/redirect
       await fetch('/api/auth/logout', { method: 'POST' });
+      clearAccessToken();
+      queryClient.clear();
       setShowDeleteConfirm(false);
       window.location.href = '/';
     } catch (err) {

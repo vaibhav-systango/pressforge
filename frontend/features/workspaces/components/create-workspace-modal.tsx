@@ -438,7 +438,7 @@ export function CreateWorkspaceModal({
             {/* Keywords */}
             <div className="flex flex-col gap-1.5 mb-3">
               <label className="text-xs font-bold text-text-secondary">Brand Keywords</label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   placeholder="Add keyword"
@@ -470,7 +470,7 @@ export function CreateWorkspaceModal({
                       setNewKeywordError(validateKeyword(newKeywordInput.trim()));
                     }
                   }}
-                  className="flex-1 border border-border-primary bg-bg-app text-text-primary rounded-xl px-3 py-1.5 text-xs focus:border-instagram-pink outline-none"
+                  className="flex-1 min-w-0 border border-border-primary bg-bg-app text-text-primary rounded-xl px-3 py-2 sm:py-1.5 text-xs focus:border-instagram-pink outline-none"
                 />
                 <button
                   type="button"
@@ -489,7 +489,7 @@ export function CreateWorkspaceModal({
                     setNewKeywords([...newKeywords, clean.toLowerCase()]);
                     setNewKeywordInput('');
                   }}
-                  className="bg-bg-hover hover:bg-slate-200 border border-border-primary px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer"
+                  className="w-full sm:w-auto shrink-0 bg-bg-hover hover:bg-slate-200 border border-border-primary px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold transition cursor-pointer"
                 >
                   Add
                 </button>
@@ -517,7 +517,7 @@ export function CreateWorkspaceModal({
             {/* Rules */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-text-secondary">Writing Prompt Rules</label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   placeholder="e.g. Always capitalize PR title"
@@ -549,7 +549,7 @@ export function CreateWorkspaceModal({
                       setNewRuleError(validateRule(newRuleInput.trim()));
                     }
                   }}
-                  className="flex-1 border border-border-primary bg-bg-app text-text-primary rounded-xl px-3 py-1.5 text-xs focus:border-instagram-pink outline-none"
+                  className="flex-1 min-w-0 border border-border-primary bg-bg-app text-text-primary rounded-xl px-3 py-2 sm:py-1.5 text-xs focus:border-instagram-pink outline-none"
                 />
                 <button
                   type="button"
@@ -568,7 +568,7 @@ export function CreateWorkspaceModal({
                     setNewRules([...newRules, clean]);
                     setNewRuleInput('');
                   }}
-                  className="bg-bg-hover hover:bg-slate-200 border border-border-primary px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer"
+                  className="w-full sm:w-auto shrink-0 bg-bg-hover hover:bg-slate-200 border border-border-primary px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold transition cursor-pointer"
                 >
                   Add
                 </button>

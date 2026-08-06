@@ -72,12 +72,12 @@ export function TweakInstructionPanel({
                 onApplyTweak(tweakInstruction);
               }
             }}
-            className="flex-1 border border-border-primary bg-bg-app text-text-primary rounded-xl px-2.5 py-1.5 text-xs focus:border-instagram-pink outline-none"
+            className="flex-1 min-w-0 border border-border-primary bg-bg-app text-text-primary rounded-xl px-2.5 py-1.5 text-xs focus:border-instagram-pink outline-none"
           />
           <button
             type="button"
             onClick={() => onApplyTweak(tweakInstruction)}
-            className="bg-instagram-pink text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:opacity-90 transition cursor-pointer"
+            className="bg-instagram-pink text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:opacity-90 transition cursor-pointer shrink-0"
           >
             Tweak
           </button>

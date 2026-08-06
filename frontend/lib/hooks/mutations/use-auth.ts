@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { ApiError } from '@/lib/utils/api-errors';
+import { clearAccessToken } from '@/lib/auth/token-storage';
 import type {
   LoginRequest,
   LoginResponse,
@@ -85,7 +86,10 @@ export function useSignupMutation() {
 // ── Logout ────────────────────────────────────────────────────────────────────
 
 async function logoutFn(): Promise<void> {
-  await fetch('/api/auth/logout', { method: 'POST' });
+  try {
+    await fetch('/api/auth/logout', { method: 'POST' });
+  } catch {}
+  clearAccessToken();
 }
 
 export function useLogoutMutation() {
