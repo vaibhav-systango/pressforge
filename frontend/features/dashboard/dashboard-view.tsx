@@ -506,11 +506,7 @@ export function DashboardView() {
                     {draft.status.replace('_', ' ')}
                   </span>
                   <Link
-                    href={
-                      draft.status === 'pending_approval'
-                        ? `/app/approvals/${draft.id}`
-                        : `/app/content/${draft.id}`
-                    }
+                    href={`/app/content/${draft.id}`}
                     className="text-xs font-bold text-text-secondary hover:text-text-primary p-1"
                   >
                     <ArrowUpRight className="w-4 h-4" />

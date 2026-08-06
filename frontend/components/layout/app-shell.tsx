@@ -145,6 +145,18 @@ console.log(state)
     user?.userType === "individual" ||
     state.currentUserType === "individual" ||
     state.accountType === "individual";
+
+  const availableClients = activeClients.length > 0 ? activeClients : state.clients;
+
+  useEffect(() => {
+    if (!isClient && !isIndividual && availableClients.length > 0) {
+      const isSelectedValid = availableClients.some((c) => c.id === state.activeClientId);
+      if (!state.activeClientId || !isSelectedValid) {
+        handleClientSelect(availableClients[0]);
+      }
+    }
+  }, [isClient, isIndividual, availableClients, state.activeClientId, handleClientSelect]);
+
   const displayUserName = user?.name || state.currentUserName || "User";
   const displayOrgName = user?.organizationName || state.organizationName || "Forge Agencies";
   const userInitials = displayUserName
@@ -174,8 +186,8 @@ console.log(state)
 
   // Selected client for organization header dropdown based on activeClientId
   const selectedClient =
-    state.clients.find((c) => c.id === state.activeClientId) ||
-    activeClients.find((c) => c.id === state.activeClientId);
+    availableClients.find((c) => c.id === state.activeClientId) ||
+    availableClients[0];
 
   // Calculate pending approvals count
   const pendingApprovalsCount = state.drafts.filter(

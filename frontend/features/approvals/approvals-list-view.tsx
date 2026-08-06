@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useAppState } from '@/lib/queries/use-app-state';
+import { useAuth } from '@/lib/hooks/queries/use-auth';
 import React, { useState } from 'react';
 import { MessageSquare, ArrowRight, CheckCircle2, XCircle, AlertCircle, Instagram, Linkedin } from 'lucide-react';
 
@@ -9,8 +10,9 @@ import { MessageSquare, ArrowRight, CheckCircle2, XCircle, AlertCircle, Instagra
 
 export function ApprovalsListView() {
   const { state } = useAppState();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
-  const isClient = state.currentUserType === 'client';
+  const isClient = user?.userType === 'client' || state.currentUserType === 'client';
 
 
 
@@ -130,17 +132,17 @@ export function ApprovalsListView() {
               </div>
 
               <div className="shrink-0 flex items-center gap-3 self-end sm:self-center">
-                {activeTab === 'pending' ? (
+                {activeTab === 'pending' && isClient ? (
                   <Link
-                    href={`/app/approvals/${draft.id }`}
+                    href={`/app/approvals/${draft.id}`}
                     className="flex items-center gap-1.5 bg-[#E1306C] text-white px-4 py-2 rounded-full text-xs font-bold hover:opacity-95 transition shadow-sm"
                   >
-                    <span>{isClient ? 'Review & Approve' : 'Simulate Chat Link'}</span>
+                    <span>Review & Approve</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
                 ) : (
                   <Link
-                    href={`/app/content/${draft.id }`}
+                    href={`/app/content/${draft.id}`}
                     className="text-xs font-bold text-text-secondary hover:underline py-2"
                   >
                     View History

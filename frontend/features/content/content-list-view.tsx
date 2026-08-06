@@ -2,11 +2,14 @@
 
 import Link from 'next/link';
 import { useAppState } from '@/lib/queries/use-app-state';
+import { useAuth } from '@/lib/hooks/queries/use-auth';
 import React, { useState } from 'react';
 import { Sparkles, Instagram, Linkedin } from 'lucide-react';
 
 export function ContentListView() {
   const { state } = useAppState();
+  const { user } = useAuth();
+  const isClient = user?.userType === 'client' || state.currentUserType === 'client';
   const [listTab, setListTab] = useState<'all' | 'draft' | 'pending' | 'approved' | 'published'>('all');
 
   // Filter drafts for current workspace
@@ -121,7 +124,7 @@ export function ContentListView() {
                   </td>
                   <td className="p-4 text-right shrink-0">
                     <Link
-                      href={draft.status === 'pending_approval' ? `/app/approvals/${draft.id}` : `/app/content/${draft.id}`}
+                      href={draft.status === 'pending_approval' && isClient ? `/app/approvals/${draft.id}` : `/app/content/${draft.id}`}
                       className="text-xs font-bold text-instagram-pink hover:underline"
                     >
                       Open details

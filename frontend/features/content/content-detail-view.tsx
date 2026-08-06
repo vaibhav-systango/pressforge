@@ -352,12 +352,13 @@ export function ContentDetailView() {
     <div className="flex flex-col gap-6 animate-fade-in max-w-7xl mx-auto w-full text-text-primary pb-12">
       {/* Back button */}
       <div>
-        <Link
-          href={state.currentUserType === 'client' ? '/app' : '/app/content'}
-          className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary font-semibold transition"
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary font-semibold transition cursor-pointer"
         >
-          <ChevronLeft className="w-4 h-4" /> {state.currentUserType === 'client' ? 'Back to Dashboard' : 'Back to Content Planner'}
-        </Link>
+          <ChevronLeft className="w-4 h-4" /> Back
+        </button>
       </div>
 
       {/* Header */}

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useAppState, useJournalistsQuery } from '@/lib/queries/use-app-state';
 import { notifications } from '@mantine/notifications';
 import { ChevronLeft, MailOpen, MousePointerClick, MessageSquare, ShieldCheck, Mail, Send } from 'lucide-react';
@@ -9,6 +9,7 @@ import { ChevronLeft, MailOpen, MousePointerClick, MessageSquare, ShieldCheck, M
 
 
 export function PrDetailView() {
+  const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const { state } = useAppState();
   const { data: allJournalists = [] } = useJournalistsQuery();
@@ -59,12 +60,13 @@ export function PrDetailView() {
     <div className="flex flex-col gap-6 animate-fade-in max-w-5xl mx-auto w-full">
       {/* Back button */}
       <div>
-        <Link
-          href="/app/pr"
-          className="flex items-center gap-1 text-xs text-slate-500 hover:text-[#262626] font-semibold transition"
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="flex items-center gap-1 text-xs text-slate-500 hover:text-[#262626] font-semibold transition cursor-pointer"
         >
-          <ChevronLeft className="w-4 h-4" /> Back to PR Dashboard
-        </Link>
+          <ChevronLeft className="w-4 h-4" /> Back
+        </button>
       </div>
 
       {/* Header */}

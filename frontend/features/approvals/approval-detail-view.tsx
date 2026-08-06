@@ -75,6 +75,26 @@ export function ApprovalDetailView() {
     router.replace(`/app/approvals/${id}`);
   }, [refreshLinkedInConnection, router, searchParams, id]);
 
+  const isClient = user?.userType === 'client' || state.currentUserType === 'client';
+
+  useEffect(() => {
+    if (!isClient && id) {
+      router.replace(`/app/content/${id}`);
+    }
+  }, [isClient, id, router]);
+
+  if (!isClient) {
+    return (
+      <div className="text-center py-12 space-y-3">
+        <h2 className="text-xl font-bold text-text-primary">Access Restricted</h2>
+        <p className="text-sm text-text-secondary">This approval page is only accessible to client users.</p>
+        <Link href={id ? `/app/content/${id}` : '/app/approvals'} className="text-xs text-instagram-pink font-semibold mt-2 hover:underline inline-block">
+          View Content History
+        </Link>
+      </div>
+    );
+  }
+
   if (!draft) {
     return (
       <div className="text-center py-12">
@@ -90,7 +110,6 @@ export function ApprovalDetailView() {
   const activeWorkspace = state.workspaces.find((w) => w.id === draft.workspaceId) || state.workspaces[0];
   const imageUrl = draft.imageUrl || getSimulatedImage(draft.prompt ?? '');
 
-  const isClient = user?.userType === 'client' || state.currentUserType === 'client';
   const isLinkedInRequired = draft.platform === 'linkedin' || draft.platform === 'both';
   const linkedinConnected = linkedinConnection?.connected ?? false;
   const isApprovalDisabled = isClient && isLinkedInRequired && !isLinkedInLoading && !linkedinConnected;
@@ -192,12 +211,13 @@ export function ApprovalDetailView() {
     <div className="flex flex-col gap-6 animate-fade-in max-w-5xl mx-auto w-full">
       {/* Back button */}
       <div>
-        <Link
-          href="/app/approvals"
-          className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary font-semibold transition"
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary font-semibold transition cursor-pointer"
         >
-          <ChevronLeft className="w-4 h-4" /> Back to Approvals List
-        </Link>
+          <ChevronLeft className="w-4 h-4" /> Back
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">

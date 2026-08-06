@@ -111,12 +111,13 @@ export function PrNewView() {
     <div className="flex flex-col gap-6 animate-fade-in max-w-6xl mx-auto w-full">
       {/* Back link */}
       <div>
-        <Link
-          href="/app/pr"
-          className="flex items-center gap-1 text-xs text-slate-500 hover:text-[#262626] font-semibold transition"
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="flex items-center gap-1 text-xs text-slate-500 hover:text-[#262626] font-semibold transition cursor-pointer"
         >
-          <ChevronLeft className="w-4 h-4" /> Back to PR Dashboard
-        </Link>
+          <ChevronLeft className="w-4 h-4" /> Back
+        </button>
       </div>
 
       {/* Header */}
