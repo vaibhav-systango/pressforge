@@ -75,8 +75,19 @@ export function DashboardView() {
   const currentClient = isClient ? state.clients.find(c => c.id === state.activeClientId || c.workspaceId === activeWorkspace?.id) : null;
   const clientName = currentClient ? currentClient.name : user?.name || 'Valued Client';
 
-  // Workspace drafts filtered from state
-  const drafts = state.drafts.filter((d) => d.workspaceId === activeWorkspace?.id);
+  // Determine accessible workspaces based on user role (Organization, Individual, Member, Client)
+  const clientObj = isClient ? state.clients.find(c => c.id === state.activeClientId || c.workspaceId === activeWorkspace?.id) : null;
+  const clientWsIds = clientObj?.workspaceIds || (clientObj?.workspaceId ? [clientObj.workspaceId] : []);
+  
+  const accessibleWorkspaces = isClient
+    ? (clientWsIds.length > 0 ? state.workspaces.filter(w => clientWsIds.includes(w.id)) : state.workspaces)
+    : state.workspaces;
+
+  const accessibleWsIds = accessibleWorkspaces.map(w => w.id);
+
+  // Aggregate drafts across all accessible workspaces for this role
+  const roleDrafts = state.drafts.filter((d) => accessibleWsIds.length > 0 ? accessibleWsIds.includes(d.workspaceId) : true);
+  const drafts = roleDrafts.length > 0 ? roleDrafts : state.drafts;
   const clientPending = drafts.filter((d) => d.status === 'pending_approval');
   const clientApproved = drafts.filter((d) => d.status === 'approved' || d.status === 'published');
   const clientRejected = drafts.filter((d) => d.status === 'rejected');
@@ -505,11 +516,6 @@ export function DashboardView() {
       {/* Welcome Block */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] bg-purple-100 text-purple-700 border border-purple-200 px-2.5 py-0.5 rounded-full font-bold uppercase">
-              {isAdmin ? 'Agency Executive Overview' : 'Dashboard Overview'}
-            </span>
-          </div>
           <h1 className="text-2xl font-bold tracking-tight text-text-primary">
             Welcome Back, {displayOrgName}
           </h1>

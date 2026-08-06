@@ -588,8 +588,8 @@ console.log(state)
       {/* Main Content Area */}
       <div className="flex-1 pl-0 lg:pl-64 flex flex-col min-h-screen min-w-0">
         {/* Top Header Bar */}
-        <header className="min-h-16 py-2 border-b border-border-primary bg-bg-card px-4 sm:px-8 flex items-center justify-between sticky top-0 z-30 transition-colors duration-200">
-          <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto py-1">
+        <header className="min-h-16 py-2 border-b border-border-primary bg-bg-card px-3 sm:px-8 flex items-center justify-between sticky top-0 z-30 transition-colors duration-200">
+          <div className="flex items-center gap-1.5 sm:gap-4 py-1 min-w-0">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-1.5 rounded-lg hover:bg-bg-hover text-text-primary lg:hidden shrink-0"
@@ -604,27 +604,33 @@ console.log(state)
                 /* Individual: Only user's name selected, no org dropdown, no client dropdown */
                 <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border-primary text-xs font-semibold text-text-primary bg-bg-app shrink-0">
                   <User className="w-3.5 h-3.5 text-instagram-pink" />
-                  <span className="truncate max-w-[120px] sm:max-w-none">{displayUserName}</span>
+                  <span className="truncate max-w-[100px] xs:max-w-[140px] sm:max-w-none">{displayUserName}</span>
                 </div>
               ) : (
                 /* Organization: Org dropdown + Client dropdown */
-                <div className="flex items-center gap-2 sm:gap-3">
+                <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
                   <div className="relative" ref={orgMenuRef}>
                     <button
-                      onClick={() => setShowOrgMenu(!showOrgMenu)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border-primary text-xs font-semibold text-text-primary hover:bg-bg-hover transition duration-150 shrink-0"
+                      onClick={() => {
+                        setShowOrgMenu((prev) => !prev);
+                        setShowClientMenu(false);
+                      }}
+                      className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg border border-border-primary text-xs font-semibold text-text-primary hover:bg-bg-hover transition duration-150 shrink-0"
                     >
                       <Building className="w-3.5 h-3.5 shrink-0" />
-                      <span className="truncate max-w-[100px] sm:max-w-none">{displayOrgName}</span>
+                      <span className="truncate max-w-[80px] xs:max-w-[120px] sm:max-w-none">{displayOrgName}</span>
                       <ChevronDown className="w-3 h-3 text-text-secondary shrink-0" />
                     </button>
 
                     {showOrgMenu && (
-                      <div className="absolute top-full left-0 mt-1 bg-bg-card border border-border-primary rounded-lg shadow-lg z-20 py-1 w-48 transition-colors duration-200">
+                      <div className="absolute top-full left-0 mt-1 bg-bg-card border border-border-primary rounded-lg shadow-xl z-50 py-1 w-48 max-w-[calc(100vw-2rem)] transition-colors duration-200">
                         <div className="px-3 py-1 text-[10px] text-text-secondary font-semibold tracking-wider uppercase">
                           Brand Org
                         </div>
-                        <button className="w-full text-left px-3 py-2 text-xs font-semibold text-text-primary hover:bg-bg-hover bg-bg-app">
+                        <button 
+                          onClick={() => setShowOrgMenu(false)}
+                          className="w-full text-left px-3 py-2 text-xs font-semibold text-text-primary hover:bg-bg-hover bg-bg-app"
+                        >
                           {displayOrgName}
                         </button>
                       </div>
@@ -634,18 +640,21 @@ console.log(state)
                   {/* Client Switcher */}
                   <div className="relative" ref={clientMenuRef}>
                     <button
-                      onClick={() => setShowClientMenu(!showClientMenu)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border-primary text-xs font-semibold text-text-primary hover:bg-bg-hover transition duration-150 shrink-0"
+                      onClick={() => {
+                        setShowClientMenu((prev) => !prev);
+                        setShowOrgMenu(false);
+                      }}
+                      className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg border border-border-primary text-xs font-semibold text-text-primary hover:bg-bg-hover transition duration-150 shrink-0"
                     >
                       <Users className="w-3.5 h-3.5 text-text-secondary shrink-0" />
-                      <span className="truncate max-w-[100px] sm:max-w-none">
+                      <span className="truncate max-w-[80px] xs:max-w-[120px] sm:max-w-none">
                         {selectedClient ? selectedClient.name : "Select Client"}
                       </span>
                       <ChevronDown className="w-3 h-3 text-text-secondary shrink-0" />
                     </button>
 
                     {showClientMenu && (
-                      <div className="absolute top-full left-0 sm:left-auto sm:right-0 mt-1 bg-bg-card border border-border-primary rounded-lg shadow-lg z-20 py-1 w-64 max-w-[90vw] transition-colors duration-200">
+                      <div className="absolute top-full right-0 sm:left-auto sm:right-0 mt-1 bg-bg-card border border-border-primary rounded-lg shadow-xl z-50 py-1 w-64 max-w-[calc(100vw-2rem)] transition-colors duration-200">
                         <div className="px-3 py-1 text-[10px] text-text-secondary font-semibold tracking-wider uppercase">
                           Select Client
                         </div>
@@ -710,7 +719,7 @@ console.log(state)
             </p>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0 ml-2">
             {/* Theme Toggle Button */}
             <ThemeToggle />
           </div>
