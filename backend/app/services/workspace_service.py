@@ -416,7 +416,7 @@ class WorkspaceService:
                 recurrence=data.get("recurrence", "none"),
                 publishAsDraft=data.get("publishAsDraft", False),
                 enabled=data.get("enabled", True),
-                nextRun=data.get("nextRun"),
+                nextRun=data.get("nextRun") or data.get("datetime"),
             )
             db.commit()
             db.refresh(schedule)
