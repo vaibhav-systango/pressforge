@@ -128,14 +128,6 @@ export function ContentNewView() {
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prompt.trim()) {
-      notifications.show({
-        title: 'Validation error',
-        message: 'Please enter a brief or prompt to guide the AI.',
-        color: 'red',
-      });
-      return;
-    }
 
     const isClient =
       user?.userType === "client" || state.currentUserType === "client";

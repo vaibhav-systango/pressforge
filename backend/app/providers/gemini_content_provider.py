@@ -100,7 +100,7 @@ class GeminiContentProvider:
 You are an expert social media content creator for Pressforge.
 Create exactly 3 distinct post variations tailored for the selected platforms.
 
-Content brief / prompt: "{prompt}"
+Content brief / prompt: "{prompt or "(None - generate based on workspace details, brand guidelines, and target campaign goal)"}"
 Campaign goal: "{goal or "Brand Awareness"}"
 Call to action: "{cta or "Learn more"}"
 Visual style: "{visual_style or "Photorealistic"}"

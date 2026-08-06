@@ -24,10 +24,7 @@ type GenerateResponse = {
 
 export async function POST(request: Request) {
   const body = await parseJsonBody<AiGenerateRequest>(request);
-  if (!body?.prompt?.trim()) {
-    return jsonError('A content brief / prompt is required', 400, 'BAD_REQUEST');
-  }
-  if (!body.workspaceId) {
+  if (!body?.workspaceId) {
     return jsonError('workspaceId is required', 400, 'BAD_REQUEST');
   }
 
