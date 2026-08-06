@@ -35,7 +35,8 @@ export function WorkspacesView() {
     updateClient,
     addWorkspaceSchedule, 
     deleteWorkspaceSchedule,
-    setActiveWorkspace
+    setActiveWorkspace,
+    refetch,
   } = useAppState();
 
   const isClient = state.currentUserType === 'client';
@@ -51,6 +52,7 @@ export function WorkspacesView() {
 
   const fetchWorkspaces = React.useCallback(async () => {
     try {
+      refetch();
       const res = await fetch(`/api/workspaces`);
       if (res.ok) {
         const data = await res.json();
@@ -62,7 +64,7 @@ export function WorkspacesView() {
       setIsLoadingWorkspaces(false);
       initialLoadDone.current = true;
     }
-  }, []);
+  }, [refetch]);
 
   React.useEffect(() => {
     const handle = setTimeout(() => {

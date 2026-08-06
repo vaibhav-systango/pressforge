@@ -96,12 +96,22 @@ export async function GET() {
       });
 
       const accessToken = session.accessToken!;
+      const cookieStore = await cookies();
+      let orgId = cookieStore.get(ORGANIZATION_ID_COOKIE)?.value;
+
+      let profileResult;
+      try {
+        profileResult = await callBackend<BackendUserResponse>('/auth/me', { accessToken });
+        if (!orgId && profileResult.data?.organizationId) {
+          orgId = profileResult.data.organizationId;
+        }
+      } catch (e) {
+        console.error('Failed to fetch profile in state route', e);
+      }
+
       let clients: AppState['clients'] | undefined;
 
       try {
-        const cookieStore = await cookies();
-        const orgId = cookieStore.get(ORGANIZATION_ID_COOKIE)?.value;
-
         if (orgId) {
           const { data: clientsData } = await callBackend<Record<string, unknown>[]>(
             `/organizations/${orgId}/clients`,
@@ -155,8 +165,7 @@ export async function GET() {
 
       const workspacesQuery = activeClientId ? `?clientId=${encodeURIComponent(activeClientId)}` : '';
 
-      const [profileResult, workspacesResult, draftsResult] = await Promise.all([
-        callBackend<BackendUserResponse>('/auth/me', { accessToken }),
+      const [workspacesResult, draftsResult] = await Promise.all([
         callBackend<WorkspaceListResponse>(`/workspaces${workspacesQuery}`, { accessToken }),
         callBackend<{ drafts: Draft[] }>('/drafts', { accessToken }),
       ]);
@@ -164,7 +173,7 @@ export async function GET() {
       const stateWithClient = { ...state, activeClientId };
       updateSession(auth.sessionId, { activeClientId });
 
-      const { state: profileState, patch: profilePatch } = applyProfileData(stateWithClient, profileResult.data);
+      const { state: profileState, patch: profilePatch } = applyProfileData(stateWithClient, profileResult?.data);
       if (Object.keys(profilePatch).length > 0) {
         updateSession(auth.sessionId, profilePatch);
       }
