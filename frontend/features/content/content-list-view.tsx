@@ -10,6 +10,8 @@ export function ContentListView() {
   const { state } = useAppState();
   const { user } = useAuth();
   const isClient = user?.userType === 'client' || state.currentUserType === 'client';
+  const isIndividual = user?.userType === 'individual' || state.currentUserType === 'individual' || state.accountType === 'individual';
+  const canApprove = isClient || isIndividual;
   const [listTab, setListTab] = useState<'all' | 'draft' | 'pending' | 'approved' | 'published'>('all');
 
   // Filter drafts for current workspace
@@ -54,7 +56,7 @@ export function ContentListView() {
           {[
             { id: 'all', label: 'All Drafts' },
             { id: 'draft', label: 'Drafts' },
-            ...(state.accountType !== 'individual' ? [{ id: 'pending', label: 'Pending Approval' }] : []),
+            { id: 'pending', label: 'Pending Approval' },
             { id: 'approved', label: 'Scheduled' },
             { id: 'published', label: 'Published' }
           ].map((tab) => (
@@ -124,7 +126,7 @@ export function ContentListView() {
                   </td>
                   <td className="p-4 text-right shrink-0">
                     <Link
-                      href={draft.status === 'pending_approval' && isClient ? `/app/approvals/${draft.id}` : `/app/content/${draft.id}`}
+                      href={draft.status === 'pending_approval' && canApprove ? `/app/approvals/${draft.id}` : `/app/content/${draft.id}`}
                       className="text-xs font-bold text-instagram-pink hover:underline"
                     >
                       Open details

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const GUEST_ONLY_AUTH_PATHS = ['/auth/login', '/auth/signup', '/auth/accept-invite', '/auth/forgot-password'];
+const GUEST_ONLY_AUTH_PATHS = ['/', '/auth/login', '/auth/signup', '/auth/accept-invite', '/auth/forgot-password'];
 
 const PUBLIC_API_PREFIXES = [
   '/api/auth/login',
@@ -139,6 +139,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/',
     '/app/:path*',
     '/onboarding/:path*',
     '/api/:path*',

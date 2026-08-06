@@ -76,18 +76,20 @@ export function ApprovalDetailView() {
   }, [refreshLinkedInConnection, router, searchParams, id]);
 
   const isClient = user?.userType === 'client' || state.currentUserType === 'client';
+  const isIndividual = user?.userType === 'individual' || state.currentUserType === 'individual' || state.accountType === 'individual';
+  const canApprove = isClient || isIndividual;
 
   useEffect(() => {
-    if (!isClient && id) {
+    if (!canApprove && id) {
       router.replace(`/app/content/${id}`);
     }
-  }, [isClient, id, router]);
+  }, [canApprove, id, router]);
 
-  if (!isClient) {
+  if (!canApprove) {
     return (
       <div className="text-center py-12 space-y-3">
         <h2 className="text-xl font-bold text-text-primary">Access Restricted</h2>
-        <p className="text-sm text-text-secondary">This approval page is only accessible to client users.</p>
+        <p className="text-sm text-text-secondary">This approval page is only accessible to client and individual users.</p>
         <Link href={id ? `/app/content/${id}` : '/app/approvals'} className="text-xs text-instagram-pink font-semibold mt-2 hover:underline inline-block">
           View Content History
         </Link>
@@ -112,7 +114,7 @@ export function ApprovalDetailView() {
 
   const isLinkedInRequired = draft.platform === 'linkedin' || draft.platform === 'both';
   const linkedinConnected = linkedinConnection?.connected ?? false;
-  const isApprovalDisabled = isClient && isLinkedInRequired && !isLinkedInLoading && !linkedinConnected;
+  const isApprovalDisabled = canApprove && isLinkedInRequired && !isLinkedInLoading && !linkedinConnected;
 
   const handleApprove = () => {
     if (isApprovalDisabled) {

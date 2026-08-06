@@ -295,20 +295,28 @@ export function DashboardView() {
             <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
               <h3 className="text-base font-bold text-text-primary">Social Channels</h3>
               <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-2 text-text-secondary font-medium">
-                    <Linkedin className="w-4 h-4 text-blue-600" /> LinkedIn
-                  </span>
+                <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Linkedin className="w-4 h-4 text-blue-600 shrink-0" />
+                    <div className="min-w-0">
+                      <span className="font-semibold text-text-primary block truncate">LinkedIn</span>
+                      {linkedinConnected && linkedinAccountName && (
+                        <span className="text-xs text-text-secondary block truncate">
+                          {linkedinAccountName}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                   {linkedinConnected ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-green-600 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 px-2.5 py-1 rounded-full">
-                        {linkedinAccountName ? `Connected (${linkedinAccountName})` : 'Connected'}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs font-bold text-green-600 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 px-2.5 py-1 rounded-full whitespace-nowrap">
+                        Connected
                       </span>
                       <button
                         type="button"
                         onClick={() => disconnectLinkedIn()}
                         disabled={isLinkedInLoading || isLinkedInDisconnecting}
-                        className="text-xs font-bold text-red-500 hover:text-red-600 transition disabled:opacity-50"
+                        className="text-xs font-bold text-red-500 hover:text-red-600 transition disabled:opacity-50 cursor-pointer"
                       >
                         {isLinkedInDisconnecting ? '...' : 'Disconnect'}
                       </button>
@@ -318,7 +326,7 @@ export function DashboardView() {
                       type="button"
                       onClick={() => connectLinkedIn('/app')}
                       disabled={isLinkedInLoading || isLinkedInConnecting}
-                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow-sm disabled:opacity-50"
+                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow-sm disabled:opacity-50 cursor-pointer"
                     >
                       {isLinkedInConnecting ? 'Connecting...' : 'Connect'}
                     </button>
@@ -567,20 +575,28 @@ export function DashboardView() {
               <h3 className="text-base font-bold text-text-primary">Social Channels</h3>
 
               <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-2 text-text-secondary font-medium">
-                    <Linkedin className="w-4 h-4 text-blue-600" /> LinkedIn
-                  </span>
+                <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Linkedin className="w-4 h-4 text-blue-600 shrink-0" />
+                    <div className="min-w-0">
+                      <span className="font-semibold text-text-primary block truncate">LinkedIn</span>
+                      {linkedinConnected && linkedinAccountName && (
+                        <span className="text-xs text-text-secondary block truncate">
+                          {linkedinAccountName}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                   {linkedinConnected ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-green-600 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 px-2.5 py-1 rounded-full">
-                        {linkedinAccountName ? `Connected (${linkedinAccountName})` : 'Connected'}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs font-bold text-green-600 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 px-2.5 py-1 rounded-full whitespace-nowrap">
+                        Connected
                       </span>
                       <button
                         type="button"
                         onClick={() => disconnectLinkedIn()}
                         disabled={isLinkedInLoading || isLinkedInDisconnecting}
-                        className="text-xs font-bold text-red-500 hover:text-red-600 transition disabled:opacity-50"
+                        className="text-xs font-bold text-red-500 hover:text-red-600 transition disabled:opacity-50 cursor-pointer"
                       >
                         {isLinkedInDisconnecting ? '...' : 'Disconnect'}
                       </button>
@@ -590,7 +606,7 @@ export function DashboardView() {
                       type="button"
                       onClick={() => connectLinkedIn('/app')}
                       disabled={isLinkedInLoading || isLinkedInConnecting}
-                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow-sm disabled:opacity-50"
+                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow-sm disabled:opacity-50 cursor-pointer"
                     >
                       {isLinkedInConnecting ? 'Connecting...' : 'Connect'}
                     </button>

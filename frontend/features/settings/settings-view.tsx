@@ -397,7 +397,7 @@ export function SettingsView() {
           </div>
 
           {/* Agency Settings (Only for agency users) */}
-          {!isClient && (
+          {!isClient && !isIndividual && (
             <div key={state.organizationName || 'loading-org'} className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm">
               <h3 className="text-sm font-bold text-text-primary border-b border-border-primary pb-2.5 mb-4 flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-text-secondary" />

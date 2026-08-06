@@ -1,9 +1,30 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Sparkles, ArrowRight, ShieldCheck, Zap, BarChart3, BellRing, Users } from 'lucide-react';
 
+import { useAuth } from '@/lib/hooks/queries/use-auth';
+import { useClientSession } from '@/lib/hooks/use-client-session';
+import { useMounted } from '@/lib/hooks/use-mounted';
+
 export function LandingPage() {
+  const router = useRouter();
+  const mounted = useMounted();
+  const hasSession = useClientSession();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (mounted && (hasSession || user)) {
+      router.replace('/app');
+    }
+  }, [mounted, hasSession, user, router]);
+
+  if (mounted && (hasSession || user)) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col justify-between">
       {/* Header */}

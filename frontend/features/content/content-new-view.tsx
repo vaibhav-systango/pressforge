@@ -50,6 +50,13 @@ export function ContentNewView() {
     state.workspaces.find((w) => w.id === state.activeWorkspaceId) ||
     state.workspaces[0];
 
+  const isClient =
+    user?.userType === "client" || state.currentUserType === "client";
+  const isIndividual =
+    user?.userType === "individual" ||
+    state.currentUserType === "individual" ||
+    state.accountType === "individual";
+
   // Local Brand/Workspace Guideline States (edited only locally for this content generation run)
   const [localBrandName, setLocalBrandName] = useState(activeWorkspace?.name || "");
   const [localWebsite, setLocalWebsite] = useState(activeWorkspace?.website || "");
@@ -634,23 +641,13 @@ export function ContentNewView() {
 
               {/* Save / Launch Actions */}
               <div className="flex flex-col gap-2 pt-2">
-                {state.accountType !== "individual" ? (
-                  <button
-                    onClick={() => handleSave("pending_approval")}
-                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3 rounded-full text-xs font-bold hover:opacity-95 transition shadow-sm cursor-pointer border-0"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Send via Email & Telegram for Client Approval</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handleSave("approved")}
-                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3 rounded-full text-xs font-bold hover:opacity-95 transition shadow-sm cursor-pointer border-0"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Approve & Schedule Post</span>
-                  </button>
-                )}
+                <button
+                  onClick={() => handleSave("pending_approval")}
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3 rounded-full text-xs font-bold hover:opacity-95 transition shadow-sm cursor-pointer border-0"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{isIndividual ? "Send for Approval" : "Send via Email Approval"}</span>
+                </button>
                 <button
                   onClick={() => handleSave("draft")}
                   className="w-full flex items-center justify-center gap-2 bg-bg-app hover:bg-bg-hover border border-border-primary text-text-primary py-2.5 rounded-full text-xs font-bold transition cursor-pointer"
