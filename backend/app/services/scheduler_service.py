@@ -14,7 +14,7 @@ _scheduler: BackgroundScheduler | None = None
 
 # How often to drain the approved publish queue & check workspace schedules
 PUBLISH_QUEUE_INTERVAL_SECONDS = 60
-WORKSPACE_SCHEDULE_INTERVAL_SECONDS = 30
+WORKSPACE_SCHEDULE_INTERVAL_SECONDS = 120
 
 
 def _parse_schedule_time(time_str: str | None) -> datetime | None:
@@ -99,6 +99,14 @@ def _process_workspace_schedules() -> None:
     """
     Checks workspace schedule windows and automatically generates LinkedIn/social posts
     based on workspace brand details, saving them as pending approval and notifying clients.
+
+    The full flow:
+    1. Find enabled schedules whose nextRun/datetime is due.
+    2. Call Gemini AI to generate proper text content (captions, hashtags, image briefs).
+    3. Wait for AI image generation via Pollinations + Cloudinary rehost (no artificial timeout).
+    4. Save the draft as "pending_approval".
+    5. Send email notification to allocated workspace clients.
+    6. Advance the schedule recurrence.
     """
     from app.models.workspace_schedule import WorkspaceSchedule
     from app.models.workspace import Workspace
@@ -148,28 +156,32 @@ def _process_workspace_schedules() -> None:
                 li_image_brief = ""
                 image_url = ""
 
-                import concurrent.futures
-
+                # ── Step 1: Call AI to generate content (NO artificial timeout) ──
+                # generate_variations() internally:
+                #   a) Calls Gemini API for text (up to 90s per attempt with retries)
+                #   b) Downloads AI image from Pollinations (up to 120s)
+                #   c) Rehosts to Cloudinary
+                # We call it directly so it runs to completion.
                 try:
-                    def _call_ai():
-                        return gemini_content_provider.generate_variations(
-                            prompt=prompt_text,
-                            goal="Brand Awareness",
-                            cta="Learn More",
-                            visual_style="Professional & Modern",
-                            platforms=[target_platform, "instagram"],
-                            brand_name=workspace.name,
-                            tone=workspace.tone or "professional",
-                            keywords=keywords,
-                            target_audience=workspace.targetAudience or "Professional audience",
-                            brand_voice=workspace.brandVoice or "",
-                            description=workspace.description or "",
-                            rules=rules,
-                        )
+                    logger.info(
+                        "Schedule %s: Starting AI content generation for workspace '%s' (platform=%s)",
+                        schedule.id, workspace.name, target_platform,
+                    )
 
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                        future = executor.submit(_call_ai)
-                        gen_result = future.result(timeout=5)
+                    gen_result = gemini_content_provider.generate_variations(
+                        prompt=prompt_text,
+                        goal="Brand Awareness",
+                        cta="Learn More",
+                        visual_style="Professional & Modern",
+                        platforms=[target_platform, "instagram"],
+                        brand_name=workspace.name,
+                        tone=workspace.tone or "professional",
+                        keywords=keywords,
+                        target_audience=workspace.targetAudience or "Professional audience",
+                        brand_voice=workspace.brandVoice or "",
+                        description=workspace.description or "",
+                        rules=rules,
+                    )
 
                     variations = gen_result.get("variations") or []
                     if variations:
@@ -181,18 +193,57 @@ def _process_workspace_schedules() -> None:
                         li_hashtags = var.get("liHashtags") or hashtags
                         li_image_brief = var.get("liImageBrief") or image_brief
                         image_url = var.get("imageUrl") or ""
+
+                        logger.info(
+                            "Schedule %s: AI generation complete — caption=%d chars, image_url=%s",
+                            schedule.id,
+                            len(li_caption if target_platform == "linkedin" else caption),
+                            "present" if image_url else "missing",
+                        )
                     else:
                         raise ValueError("No content variations returned by AI")
+
                 except Exception as exc:
-                    logger.warning("AI generation skipped/failed for schedule %s (using brand fallback): %s", schedule.id, exc)
+                    logger.warning(
+                        "Schedule %s: AI generation failed (using brand fallback): %s",
+                        schedule.id, exc,
+                    )
                     clean_brand = workspace.name.replace(" ", "")
-                    caption = f"Exciting updates from {workspace.name}! We're continuously delivering innovation and value to our community."
-                    hashtags = [str(k) for k in keywords[:5]] if keywords else ["Innovation", "Business", "Growth"]
+                    caption = (
+                        f"Exciting updates from {workspace.name}! "
+                        f"We're continuously delivering innovation and value to our community."
+                    )
+                    hashtags = (
+                        [str(k) for k in keywords[:5]]
+                        if keywords
+                        else ["Innovation", "Business", "Growth"]
+                    )
                     image_brief = f"Modern branded social graphic for {workspace.name}"
-                    li_caption = f"Key updates from {workspace.name}:\n\n{workspace.description or workspace.brandVoice or 'We are committed to delivering excellence and innovation.'}\n\n#{clean_brand} #Innovation #Leadership"
-                    li_hashtags = [str(k) for k in keywords[:5]] if keywords else ["Professional", "Leadership", "Growth"]
+                    li_caption = (
+                        f"Key updates from {workspace.name}:\n\n"
+                        f"{workspace.description or workspace.brandVoice or 'We are committed to delivering excellence and innovation.'}"
+                        f"\n\n#{clean_brand} #Innovation #Leadership"
+                    )
+                    li_hashtags = (
+                        [str(k) for k in keywords[:5]]
+                        if keywords
+                        else ["Professional", "Leadership", "Growth"]
+                    )
                     li_image_brief = image_brief
-                    image_url = workspace.logoUrl or ""
+
+                    # ── Fallback image: still try to generate one from the brief ──
+                    try:
+                        logger.info("Schedule %s: Attempting fallback image generation...", schedule.id)
+                        pollinations_url = gemini_content_provider.build_pollinations_url(image_brief)
+                        rehosted = gemini_content_provider._rehost_image(pollinations_url)
+                        image_url = rehosted or pollinations_url
+                    except Exception as img_exc:
+                        logger.warning("Schedule %s: Fallback image generation also failed: %s", schedule.id, img_exc)
+                        image_url = workspace.logoUrl or ""
+
+                # ── Step 2: For LinkedIn platform, use LinkedIn-specific fields as primary ──
+                draft_caption = li_caption if target_platform == "linkedin" and li_caption else caption
+                draft_hashtags = li_hashtags if target_platform == "linkedin" and li_hashtags else hashtags
 
                 now_iso = now.isoformat()
                 draft = Draft(
@@ -202,8 +253,8 @@ def _process_workspace_schedules() -> None:
                     platform=target_platform,
                     version=1,
                     scheduledAt=now_iso,
-                    caption=caption,
-                    hashtags=hashtags,
+                    caption=draft_caption,
+                    hashtags=draft_hashtags,
                     imageBrief=image_brief,
                     imageUrl=image_url,
                     liCaption=li_caption,
@@ -216,8 +267,8 @@ def _process_workspace_schedules() -> None:
                         "version": 1,
                         "timestamp": now_iso,
                         "action": f"Automated schedule ({schedule.label or 'LinkedIn Post'}) generated post for client approval",
-                        "caption": caption,
-                        "hashtags": hashtags,
+                        "caption": draft_caption,
+                        "hashtags": draft_hashtags,
                         "imageBrief": image_brief,
                         "liCaption": li_caption,
                         "liHashtags": li_hashtags,
@@ -229,15 +280,19 @@ def _process_workspace_schedules() -> None:
                 db.add(draft)
                 db.commit()
                 db.refresh(draft)
+                logger.info(
+                    "Schedule %s: Draft %s saved as pending_approval (image=%s)",
+                    schedule.id, draft.id, "yes" if image_url else "no",
+                )
 
-                # Dispatch notification to allocated clients
+                # ── Step 3: Email notification to allocated clients ──
                 try:
                     notification_service.dispatch_draft_notification(db, draft)
-                    logger.info("Dispatched notification for automated draft %s to workspace clients", draft.id)
+                    logger.info("Schedule %s: Notification dispatched for draft %s", schedule.id, draft.id)
                 except Exception as n_exc:
-                    logger.error("Failed to send draft notification: %s", n_exc)
+                    logger.error("Schedule %s: Failed to send draft notification: %s", schedule.id, n_exc)
 
-                # Update recurrence / next run time
+                # ── Step 4: Advance recurrence / next run time ──
                 recurrence = (schedule.recurrence or "none").lower()
                 if recurrence == "daily":
                     next_time = scheduled_time + timedelta(days=1)
@@ -254,7 +309,10 @@ def _process_workspace_schedules() -> None:
 
                 db.add(schedule)
                 db.commit()
-                logger.info("Automated workspace schedule %s processed successfully for workspace %s", schedule.id, workspace.name)
+                logger.info(
+                    "Schedule %s: Processed successfully for workspace '%s' (next=%s)",
+                    schedule.id, workspace.name, schedule.nextRun or "disabled",
+                )
     except Exception as exc:
         logger.error("Workspace schedule processor job failed: %s", exc)
         db.rollback()

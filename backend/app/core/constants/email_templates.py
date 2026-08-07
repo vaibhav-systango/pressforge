@@ -170,6 +170,7 @@ def draft_preview_email(
     post_caption: str,
     post_platforms: str,
     post_image_brief: str | None = None,
+    post_image_url: str | None = None,
     review_link: str
 ) -> dict:
     escaped_client_name = html.escape(client_name)
@@ -177,10 +178,24 @@ def draft_preview_email(
     escaped_caption = html.escape(post_caption)
     escaped_platforms = html.escape(post_platforms.replace("_", " ").capitalize())
     escaped_image_brief = html.escape(post_image_brief or "") if post_image_brief else None
+    escaped_image_url = html.escape(post_image_url or "", quote=True) if post_image_url else None
     escaped_review_link = html.escape(review_link, quote=True)
 
     subject = f"New Content Draft Available for {escaped_workspace_name}"
-    
+
+    # AI-generated image block
+    image_html = ""
+    if escaped_image_url:
+        image_html = f"""
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 20px;">
+          <tr>
+            <td align="center">
+              <img src="{escaped_image_url}" alt="AI Generated Post Image" width="420" style="max-width: 100%; height: auto; border-radius: 12px; border: 1px solid #2a2e3d; display: block;" />
+            </td>
+          </tr>
+        </table>
+        """
+
     image_brief_html = ""
     if escaped_image_brief:
         image_brief_html = f"""
@@ -221,14 +236,16 @@ def draft_preview_email(
                   <p style="color: #a0a5b5; font-size: 14px; line-height: 1.6; margin-bottom: 24px; text-align: center;">
                     Hi {escaped_client_name}, a new post has been generated for workspace <strong>{escaped_workspace_name}</strong> ({escaped_platforms}). Please review it below:
                   </p>
-                  
+
+                  {image_html}
+
                   <!-- Post Preview Card -->
                   <div style="background-color: #161821; border-radius: 12px; border: 1px solid #2a2e3d; padding: 20px; margin-bottom: 24px;">
                     <p style="color: #ffffff; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap;">{escaped_caption}</p>
                   </div>
-                  
+
                   {image_brief_html}
-                  
+
                   <!-- Call to Action Button -->
                   <table border="0" cellpadding="0" cellspacing="0" width="100%">
                     <tr>

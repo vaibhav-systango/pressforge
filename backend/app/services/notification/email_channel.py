@@ -13,7 +13,8 @@ class EmailNotificationChannel(NotificationChannel):
             workspace_name=payload["workspace_name"],
             post_caption=payload["post_caption"],
             post_platforms=payload["post_platforms"],
-            post_image_brief=payload["post_image_brief"],
+            post_image_brief=payload.get("post_image_brief"),
+            post_image_url=payload.get("post_image_url"),
             review_link=payload["review_link"],
         )
         return email_provider.send(

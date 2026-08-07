@@ -39,6 +39,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
+  const [showHeaderWorkspaceMenu, setShowHeaderWorkspaceMenu] = useState(false);
   const [showOrgMenu, setShowOrgMenu] = useState(false);
   const [showClientMenu, setShowClientMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -48,6 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   const workspaceMenuRef = useRef<HTMLDivElement>(null);
+  const headerWorkspaceMenuRef = useRef<HTMLDivElement>(null);
   const orgMenuRef = useRef<HTMLDivElement>(null);
   const clientMenuRef = useRef<HTMLDivElement>(null);
 
@@ -56,6 +58,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       const target = event.target as Node;
       if (workspaceMenuRef.current && !workspaceMenuRef.current.contains(target)) {
         setShowWorkspaceMenu(false);
+      }
+      if (headerWorkspaceMenuRef.current && !headerWorkspaceMenuRef.current.contains(target)) {
+        setShowHeaderWorkspaceMenu(false);
       }
       if (orgMenuRef.current && !orgMenuRef.current.contains(target)) {
         setShowOrgMenu(false);
@@ -203,9 +208,9 @@ console.log(state)
   ).length;
 
   const handleWorkspaceChange = async (id: string) => {
-    if (isClient) return; // Clients cannot change workspaces
     await setActiveWorkspace(id);
     setShowWorkspaceMenu(false);
+    setShowHeaderWorkspaceMenu(false);
   };
 
   const handleLogout = async () => {
@@ -247,13 +252,8 @@ console.log(state)
           {/* Workspace Switcher */}
           <div className="relative" ref={workspaceMenuRef}>
             <button
-              onClick={() =>
-                !isClient && setShowWorkspaceMenu(!showWorkspaceMenu)
-              }
-              disabled={isClient}
-              className={`w-full flex items-center justify-between p-2.5 rounded-xl border border-border-primary transition duration-200 text-left ${
-                isClient ? "opacity-85 cursor-not-allowed" : "hover:bg-bg-hover"
-              }`}
+              onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
+              className="w-full flex items-center justify-between p-2.5 rounded-xl border border-border-primary hover:bg-bg-hover transition duration-200 text-left cursor-pointer"
             >
               <div className="flex items-center gap-2.5 overflow-hidden">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] flex items-center justify-center text-white font-bold text-sm shrink-0">
@@ -268,12 +268,10 @@ console.log(state)
                   </p>
                 </div>
               </div>
-              {!isClient && (
-                <ChevronDown className="w-4 h-4 text-text-secondary shrink-0 ml-1" />
-              )}
+              <ChevronDown className="w-4 h-4 text-text-secondary shrink-0 ml-1" />
             </button>
 
-            {showWorkspaceMenu && !isClient && (
+            {showWorkspaceMenu && (
               <div className="absolute top-full left-0 right-0 mt-1.5 bg-bg-card border border-border-primary rounded-xl shadow-lg z-20 py-1.5 transition-colors duration-200">
                 {filteredWorkspaces.length === 0 ? (
                   <div className="px-3 py-2 text-xs text-text-secondary text-center">
@@ -284,13 +282,13 @@ console.log(state)
                     <button
                       key={ws.id}
                       onClick={() => handleWorkspaceChange(ws.id)}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-bg-hover transition duration-150 ${
-                        ws.id === state.activeWorkspaceId
-                          ? "bg-bg-app font-medium"
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-bg-hover transition duration-150 cursor-pointer ${
+                        ws.id === (activeWorkspace?.id || state.activeWorkspaceId)
+                          ? "bg-bg-app font-semibold text-instagram-pink"
                           : ""
                       }`}
                     >
-                      <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-text-secondary text-xs font-bold">
+                      <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-text-secondary text-xs font-bold shrink-0">
                         {ws.name.charAt(0)}
                       </div>
                       <span className="text-sm text-text-primary truncate">
@@ -299,14 +297,16 @@ console.log(state)
                     </button>
                   ))
                 )}
-                <div className="border-t border-border-primary mt-1.5 pt-1.5 px-3">
-                  <NavLink
-                    href="/app/workspaces?new=true"
-                    className="flex items-center gap-2 text-xs text-instagram-pink font-semibold hover:opacity-80 transition duration-150 py-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add New Workspace
-                  </NavLink>
-                </div>
+                {!isClient && (
+                  <div className="border-t border-border-primary mt-1.5 pt-1.5 px-3">
+                    <NavLink
+                      href="/app/workspaces?new=true"
+                      className="flex items-center gap-2 text-xs text-instagram-pink font-semibold hover:opacity-80 transition duration-150 py-1"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add New Workspace
+                    </NavLink>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -710,13 +710,49 @@ console.log(state)
 
             <div className="h-4 w-[1px] bg-border-primary shrink-0 hidden md:block"></div>
 
-            {/* Quick Stats Summary */}
-            <p className="text-xs text-text-secondary hidden md:block shrink-0">
-              Active Workspace:{" "}
-              <span className="font-semibold text-text-primary">
-                {activeWorkspace?.name}
-              </span>
-            </p>
+            {/* Active Workspace Selector Header Dropdown */}
+            <div className="relative hidden md:block" ref={headerWorkspaceMenuRef}>
+              <button
+                onClick={() => setShowHeaderWorkspaceMenu(!showHeaderWorkspaceMenu)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border-primary text-xs text-text-secondary hover:bg-bg-hover transition duration-150 shrink-0 cursor-pointer"
+              >
+                <span>Active Workspace:</span>
+                <span className="font-semibold text-text-primary">
+                  {activeWorkspace?.name || "Select Workspace"}
+                </span>
+                <ChevronDown className="w-3 h-3 text-text-secondary shrink-0" />
+              </button>
+
+              {showHeaderWorkspaceMenu && (
+                <div className="absolute top-full left-0 mt-1 bg-bg-card border border-border-primary rounded-xl shadow-lg z-50 py-1.5 w-56 transition-colors duration-200">
+                  <div className="px-3 py-1 text-[10px] text-text-secondary font-semibold tracking-wider uppercase">
+                    Select Workspace
+                  </div>
+                  {filteredWorkspaces.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-text-secondary text-center">
+                      No workspaces assigned
+                    </div>
+                  ) : (
+                    filteredWorkspaces.map((ws) => (
+                      <button
+                        key={ws.id}
+                        onClick={() => handleWorkspaceChange(ws.id)}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-bg-hover transition duration-150 cursor-pointer ${
+                          ws.id === (activeWorkspace?.id || state.activeWorkspaceId)
+                            ? "bg-bg-app font-semibold text-instagram-pink"
+                            : "text-text-primary"
+                        }`}
+                      >
+                        <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-text-secondary text-[10px] font-bold shrink-0">
+                          {ws.name.charAt(0)}
+                        </div>
+                        <span className="text-xs truncate">{ws.name}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4 shrink-0 ml-2">

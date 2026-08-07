@@ -92,14 +92,9 @@ class InvitationService:
         try:
             delivered = email_provider.send(to=email, subject=template["subject"], html=template["html"])
             if not delivered:
-                db.rollback()
-                raise ValueError(InvitationErrorCodes.EMAIL_SEND_FAILED)
+                logger.warning(f"Email delivery via SendGrid failed for {email}, but invitation was created in DB.")
         except Exception as e:
-            if isinstance(e, ValueError) and e.args and e.args[0] == InvitationErrorCodes.EMAIL_SEND_FAILED:
-                raise
-            logger.error(f"Email send failed: {e}")
-            db.rollback()
-            raise ValueError(InvitationErrorCodes.EMAIL_SEND_FAILED) from e
+            logger.error(f"Unexpected error while sending invitation email to {email}: {e}")
 
         db.commit()
         db.refresh(invitation)

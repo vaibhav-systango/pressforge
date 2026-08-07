@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Calendar, Plus, Trash2 } from 'lucide-react';
+import { DateTimePicker } from '@/components/common/date-time-picker';
 import { Select } from '@/components/common/select';
 import type { Workspace } from '@/lib/types';
 
@@ -102,12 +103,11 @@ export function WorkspaceSchedulerCard({
         </div>
 
         <div>
-          <label className="text-[10px] text-text-secondary font-bold uppercase block mb-1">When</label>
-          <input 
-            type="datetime-local" 
-            value={newScheduleDatetime} 
-            onChange={(e) => setNewScheduleDatetime(e.target.value)} 
-            className="w-full border border-border-primary bg-bg-app text-text-primary rounded-xl px-3 py-2 text-xs outline-none focus:border-instagram-pink transition" 
+          <DateTimePicker
+            label="When"
+            value={newScheduleDatetime}
+            onChange={(val) => setNewScheduleDatetime(val)}
+            placeholder="Select date & time"
           />
         </div>
 

@@ -382,6 +382,15 @@ class WorkspaceService:
             if not workspace or not self._can_access_workspace(db, user, workspace):
                 raise ValueError(WorkspaceErrorCodes.ACTIVE_WORKSPACE_NOT_FOUND)
 
+            org_id = self._resolve_organization_id(db, user)
+            if org_id:
+                role = self._get_org_role(db, user.id, org_id)
+                if role == OrganizationRole.CLIENT.value:
+                    assigned = workspace_repository.list_by_organization_and_client(db, org_id, user.id)
+                    assigned_ids = {w.id for w in assigned}
+                    if workspace_id not in assigned_ids:
+                        raise ValueError(WorkspaceErrorCodes.ACCESS_DENIED)
+
         profile = self._get_or_create_user_profile(db, user)
 
         try:

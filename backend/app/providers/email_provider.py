@@ -38,7 +38,28 @@ class EmailProvider:
                 exc.reason,
                 body,
             )
-            raise
+            logger.warning(
+                "SendGrid failed to deliver. Email logged to console (fallback):\n"
+                "To: %s\n"
+                "Subject: %s\n"
+                "Body:\n%s",
+                to,
+                subject,
+                html
+            )
+            return False
+        except Exception as exc:
+            logger.error("Unexpected error while sending email: %s", exc)
+            logger.warning(
+                "SendGrid failed to deliver. Email logged to console (fallback):\n"
+                "To: %s\n"
+                "Subject: %s\n"
+                "Body:\n%s",
+                to,
+                subject,
+                html
+            )
+            return False
         logger.info(
             "SendGrid accepted email: status=%s subject=%s",
             response.status_code,

@@ -45,7 +45,7 @@ export function WorkspacesView() {
 
   // Workspace selection state
   const [localSelectedWorkspaceId, setLocalSelectedWorkspaceId] = useState<string>('');
-  const selectedWorkspaceId = localSelectedWorkspaceId || workspaces[0]?.id || '';
+  const selectedWorkspaceId = localSelectedWorkspaceId || state.activeWorkspaceId || workspaces[0]?.id || '';
   const setSelectedWorkspaceId = setLocalSelectedWorkspaceId;
 
   const initialLoadDone = React.useRef(false);

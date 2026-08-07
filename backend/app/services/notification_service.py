@@ -51,6 +51,7 @@ class NotificationService:
         post_caption = draft.caption or draft.prompt or "No caption preview available"
         post_platforms = draft.platform or "instagram"
         post_image_brief = draft.imageBrief or "No image concept details"
+        post_image_url = draft.imageUrl or ""
         draft_id = draft.id
 
         recipient_users = [
@@ -65,6 +66,7 @@ class NotificationService:
             post_caption,
             post_platforms,
             post_image_brief,
+            post_image_url,
             draft_id
         )
 
@@ -75,6 +77,7 @@ class NotificationService:
         post_caption: str,
         post_platforms: str,
         post_image_brief: str,
+        post_image_url: str,
         draft_id: str
     ) -> None:
         payload = {
@@ -82,14 +85,15 @@ class NotificationService:
             "post_caption": post_caption,
             "post_platforms": post_platforms,
             "post_image_brief": post_image_brief,
+            "post_image_url": post_image_url,
             "review_link": f"{settings.FRONTEND_URL}/app/approvals/{draft_id}",
         }
 
         # A database session is not passed to the background thread to ensure safety.
         # SendGrid and Telegram integrations do not require database connections to send.
         for name, channel in self._channels.items():
-            try:
-                for recipient_data in recipients:
+            for recipient_data in recipients:
+                try:
                     client_user = User(
                         email=recipient_data["email"],
                         fullName=recipient_data["fullName"]
@@ -101,10 +105,13 @@ class NotificationService:
                         client_user.email,
                         success,
                     )
-            except Exception as e:
-                logger.error(
-                    "Failed to send notification via %s channel: %s", name, e
-                )
+                except Exception as e:
+                    logger.error(
+                        "Failed to send notification via %s channel to %s: %s",
+                        name,
+                        recipient_data.get("email"),
+                        e,
+                    )
 
 
 notification_service = NotificationService()
