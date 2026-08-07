@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 _scheduler: BackgroundScheduler | None = None
 
-# How often to drain the approved publish queue & check workspace schedules
-PUBLISH_QUEUE_INTERVAL_SECONDS = 60
-WORKSPACE_SCHEDULE_INTERVAL_SECONDS = 120
+# How often to drain the approved publish queue & check workspace schedules (Production-ready intervals)
+PUBLISH_QUEUE_INTERVAL_SECONDS = 600      # Check approved posts to publish every 10 minutes (600s)
+WORKSPACE_SCHEDULE_INTERVAL_SECONDS = 600   # Check workspace schedules every 10 minutes (600s)
 
 
 def _parse_schedule_time(time_str: str | None) -> datetime | None:

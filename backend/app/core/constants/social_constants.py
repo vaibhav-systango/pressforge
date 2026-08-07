@@ -7,6 +7,6 @@ class SocialErrorMessages:
 
 
 # Platform slugs currently available for connection
-SUPPORTED_PLATFORM_SLUGS = ("linkedin",)
+SUPPORTED_PLATFORM_SLUGS = ("linkedin", "instagram")
 
 OAUTH_STATE_TTL_SECONDS = 600

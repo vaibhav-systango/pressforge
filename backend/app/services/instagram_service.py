@@ -284,5 +284,102 @@ class InstagramService:
             "tokenExpiresAt": account.tokenExpiresAt,
         }
 
+    def get_connected_account(
+        self,
+        db: Session,
+        user: User,
+        organization_id: str | None = None,
+    ) -> SocialAccount:
+        resolved_org_id = self._resolve_organization_id(db, user, organization_id)
+        account = social_account_repository.get_for_user_context(
+            db,
+            user_id=user.id,
+            organization_id=resolved_org_id,
+            platform=self.PLATFORM,
+        )
+        if not account and user.accountType == "ORG_CLIENT" and resolved_org_id is not None:
+            account = social_account_repository.get_for_user_context(
+                db,
+                user_id=user.id,
+                organization_id=None,
+                platform=self.PLATFORM,
+            )
+        if not account:
+            raise ValueError(InstagramErrorCodes.ACCOUNT_NOT_CONNECTED)
+
+        if account.status == SocialAccountStatus.REVOKED.value:
+            raise ValueError(InstagramErrorCodes.TOKEN_REVOKED)
+        if account.status == SocialAccountStatus.EXPIRED.value:
+            raise ValueError(InstagramErrorCodes.TOKEN_EXPIRED)
+        if account.tokenExpiresAt and account.tokenExpiresAt <= int(time.time() * 1000):
+            social_account_repository.update_status(db, account, SocialAccountStatus.EXPIRED.value)
+            db.commit()
+            raise ValueError(InstagramErrorCodes.TOKEN_EXPIRED)
+        if account.status != SocialAccountStatus.ACTIVE.value:
+            raise ValueError(InstagramErrorCodes.TOKEN_EXPIRED)
+
+        return account
+
+    def create_ig_media_post(
+        self,
+        db: Session,
+        account: SocialAccount,
+        *,
+        text: str,
+        image_url: str | None = None,
+    ) -> str:
+        """Publish a container image post to Instagram. Returns external Instagram media ID."""
+        caption = (text or "").strip()
+        if not caption:
+            raise ValueError(InstagramErrorCodes.EMPTY_CAPTION)
+
+        if not image_url:
+            raise ValueError(InstagramErrorCodes.IMAGE_REQUIRED)
+
+        access_token = token_encryption_service.decrypt(account.accessToken)
+        ig_user_id = account.externalAccountId
+
+        create_media_url = f"{self._graph_base()}/{ig_user_id}/media"
+        params = {
+            "image_url": image_url,
+            "caption": caption,
+            "access_token": access_token,
+        }
+
+        try:
+            with httpx.Client(timeout=60.0) as client:
+                resp = client.post(create_media_url, data=params)
+                if resp.status_code in (401, 403):
+                    social_account_repository.update_status(db, account, SocialAccountStatus.EXPIRED.value)
+                    db.commit()
+                    raise ValueError(InstagramErrorCodes.TOKEN_EXPIRED)
+                if resp.status_code >= 400:
+                    logger.error("Instagram media container creation error %s: %s", resp.status_code, resp.text)
+                    raise ValueError(InstagramErrorCodes.PUBLISH_FAILED)
+
+                container_data = resp.json()
+                creation_id = container_data.get("id")
+                if not creation_id:
+                    raise ValueError(InstagramErrorCodes.PUBLISH_FAILED)
+
+                publish_media_url = f"{self._graph_base()}/{ig_user_id}/media_publish"
+                pub_params = {
+                    "creation_id": creation_id,
+                    "access_token": access_token,
+                }
+                pub_resp = client.post(publish_media_url, data=pub_params)
+                if pub_resp.status_code >= 400:
+                    logger.error("Instagram publish container error %s: %s", pub_resp.status_code, pub_resp.text)
+                    raise ValueError(InstagramErrorCodes.PUBLISH_FAILED)
+
+                pub_data = pub_resp.json()
+                media_id = pub_data.get("id") or creation_id
+                return str(media_id)
+        except ValueError:
+            raise
+        except Exception as exc:
+            logger.error("Unexpected Instagram publishing error: %s", exc)
+            raise ValueError(InstagramErrorCodes.PUBLISH_FAILED) from exc
+
 
 instagram_service = InstagramService()

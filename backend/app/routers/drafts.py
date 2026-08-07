@@ -85,12 +85,45 @@ _LINKEDIN_PUBLISH_ERROR_MAP = {
 }
 
 
+from app.core.constants.instagram_constants import InstagramErrorCodes, InstagramErrorMessages
+
+_INSTAGRAM_PUBLISH_ERROR_MAP = {
+    InstagramErrorCodes.ACCOUNT_NOT_CONNECTED: (
+        status.HTTP_400_BAD_REQUEST,
+        InstagramErrorMessages.ACCOUNT_NOT_CONNECTED,
+    ),
+    InstagramErrorCodes.TOKEN_EXPIRED: (
+        status.HTTP_401_UNAUTHORIZED,
+        InstagramErrorMessages.TOKEN_EXPIRED,
+    ),
+    InstagramErrorCodes.TOKEN_REVOKED: (
+        status.HTTP_401_UNAUTHORIZED,
+        InstagramErrorMessages.TOKEN_REVOKED,
+    ),
+    InstagramErrorCodes.EMPTY_CAPTION: (
+        status.HTTP_400_BAD_REQUEST,
+        InstagramErrorMessages.EMPTY_CAPTION,
+    ),
+    InstagramErrorCodes.IMAGE_REQUIRED: (
+        status.HTTP_400_BAD_REQUEST,
+        InstagramErrorMessages.IMAGE_REQUIRED,
+    ),
+    InstagramErrorCodes.PUBLISH_FAILED: (
+        status.HTTP_502_BAD_GATEWAY,
+        InstagramErrorMessages.PUBLISH_FAILED,
+    ),
+}
+
+
 def _raise_draft_error(code: str) -> None:
     if code in _DRAFT_ERROR_MAP:
         status_code, detail = _DRAFT_ERROR_MAP[code]
         raise HTTPException(status_code=status_code, detail=detail)
     if code in _LINKEDIN_PUBLISH_ERROR_MAP:
         status_code, detail = _LINKEDIN_PUBLISH_ERROR_MAP[code]
+        raise HTTPException(status_code=status_code, detail=detail)
+    if code in _INSTAGRAM_PUBLISH_ERROR_MAP:
+        status_code, detail = _INSTAGRAM_PUBLISH_ERROR_MAP[code]
         raise HTTPException(status_code=status_code, detail=detail)
     logger.error("Unexpected draft error: %s", code)
     raise HTTPException(
@@ -170,7 +203,7 @@ def update_draft(
 @router.post(
     "/{draft_id}/publish",
     response_model=PublishDraftResponse,
-    summary="Publish an approved draft to LinkedIn",
+    summary="Publish an approved draft to target social platform",
 )
 def publish_draft(
     draft_id: str,
@@ -179,7 +212,7 @@ def publish_draft(
     organizationId: str | None = None,
 ):
     try:
-        return publish_service.publish_draft_to_linkedin(
+        return publish_service.publish_draft(
             db,
             current_user,
             draft_id,

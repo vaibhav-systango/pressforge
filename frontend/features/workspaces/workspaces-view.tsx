@@ -102,6 +102,7 @@ export function WorkspacesView() {
 
   // Scheduler local form state
   const [newScheduleLabel, setNewScheduleLabel] = useState('');
+  const [newSchedulePlatform, setNewSchedulePlatform] = useState<'linkedin' | 'instagram' | 'both'>('linkedin');
   const [newScheduleDatetime, setNewScheduleDatetime] = useState('');
   const [newScheduleRecurrence, setNewScheduleRecurrence] = useState<'none'|'daily'|'weekly'|'monthly'>('none');
   const [newSchedulePublishDraft, setNewSchedulePublishDraft] = useState(false);
@@ -148,6 +149,7 @@ export function WorkspacesView() {
         setRules(currentWorkspace.rules || []);
         // reset scheduler inputs when workspace changes
         setNewScheduleLabel('');
+        setNewSchedulePlatform('linkedin');
         setNewScheduleDatetime('');
         setNewScheduleRecurrence('none');
         setNewSchedulePublishDraft(false);
@@ -268,6 +270,7 @@ export function WorkspacesView() {
       const newSched: Schedule = {
         id: `schedule-${Date.now()}`,
         label: newScheduleLabel,
+        platform: newSchedulePlatform,
         datetime: newScheduleDatetime || undefined,
         recurrence: newScheduleRecurrence,
         publishAsDraft: newSchedulePublishDraft,
@@ -279,6 +282,7 @@ export function WorkspacesView() {
 
       // Reset inputs
       setNewScheduleLabel('');
+      setNewSchedulePlatform('linkedin');
       setNewScheduleDatetime('');
       setNewScheduleRecurrence('none');
       setNewSchedulePublishDraft(false);
@@ -496,6 +500,8 @@ export function WorkspacesView() {
                 scheduleError={scheduleError}
                 newScheduleLabel={newScheduleLabel}
                 setNewScheduleLabel={setNewScheduleLabel}
+                newSchedulePlatform={newSchedulePlatform}
+                setNewSchedulePlatform={setNewSchedulePlatform}
                 newScheduleDatetime={newScheduleDatetime}
                 setNewScheduleDatetime={setNewScheduleDatetime}
                 newScheduleRecurrence={newScheduleRecurrence}

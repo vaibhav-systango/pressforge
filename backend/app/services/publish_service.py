@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.constants.content_constants import DraftErrorCodes, DraftErrorMessages
 from app.core.constants.linkedin_constants import LinkedInErrorCodes, LinkedInErrorMessages
+from app.core.constants.instagram_constants import InstagramErrorCodes, InstagramErrorMessages
 from app.models.draft import Draft
 from app.models.user import User, generate_timestamp_ms
 from app.repositories.draft_repository import draft_repository
@@ -13,6 +14,7 @@ from app.repositories.user_repository import user_repository
 from app.repositories.workspace_repository import workspace_repository
 from app.services.draft_service import draft_service, _draft_to_dict
 from app.services.linkedin_service import linkedin_service
+from app.services.instagram_service import instagram_service
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +42,29 @@ def _build_linkedin_caption(draft) -> str:
     return "\n\n".join(parts).strip()
 
 
+def _build_instagram_caption(draft) -> str:
+    parts: list[str] = []
+    caption = (draft.caption or draft.liCaption or "").strip()
+    if caption:
+        parts.append(caption)
+
+    hashtags = draft.hashtags or draft.liHashtags or []
+    cleaned = []
+    for tag in hashtags:
+        if not tag:
+            continue
+        value = str(tag).strip()
+        if not value:
+            continue
+        if not value.startswith("#"):
+            value = f"#{value.lstrip('#')}"
+        cleaned.append(value)
+    if cleaned:
+        parts.append(" ".join(cleaned))
+
+    return "\n\n".join(parts).strip()
+
+
 def _is_due_for_publish(scheduled_at: str | None, now: datetime) -> bool:
     """Ready now if no schedule, or scheduled time has passed."""
     if not scheduled_at or not str(scheduled_at).strip():
@@ -50,13 +75,13 @@ def _is_due_for_publish(scheduled_at: str | None, now: datetime) -> bool:
             parsed = parsed.replace(tzinfo=timezone.utc)
         return parsed <= now
     except ValueError:
-        # Unparseable schedule — attempt publish rather than block forever
         return True
 
 
 def _message_for_publish_error(code: str) -> str:
     return (
         getattr(LinkedInErrorMessages, code, None)
+        or getattr(InstagramErrorMessages, code, None)
         or getattr(DraftErrorMessages, code, None)
         or code
     )
@@ -75,7 +100,6 @@ class PublishService:
         if not draft:
             raise ValueError(DraftErrorCodes.DRAFT_NOT_FOUND)
 
-        # Enforce workspace access (raises ACCESS_DENIED / WORKSPACE_NOT_FOUND)
         draft_service._get_accessible_workspace(db, user, draft.workspaceId)
 
         if draft.status == "published":
@@ -87,7 +111,6 @@ class PublishService:
         if not caption:
             raise ValueError(LinkedInErrorCodes.EMPTY_CAPTION)
 
-        # Check if there is an active client account connected to this workspace
         from app.models.organization_member import OrganizationMember, MemberWorkspace, OrganizationRole
         from app.models.social_account import SocialAccount, SocialAccountStatus
 
@@ -175,9 +198,161 @@ class PublishService:
             "message": "Published to LinkedIn successfully.",
         }
 
+    def publish_draft_to_instagram(
+        self,
+        db: Session,
+        user: User,
+        draft_id: str,
+        *,
+        organization_id: str | None = None,
+    ) -> dict:
+        draft = draft_repository.get_by_id(db, draft_id)
+        if not draft:
+            raise ValueError(DraftErrorCodes.DRAFT_NOT_FOUND)
+
+        draft_service._get_accessible_workspace(db, user, draft.workspaceId)
+
+        if draft.status == "published":
+            raise ValueError(DraftErrorCodes.ALREADY_PUBLISHED)
+        if draft.status != "approved":
+            raise ValueError(DraftErrorCodes.NOT_APPROVED)
+
+        caption = _build_instagram_caption(draft)
+        if not caption:
+            raise ValueError(InstagramErrorCodes.EMPTY_CAPTION)
+
+        from app.models.organization_member import OrganizationMember, MemberWorkspace, OrganizationRole
+        from app.models.social_account import SocialAccount, SocialAccountStatus
+
+        workspace = workspace_repository.get_by_id(db, draft.workspaceId)
+        allocated_client_account = None
+        if workspace:
+            client_members = db.query(OrganizationMember).filter(
+                OrganizationMember.role == OrganizationRole.CLIENT.value,
+                (OrganizationMember.workspaceId == workspace.id) |
+                OrganizationMember.id.in_(
+                    db.query(MemberWorkspace.memberId).filter(MemberWorkspace.workspaceId == workspace.id)
+                )
+            ).all()
+
+            client_user_ids = [m.userId for m in client_members]
+            if client_user_ids:
+                allocated_client_account = db.query(SocialAccount).filter(
+                    SocialAccount.userId.in_(client_user_ids),
+                    SocialAccount.platform == instagram_service.PLATFORM,
+                    SocialAccount.status == SocialAccountStatus.ACTIVE.value
+                ).order_by(SocialAccount.connectedAt.desc()).first()
+
+        if allocated_client_account:
+            account = allocated_client_account
+        else:
+            account = instagram_service.get_connected_account(
+                db,
+                user,
+                organization_id=organization_id,
+            )
+
+        try:
+            external_post_id = instagram_service.create_ig_media_post(
+                db,
+                account,
+                text=caption,
+                image_url=draft.imageUrl or (workspace.logoUrl if workspace else None),
+            )
+        except ValueError:
+            raise
+        except Exception as exc:
+            logger.error("Unexpected Instagram publish error: %s", exc)
+            raise ValueError(InstagramErrorCodes.PUBLISH_FAILED) from exc
+
+        now_ms = generate_timestamp_ms()
+        history = list(draft.history or [])
+        history.append(
+            {
+                "version": (draft.version or 1) + 1,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "action": "published_instagram",
+                "caption": draft.caption,
+                "feedback": f"Published to Instagram ({external_post_id})",
+                "hashtags": draft.hashtags or [],
+                "imageUrl": draft.imageUrl,
+            }
+        )
+
+        draft_repository.update(
+            db,
+            draft,
+            status="published",
+            publishedAt=now_ms,
+            externalPostId=external_post_id,
+            publishError=None,
+            history=history,
+            version=(draft.version or 1) + 1,
+            updatedAt=now_ms,
+            scheduledAt=draft.scheduledAt or datetime.now(timezone.utc).isoformat(),
+        )
+        db.commit()
+        db.refresh(draft)
+
+        payload = _draft_to_dict(draft)
+        payload["platform"] = draft.platform or "instagram"
+        return {
+            "draft": payload,
+            "platform": "instagram",
+            "externalPostId": external_post_id,
+            "publishedAt": now_ms,
+            "message": "Published to Instagram successfully.",
+        }
+
+    def publish_draft(
+        self,
+        db: Session,
+        user: User,
+        draft_id: str,
+        *,
+        organization_id: str | None = None,
+    ) -> dict:
+        """Publishes a draft based on its target platform (linkedin, instagram, or both)."""
+        draft = draft_repository.get_by_id(db, draft_id)
+        if not draft:
+            raise ValueError(DraftErrorCodes.DRAFT_NOT_FOUND)
+
+        target_platform = (draft.platform or "linkedin").lower()
+        if target_platform == "instagram":
+            return self.publish_draft_to_instagram(db, user, draft_id, organization_id=organization_id)
+        elif target_platform == "both":
+            results = []
+            errors = []
+            try:
+                li_res = self.publish_draft_to_linkedin(db, user, draft_id, organization_id=organization_id)
+                results.append(f"LinkedIn ({li_res.get('externalPostId')})")
+            except Exception as exc:
+                errors.append(f"LinkedIn: {exc}")
+
+            try:
+                ig_res = self.publish_draft_to_instagram(db, user, draft_id, organization_id=organization_id)
+                results.append(f"Instagram ({ig_res.get('externalPostId')})")
+            except Exception as exc:
+                errors.append(f"Instagram: {exc}")
+
+            if not results:
+                raise ValueError(f"Failed to publish: {'; '.join(errors)}")
+
+            fresh_draft = draft_repository.get_by_id(db, draft_id)
+            payload = _draft_to_dict(fresh_draft) if fresh_draft else {}
+            payload["platform"] = "both"
+            return {
+                "draft": payload,
+                "platform": "both",
+                "externalPostId": ", ".join(results),
+                "publishedAt": generate_timestamp_ms(),
+                "message": f"Published successfully to {', '.join(results)}.",
+            }
+        else:
+            return self.publish_draft_to_linkedin(db, user, draft_id, organization_id=organization_id)
+
     def _record_publish_error(self, db: Session, draft: Draft, code: str) -> None:
         message = _message_for_publish_error(code)
-        # Re-load so we don't overwrite a concurrent successful publish
         fresh = draft_repository.get_by_id(db, draft.id)
         if not fresh or fresh.status != "approved":
             return
@@ -193,14 +368,7 @@ class PublishService:
 
     def process_publish_queue(self, db: Session) -> dict:
         """
-        Auto-publish approved drafts when a LinkedIn account is connected.
-
-        Rules:
-        - Queue = status 'approved'
-        - Approved drafts publish immediately; scheduledAt is display metadata only
-        - Skip (stay queued) if LinkedIn not connected
-        - On success → status 'published' (clears from queue)
-        - On failure → stay approved, set publishError for retry next cycle
+        Auto-publish approved drafts when configured social account is connected.
         """
         candidates = draft_repository.list_approved(db, limit=50)
         published = 0
@@ -213,9 +381,11 @@ class PublishService:
                 skipped += 1
                 continue
 
-            # Check if any CLIENT user assigned to this workspace has connected their LinkedIn account
             from app.models.organization_member import OrganizationMember, MemberWorkspace, OrganizationRole
             from app.models.social_account import SocialAccount, SocialAccountStatus
+
+            target_platform = (draft.platform or "linkedin").lower()
+            check_platform = instagram_service.PLATFORM if target_platform == "instagram" else linkedin_service.PLATFORM
 
             allocated_client_account = None
             client_members = db.query(OrganizationMember).filter(
@@ -230,7 +400,7 @@ class PublishService:
             if client_user_ids:
                 allocated_client_account = db.query(SocialAccount).filter(
                     SocialAccount.userId.in_(client_user_ids),
-                    SocialAccount.platform == linkedin_service.PLATFORM,
+                    SocialAccount.platform == check_platform,
                     SocialAccount.status == SocialAccountStatus.ACTIVE.value
                 ).order_by(SocialAccount.connectedAt.desc()).first()
 
@@ -241,7 +411,7 @@ class PublishService:
                 account = social_account_repository.get_latest_active_for_context(
                     db,
                     organization_id=workspace.organizationId,
-                    platform=linkedin_service.PLATFORM,
+                    platform=check_platform,
                 )
 
             publish_user_id = account.userId if account else workspace.ownerUserId
@@ -251,23 +421,23 @@ class PublishService:
                 continue
 
             try:
-                self.publish_draft_to_linkedin(
+                self.publish_draft(
                     db,
                     publish_user,
                     draft.id,
                     organization_id=account.organizationId if account else workspace.organizationId,
                 )
                 published += 1
-                logger.info("Auto-published draft %s to LinkedIn", draft.id)
+                logger.info("Auto-published draft %s to %s", draft.id, target_platform)
             except ValueError as exc:
                 code = str(exc)
                 if code in (
                     LinkedInErrorCodes.ACCOUNT_NOT_CONNECTED,
+                    InstagramErrorCodes.ACCOUNT_NOT_CONNECTED,
                     DraftErrorCodes.ALREADY_PUBLISHED,
                     DraftErrorCodes.NOT_APPROVED,
                     DraftErrorCodes.DRAFT_NOT_FOUND,
                 ):
-                    # Not connected / already handled — leave queue untouched
                     skipped += 1
                     continue
                 self._record_publish_error(db, draft, code)

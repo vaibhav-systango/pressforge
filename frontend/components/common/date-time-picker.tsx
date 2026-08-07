@@ -13,6 +13,7 @@ export interface DateTimePickerProps {
   disabled?: boolean;
   required?: boolean;
   error?: string;
+  align?: 'left' | 'right' | 'auto';
 }
 
 const MONTH_NAMES = [
@@ -33,9 +34,31 @@ export function DateTimePicker({
   disabled = false,
   required = false,
   error,
+  align = 'auto',
 }: DateTimePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [popoverAlign, setPopoverAlign] = useState<'left' | 'right'>('left');
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Auto calculate popover alignment to prevent clipping off screen edges
+  useEffect(() => {
+    if (isOpen && containerRef.current) {
+      if (align === 'right') {
+        setPopoverAlign('right');
+      } else if (align === 'left') {
+        setPopoverAlign('left');
+      } else {
+        const rect = containerRef.current.getBoundingClientRect();
+        const popoverWidth = 480;
+        // If placing left-aligned extends beyond viewport right edge (or in right half), align right
+        if (rect.left + popoverWidth > window.innerWidth - 20 || rect.left > window.innerWidth / 2) {
+          setPopoverAlign('right');
+        } else {
+          setPopoverAlign('left');
+        }
+      }
+    }
+  }, [isOpen, align]);
 
   // Parse current selected date or fallback to now
   const selectedDate = useMemo(() => {
@@ -296,7 +319,12 @@ export function DateTimePicker({
 
       {/* Custom Date & Time Picker Popover */}
       {isOpen && (
-        <div className="absolute z-50 top-full left-0 mt-2 w-[340px] sm:w-[480px] bg-bg-card border border-border-primary rounded-2xl shadow-2xl overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150 text-text-primary">
+        <div
+          className={cn(
+            "absolute z-50 top-full mt-2 w-[320px] sm:w-[480px] max-w-[calc(100vw-2rem)] bg-bg-card border border-border-primary rounded-2xl shadow-2xl overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150 text-text-primary",
+            popoverAlign === 'right' ? 'right-0' : 'left-0'
+          )}
+        >
           
           {/* Quick Presets Bar */}
           <div className="bg-bg-app/50 border-b border-border-primary p-2.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">

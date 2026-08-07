@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Calendar, Plus, Trash2 } from 'lucide-react';
+import { Calendar, Plus, Trash2, Linkedin, Instagram, Share2 } from 'lucide-react';
 import { DateTimePicker } from '@/components/common/date-time-picker';
 import { Select } from '@/components/common/select';
 import type { Workspace } from '@/lib/types';
@@ -11,6 +11,8 @@ interface WorkspaceSchedulerCardProps {
   scheduleError: string | null;
   newScheduleLabel: string;
   setNewScheduleLabel: (val: string) => void;
+  newSchedulePlatform: 'linkedin' | 'instagram' | 'both';
+  setNewSchedulePlatform: (val: 'linkedin' | 'instagram' | 'both') => void;
   newScheduleDatetime: string;
   setNewScheduleDatetime: (val: string) => void;
   newScheduleRecurrence: 'none' | 'daily' | 'weekly' | 'monthly';
@@ -27,6 +29,8 @@ export function WorkspaceSchedulerCard({
   scheduleError,
   newScheduleLabel,
   setNewScheduleLabel,
+  newSchedulePlatform,
+  setNewSchedulePlatform,
   newScheduleDatetime,
   setNewScheduleDatetime,
   newScheduleRecurrence,
@@ -46,7 +50,7 @@ export function WorkspaceSchedulerCard({
             <span>Workspace Scheduler</span>
           </h3>
           <p className="text-[11px] text-text-secondary mt-0.5">
-            Configure automated publishing schedule windows for this brand workspace.
+            Configure automated multi-platform social scheduling for this brand workspace.
           </p>
         </div>
       </div>
@@ -62,62 +66,100 @@ export function WorkspaceSchedulerCard({
           <p className="text-xs text-text-secondary italic">No schedules configured for this workspace.</p>
         )}
 
-        {(currentWorkspace.schedules || []).map((s) => (
-          <div key={s.id} className="flex items-center justify-between gap-2 bg-bg-app/30 border border-border-primary rounded-lg px-3 py-2 text-xs">
-            <div>
-              <div className="font-bold text-text-primary">{s.label}</div>
-              <div className="text-[11px] text-text-secondary">
-                {s.nextRun ? new Date(s.nextRun).toLocaleString() : (s.datetime ? new Date(s.datetime).toLocaleString() : '—')}
+        {(currentWorkspace.schedules || []).map((s) => {
+          const platform = (s.platform || 'linkedin').toLowerCase();
+          return (
+            <div key={s.id} className="flex items-center justify-between gap-2 bg-bg-app/30 border border-border-primary rounded-lg px-3 py-2 text-xs">
+              <div>
+                <div className="font-bold text-text-primary flex items-center gap-2">
+                  <span>{s.label}</span>
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded flex items-center gap-1 uppercase bg-bg-hover text-text-primary border border-border-primary">
+                    {platform === 'both' ? (
+                      <>
+                        <Share2 className="w-3 h-3 text-instagram-pink" />
+                        <span>Both (LinkedIn & IG)</span>
+                      </>
+                    ) : platform === 'instagram' ? (
+                      <>
+                        <Instagram className="w-3 h-3 text-instagram-pink" />
+                        <span>Instagram</span>
+                      </>
+                    ) : (
+                      <>
+                        <Linkedin className="w-3 h-3 text-blue-600" />
+                        <span>LinkedIn</span>
+                      </>
+                    )}
+                  </span>
+                </div>
+                <div className="text-[11px] text-text-secondary">
+                  {s.nextRun ? new Date(s.nextRun).toLocaleString() : (s.datetime ? new Date(s.datetime).toLocaleString() : '—')}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] px-2 py-0.5 rounded bg-bg-hover text-text-secondary uppercase font-semibold">
+                  {s.recurrence || 'one-time'}
+                </span>
+                {s.publishAsDraft && (
+                  <span className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/20 dark:text-amber-400 px-1.5 py-0.5 rounded font-bold uppercase">
+                    Draft Mode
+                  </span>
+                )}
+                <button 
+                  onClick={() => onDeleteClick(s.id)} 
+                  className="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-900/30 text-red-500 hover:text-red-600 transition flex items-center gap-1 border border-red-200/50 dark:border-red-900/30 ml-2 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Remove</span>
+                </button>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] px-2 py-0.5 rounded bg-bg-hover text-text-secondary uppercase font-semibold">
-                {s.recurrence || 'one-time'}
-              </span>
-              {s.publishAsDraft && (
-                <span className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/20 dark:text-amber-400 px-1.5 py-0.5 rounded font-bold uppercase">
-                  Draft Mode
-                </span>
-              )}
-              <button 
-                onClick={() => onDeleteClick(s.id)} 
-                className="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-900/30 text-red-500 hover:text-red-600 transition flex items-center gap-1 border border-red-200/50 dark:border-red-900/30 ml-2 cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Remove</span>
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      <div className="mt-6 border-t border-border-primary pt-4 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-        <div className="md:col-span-2">
-          <label className="text-[10px] text-text-secondary font-bold uppercase block mb-1">Label</label>
+      <div className="mt-6 border-t border-border-primary pt-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+        <div className="md:col-span-5">
+          <label className="text-[10px] text-text-secondary font-bold uppercase block mb-1">Schedule Title / Label</label>
           <input 
             value={newScheduleLabel} 
             onChange={(e) => setNewScheduleLabel(e.target.value)} 
-            placeholder="e.g. Monday Morning Post" 
+            placeholder="e.g. Weekly Product Showcase" 
             className="w-full border border-border-primary bg-bg-app text-text-primary rounded-xl px-3 py-2 text-xs outline-none focus:border-instagram-pink transition" 
           />
         </div>
 
-        <div>
+        <div className="md:col-span-3">
+          <Select
+            label="Target Platform"
+            value={newSchedulePlatform}
+            onChange={(e) => setNewSchedulePlatform(e.target.value as 'linkedin' | 'instagram' | 'both')}
+            options={[
+              { value: 'linkedin', label: 'LinkedIn Only' },
+              { value: 'instagram', label: 'Instagram Only' },
+              { value: 'both', label: 'Both (LinkedIn & Instagram)' },
+            ]}
+            className="py-2.5 text-xs font-semibold"
+          />
+        </div>
+
+        <div className="md:col-span-2">
           <DateTimePicker
             label="When"
             value={newScheduleDatetime}
             onChange={(val) => setNewScheduleDatetime(val)}
             placeholder="Select date & time"
+            align="right"
           />
         </div>
 
-        <div>
+        <div className="md:col-span-2">
           <Select
             label="Recurrence"
             value={newScheduleRecurrence}
             onChange={(e) => setNewScheduleRecurrence(e.target.value as 'none' | 'daily' | 'weekly' | 'monthly')}
             options={[
-              { value: 'none', label: 'None (one-time)' },
+              { value: 'none', label: 'One-time' },
               { value: 'daily', label: 'Daily' },
               { value: 'weekly', label: 'Weekly' },
               { value: 'monthly', label: 'Monthly' }
@@ -126,7 +168,7 @@ export function WorkspaceSchedulerCard({
           />
         </div>
 
-        <div className="md:col-span-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-2 pt-2 border-t border-dashed border-border-primary">
+        <div className="md:col-span-12 flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-2 pt-2 border-t border-dashed border-border-primary">
           <div className="flex items-center gap-2">
             <input 
               type="checkbox" 

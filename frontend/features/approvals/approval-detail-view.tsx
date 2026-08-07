@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
 import { useAuth } from '@/lib/hooks/queries/use-auth';
-import { useLinkedInConnection } from '@/lib/hooks/queries/use-social-connection';
+import { useLinkedInConnection, useInstagramConnection } from '@/lib/hooks/queries/use-social-connection';
 import { notifications } from '@mantine/notifications';
 import React, { useState, useEffect } from 'react';
 import { 
@@ -52,28 +52,37 @@ export function ApprovalDetailView() {
     refresh: refreshLinkedInConnection,
   } = useLinkedInConnection();
 
-  useEffect(() => {
-    if (searchParams.get('platform') !== 'linkedin') return;
+  const {
+    connection: instagramConnection,
+    connectInstagram,
+    isLoading: isInstagramLoading,
+    refresh: refreshInstagramConnection,
+  } = useInstagramConnection();
 
+  useEffect(() => {
+    const platformParam = searchParams.get('platform');
     const status = searchParams.get('status');
     if (status === 'connected') {
-      refreshLinkedInConnection();
+      if (platformParam === 'linkedin') refreshLinkedInConnection();
+      if (platformParam === 'instagram') refreshInstagramConnection();
       notifications.show({
         title: 'Connected',
-        message: 'LinkedIn connected successfully.',
+        message: `${platformParam === 'instagram' ? 'Instagram' : 'LinkedIn'} connected successfully.`,
         color: 'green',
       });
     } else if (status === 'error') {
       const reason = searchParams.get('reason');
       notifications.show({
         title: 'Connection Failed',
-        message: reason ? `LinkedIn connection failed: ${reason}` : 'LinkedIn connection failed.',
+        message: reason ? `Connection failed: ${reason}` : 'Social connection failed.',
         color: 'red',
       });
     }
 
-    router.replace(`/app/approvals/${id}`);
-  }, [refreshLinkedInConnection, router, searchParams, id]);
+    if (status) {
+      router.replace(`/app/approvals/${id}`);
+    }
+  }, [refreshLinkedInConnection, refreshInstagramConnection, router, searchParams, id]);
 
   const isClient = user?.userType === 'client' || state.currentUserType === 'client';
   const isIndividual = user?.userType === 'individual' || state.currentUserType === 'individual' || state.accountType === 'individual';
@@ -112,15 +121,22 @@ export function ApprovalDetailView() {
   const activeWorkspace = state.workspaces.find((w) => w.id === draft.workspaceId) || state.workspaces[0];
   const imageUrl = draft.imageUrl || getSimulatedImage(draft.prompt ?? '');
 
-  const isLinkedInRequired = draft.platform === 'linkedin' || draft.platform === 'both';
+  const targetPlatform = (draft.platform || 'linkedin').toLowerCase();
   const linkedinConnected = linkedinConnection?.connected ?? false;
-  const isApprovalDisabled = canApprove && isLinkedInRequired && !isLinkedInLoading && !linkedinConnected;
+  const instagramConnected = instagramConnection?.connected ?? false;
+
+  const requiresLinkedIn = targetPlatform === 'linkedin' || targetPlatform === 'both';
+  const requiresInstagram = targetPlatform === 'instagram' || targetPlatform === 'both';
+
+  const isLinkedInMissing = requiresLinkedIn && !isLinkedInLoading && !linkedinConnected;
+  const isInstagramMissing = requiresInstagram && !isInstagramLoading && !instagramConnected;
+  const isApprovalDisabled = canApprove && (isLinkedInMissing || isInstagramMissing);
 
   const handleApprove = () => {
     if (isApprovalDisabled) {
       notifications.show({
-        title: 'LinkedIn Account Required',
-        message: 'You must connect your LinkedIn account to approve this post.',
+        title: 'Social Account Connection Required',
+        message: 'You must connect required social account(s) before approving this post.',
         color: 'red',
       });
       return;
@@ -235,17 +251,29 @@ export function ApprovalDetailView() {
             {isApprovalDisabled && (
               <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900/50 p-4 text-xs space-y-2">
                 <p className="font-semibold text-red-800 dark:text-red-400">
-                  LinkedIn Account Required
+                  Social Account Connection Required
                 </p>
                 <p className="text-red-700 dark:text-red-300">
-                  Please connect your LinkedIn account to approve this post. As a standard, a client's account must be connected to where the post is published.
+                  Please connect the target social media account(s) ({requiresLinkedIn ? 'LinkedIn' : ''}{requiresLinkedIn && requiresInstagram ? ' & ' : ''}{requiresInstagram ? 'Instagram' : ''}) to approve this post.
                 </p>
-                <button
-                  onClick={() => connectLinkedIn(`/app/approvals/${draft.id}`)}
-                  className="mt-1 bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-[10px] transition shadow-xs cursor-pointer animate-pulse"
-                >
-                  Connect LinkedIn
-                </button>
+                <div className="flex items-center gap-2 pt-1">
+                  {isLinkedInMissing && (
+                    <button
+                      onClick={() => connectLinkedIn(`/app/approvals/${draft.id}`)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-[10px] transition cursor-pointer"
+                    >
+                      Connect LinkedIn
+                    </button>
+                  )}
+                  {isInstagramMissing && (
+                    <button
+                      onClick={() => connectInstagram(`/app/approvals/${draft.id}`)}
+                      className="bg-instagram-pink hover:opacity-90 text-white font-bold px-3 py-1.5 rounded-lg text-[10px] transition cursor-pointer"
+                    >
+                      Connect Instagram
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 

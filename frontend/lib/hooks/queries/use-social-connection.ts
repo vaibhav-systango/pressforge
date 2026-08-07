@@ -120,3 +120,12 @@ export function useLinkedInConnection() {
     disconnectLinkedIn: result.disconnect,
   };
 }
+
+export function useInstagramConnection() {
+  const result = useSocialConnection('instagram');
+  return {
+    ...result,
+    connectInstagram: result.connect,
+    disconnectInstagram: result.disconnect,
+  };
+}
