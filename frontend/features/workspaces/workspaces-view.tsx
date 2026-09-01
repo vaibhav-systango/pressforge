@@ -85,6 +85,7 @@ export function WorkspacesView() {
   // Edit state
   const [brandName, setBrandName] = useState(currentWorkspace?.name || '');
   const [website, setWebsite] = useState(currentWorkspace?.website || '');
+  const [prompt, setPrompt] = useState(currentWorkspace?.prompt || '');
   const [tone, setTone] = useState<ToneOption>(
     (currentWorkspace?.tone as ToneOption) || 'professional',
   );
@@ -143,6 +144,7 @@ export function WorkspacesView() {
       const handle = setTimeout(() => {
         setBrandName(currentWorkspace.name);
         setWebsite(currentWorkspace.website ?? '');
+        setPrompt(currentWorkspace.prompt ?? '');
         setTone((currentWorkspace.tone as ToneOption) ?? 'professional');
         setBrandVoice(currentWorkspace.brandVoice ?? '');
         setKeywords(currentWorkspace.keywords || []);
@@ -203,6 +205,7 @@ export function WorkspacesView() {
         ...currentWorkspace,
         name: brandName,
         website: website || undefined,
+        prompt: prompt || undefined,
         tone: tone as Workspace['tone'],
         brandVoice: brandVoice || undefined,
         keywords: keywords,
@@ -442,6 +445,8 @@ export function WorkspacesView() {
                   setBrandName={setBrandName}
                   website={website}
                   setWebsite={setWebsite}
+                  prompt={prompt}
+                  setPrompt={setPrompt}
                   tone={tone}
                   setTone={setTone}
                   brandVoice={brandVoice}

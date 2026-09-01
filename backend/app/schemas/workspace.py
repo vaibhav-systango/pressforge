@@ -28,6 +28,7 @@ class WorkspaceResponse(BaseModel):
     targetAudience: str | None = None
     brandVoice: str | None = None
     logoUrl: str | None = None
+    prompt: str | None = None
     tone: str | None = None
     keywords: list[str] = Field(default_factory=list)
     rules: list[str] = Field(default_factory=list)
@@ -51,6 +52,7 @@ class CreateWorkspaceRequest(BaseModel):
     targetAudience: str | None = None
     brandVoice: str | None = None
     logoUrl: str | None = None
+    prompt: str | None = None
     tone: str | None = None
     keywords: list[str] = Field(default_factory=list)
     rules: list[str] = Field(default_factory=list)
@@ -64,6 +66,7 @@ class UpdateWorkspaceRequest(BaseModel):
     targetAudience: str | None = None
     brandVoice: str | None = None
     logoUrl: str | None = None
+    prompt: str | None = None
     tone: str | None = None
     keywords: list[str] | None = None
     rules: list[str] | None = None

@@ -50,6 +50,7 @@ export interface Workspace {
   industry?: string;
   targetAudience?: string;
   brandVoice?: string;
+  prompt?: string;
   logoUrl?: string;
   brandAsset?: string;
   schedules: Schedule[];

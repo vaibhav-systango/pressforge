@@ -31,6 +31,7 @@ export function mapWorkspaceResponse(workspace: WorkspaceResponse): Workspace {
     industry: nullToUndefined(workspace.industry),
     targetAudience: nullToUndefined(workspace.targetAudience),
     brandVoice: nullToUndefined(workspace.brandVoice),
+    prompt: nullToUndefined(workspace.prompt),
     logoUrl: nullToUndefined(workspace.logoUrl),
     tone: workspace.tone as Workspace['tone'],
     keywords: workspace.keywords ?? [],
@@ -43,7 +44,7 @@ export function mapWorkspaceResponse(workspace: WorkspaceResponse): Workspace {
 export function workspaceToCreateRequest(
   workspace: Pick<
     Workspace,
-    'name' | 'website' | 'description' | 'industry' | 'targetAudience' | 'brandVoice' | 'logoUrl' | 'tone' | 'keywords' | 'rules'
+    'name' | 'website' | 'description' | 'industry' | 'targetAudience' | 'brandVoice' | 'prompt' | 'logoUrl' | 'tone' | 'keywords' | 'rules'
   >,
 ) {
   return {
@@ -53,6 +54,7 @@ export function workspaceToCreateRequest(
     industry: workspace.industry,
     targetAudience: workspace.targetAudience,
     brandVoice: workspace.brandVoice,
+    prompt: workspace.prompt,
     logoUrl: workspace.logoUrl,
     tone: workspace.tone,
     keywords: workspace.keywords ?? [],
@@ -63,7 +65,7 @@ export function workspaceToCreateRequest(
 export function workspaceToUpdateRequest(
   workspace: Pick<
     Workspace,
-    'name' | 'website' | 'description' | 'industry' | 'targetAudience' | 'brandVoice' | 'logoUrl' | 'tone' | 'keywords' | 'rules'
+    'name' | 'website' | 'description' | 'industry' | 'targetAudience' | 'brandVoice' | 'prompt' | 'logoUrl' | 'tone' | 'keywords' | 'rules'
   >,
 ) {
   return workspaceToCreateRequest(workspace);

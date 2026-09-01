@@ -28,6 +28,7 @@ class Workspace(Base):
     targetAudience = Column(Text, nullable=True)
     brandVoice = Column(Text, nullable=True)
     logoUrl = Column(String, nullable=True)
+    prompt = Column(Text, nullable=True)
     tone = Column(String, nullable=True)
     keywords = Column(JSON, nullable=False, default=list)
     rules = Column(JSON, nullable=False, default=list)

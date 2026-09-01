@@ -27,6 +27,8 @@ interface EditWorkspaceFormProps {
   setBrandName: (val: string) => void;
   website: string;
   setWebsite: (val: string) => void;
+  prompt: string;
+  setPrompt: (val: string) => void;
   tone: ToneOption;
   setTone: (val: ToneOption) => void;
   brandVoice: string;
@@ -51,6 +53,8 @@ export function EditWorkspaceForm({
   setBrandName,
   website,
   setWebsite,
+  prompt,
+  setPrompt,
   tone,
   setTone,
   brandVoice,
@@ -241,6 +245,25 @@ export function EditWorkspaceForm({
                   Describe detailed instructions on style rules, tone shifts, and formatting instructions.
                 </p>
               )}
+            </div>
+
+            {/* Social Post Brief / Prompt */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-text-primary" htmlFor="brand-prompt">
+                Social Post Brief / Prompt <span className="text-instagram-pink font-bold">*</span>
+              </label>
+              <textarea
+                id="brand-prompt"
+                required
+                placeholder="Default social post brief or concept for this workspace..."
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                rows={3}
+                className="w-full border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-xs focus:border-instagram-pink outline-none resize-none transition"
+              />
+              <p className="text-[10px] text-text-secondary">
+                This prompt will serve as the default post concept for content generation in this workspace.
+              </p>
             </div>
           </div>
 

@@ -119,7 +119,7 @@ export function GenerationSettingsForm({
   const isWorkspaceSelected = !!state.activeWorkspaceId;
   const isClientSelected = isClient || isIndividual || !!state.activeClientId;
 
-  const isSubmitDisabled = generating || !isWorkspaceSelected || !isClientSelected;
+  const isSubmitDisabled = generating || !isWorkspaceSelected || !isClientSelected || !prompt.trim();
 
   // Local input fields
   const [urlInput, setUrlInput] = useState('');
@@ -179,10 +179,11 @@ export function GenerationSettingsForm({
         {/* Prompt */}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-semibold text-text-secondary" htmlFor="post-brief">
-            Social Post Brief / Prompt <span className="font-normal text-text-secondary/70">(Optional)</span>
+            Social Post Brief / Prompt <span className="text-instagram-pink font-bold">*</span>
           </label>
           <textarea
             id="post-brief"
+            required
             placeholder="Describe your post concept. E.g., 'Teaser about organic summer clothing launch.'"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}

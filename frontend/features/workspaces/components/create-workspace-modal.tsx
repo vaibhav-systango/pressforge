@@ -43,6 +43,7 @@ export function CreateWorkspaceModal({
   // Form states
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [newWorkspaceWebsite, setNewWorkspaceWebsite] = useState('');
+  const [newWorkspacePrompt, setNewWorkspacePrompt] = useState('');
   const [newWorkspaceTone, setNewWorkspaceTone] = useState('professional');
   const [newWorkspaceBrandVoice, setNewWorkspaceBrandVoice] = useState('');
   const [newKeywords, setNewKeywords] = useState<string[]>([]);
@@ -82,6 +83,7 @@ export function CreateWorkspaceModal({
       // Reset form states
       setNewWorkspaceName('');
       setNewWorkspaceWebsite('');
+      setNewWorkspacePrompt('');
       setNewWorkspaceTone('professional');
       setNewWorkspaceBrandVoice('');
       setNewKeywords([]);
@@ -209,6 +211,7 @@ export function CreateWorkspaceModal({
       id: newId,
       name: newWorkspaceName,
       website: newWorkspaceWebsite || undefined,
+      prompt: newWorkspacePrompt || undefined,
       tone: newWorkspaceTone as Workspace['tone'],
       brandVoice: newWorkspaceBrandVoice || undefined,
       keywords: newKeywords.length > 0 ? newKeywords : [],
@@ -309,6 +312,17 @@ export function CreateWorkspaceModal({
             {newWebsiteError && (
               <p className="text-[10px] text-red-500 font-semibold">{newWebsiteError}</p>
             )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-text-secondary">Social Post Brief / Prompt (Optional)</label>
+            <textarea
+              placeholder="Default post brief or prompt for this workspace..."
+              value={newWorkspacePrompt}
+              onChange={(e) => setNewWorkspacePrompt(e.target.value)}
+              rows={2}
+              className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2 text-xs focus:border-instagram-pink outline-none resize-none transition"
+            />
           </div>
 
           {state.currentUserType !== 'individual' && (

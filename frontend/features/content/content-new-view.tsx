@@ -67,10 +67,24 @@ export function ContentNewView() {
   const [localRules, setLocalRules] = useState<string[]>(activeWorkspace?.rules || []);
 
   // Primary Prompt & Preferences
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState(activeWorkspace?.prompt || "");
   const [goal, setGoal] = useState("Product Spotlight");
   const [cta, setCta] = useState("Link in Bio");
   const [visualStyle, setVisualStyle] = useState("Warm & Organic");
+
+  // Sync workspace prompt and properties when active workspace changes
+  React.useEffect(() => {
+    if (activeWorkspace) {
+      setLocalBrandName(activeWorkspace.name || "");
+      setLocalWebsite(activeWorkspace.website || "");
+      setLocalTargetAudience(activeWorkspace.targetAudience || "");
+      setLocalBrandVoice(activeWorkspace.brandVoice || "");
+      setLocalTone(activeWorkspace.tone || "professional");
+      setLocalKeywords(activeWorkspace.keywords || []);
+      setLocalRules(activeWorkspace.rules || []);
+      setPrompt(activeWorkspace.prompt || "");
+    }
+  }, [activeWorkspace?.id]);
 
   // Platform selection state
   const [targetPlatforms, setTargetPlatforms] = useState<
@@ -149,6 +163,15 @@ export function ContentNewView() {
       notifications.show({
         title: 'Validation error',
         message: 'Select a client before generating content.',
+        color: 'red',
+      });
+      return;
+    }
+
+    if (!prompt.trim()) {
+      notifications.show({
+        title: 'Validation error',
+        message: 'Social Post Brief / Prompt is required.',
         color: 'red',
       });
       return;

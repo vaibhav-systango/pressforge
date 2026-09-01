@@ -90,6 +90,7 @@ const SEED_WORKSPACES: Workspace[] = [
     website: 'https://acmebrand.com',
     industry: 'Consumer Goods',
     brandVoice: 'Bold and playful',
+    prompt: 'Teaser about new product launch and summer vibes',
     schedules: [
       {
         id: 'sch-1',
@@ -107,6 +108,7 @@ const SEED_WORKSPACES: Workspace[] = [
     website: 'https://ecolifeco.com',
     industry: 'Sustainability',
     brandVoice: 'Authentic and inspiring',
+    prompt: 'Highlight sustainable practices and eco-friendly products',
     schedules: [],
   },
 ];

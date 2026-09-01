@@ -32,6 +32,7 @@ function buildCreatePayload(body: CreateWorkspaceRequest | Workspace) {
         industry: body.industry,
         targetAudience: body.targetAudience,
         brandVoice: body.brandVoice,
+        prompt: body.prompt,
         logoUrl: body.logoUrl,
         tone: body.tone,
         keywords: body.keywords ?? [],

@@ -179,6 +179,7 @@ export interface WorkspaceResponse {
   industry?: string | null;
   targetAudience?: string | null;
   brandVoice?: string | null;
+  prompt?: string | null;
   logoUrl?: string | null;
   tone?: string | null;
   keywords?: string[];
@@ -202,6 +203,7 @@ export interface CreateWorkspaceRequest {
   industry?: string | null;
   targetAudience?: string | null;
   brandVoice?: string | null;
+  prompt?: string | null;
   logoUrl?: string | null;
   tone?: string | null;
   keywords?: string[];
