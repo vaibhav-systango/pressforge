@@ -13,6 +13,7 @@ const PUBLIC_API_PREFIXES = [
   '/api/auth/reset-password',
   '/api/session/init',
   '/api/invitations/accept',
+  '/api/public',
 ];
 
 const ACCESS_TOKEN_COOKIE = 'access_token';

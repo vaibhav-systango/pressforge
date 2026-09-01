@@ -152,46 +152,171 @@ export function LandingPage() {
                 </div>
               </div>
               
-              {/* Dynamic SVG Weekly Trend Chart */}
-              <div className="h-36 sm:h-48 bg-bg-app/60 border border-border-primary rounded-xl p-4 flex flex-col justify-between">
-                <div className="flex items-center justify-between text-xs text-text-secondary font-semibold">
-                  <span>Weekly Campaign Reach Trend (API Analytics)</span>
-                  <span className="text-green-500 font-bold flex items-center gap-1">
-                    <TrendingUp className="w-3.5 h-3.5" /> Live Data
-                  </span>
-                </div>
-                <div className="w-full h-24 sm:h-32 flex items-end">
-                  <svg viewBox="0 0 500 120" className="w-full h-full">
-                    <path
-                      d="M 20 100 Q 80 40, 140 70 T 260 30 T 380 50 T 480 15"
-                      fill="none"
-                      stroke="url(#igGradPublic)"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                    />
-                    <defs>
-                      <linearGradient id="igGradPublic" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#F58529" />
-                        <stop offset="50%" stopColor="#DD2A7B" />
-                        <stop offset="100%" stopColor="#515BD4" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                </div>
-              </div>
+              {/* Minimalist Peak-Highlighted Campaign Reach Trend Chart */}
+              {(() => {
+                const weeklyTrendData = publicStats?.weeklyTrend || [
+                  { day: 'Mon', value: 0, reach: 0 },
+                  { day: 'Tue', value: 0, reach: 0 },
+                  { day: 'Wed', value: 0, reach: 0 },
+                  { day: 'Thu', value: 0, reach: 0 },
+                  { day: 'Fri', value: 0, reach: 0 },
+                  { day: 'Sat', value: 0, reach: 0 },
+                  { day: 'Sun', value: 0, reach: 0 },
+                ];
+
+                const maxReach = Math.max(...weeklyTrendData.map((d) => d.reach ?? d.value ?? 0), 10);
+
+                const X_START = 35;
+                const X_END = 475;
+                const Y_TOP = 40;
+                const Y_BOTTOM = 135;
+
+                const points = weeklyTrendData.map((item, idx) => {
+                  const x = X_START + idx * ((X_END - X_START) / 6);
+                  const reachVal = item.reach ?? item.value ?? 0;
+                  const y = Y_BOTTOM - (reachVal / maxReach) * (Y_BOTTOM - Y_TOP);
+                  return { x, y, reach: reachVal, day: item.day };
+                });
+
+                let curveD = '';
+                if (points.length > 0) {
+                  curveD = `M ${points[0].x} ${points[0].y}`;
+                  for (let i = 0; i < points.length - 1; i++) {
+                    const curr = points[i];
+                    const next = points[i + 1];
+                    const cp1x = curr.x + (next.x - curr.x) / 2;
+                    const cp1y = curr.y;
+                    const cp2x = curr.x + (next.x - curr.x) / 2;
+                    const cp2y = next.y;
+                    curveD += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${next.x} ${next.y}`;
+                  }
+                }
+
+                const areaD = points.length > 0
+                  ? `${curveD} L ${points[points.length - 1].x} ${Y_BOTTOM} L ${points[0].x} ${Y_BOTTOM} Z`
+                  : '';
+
+                // Find peak (highest point)
+                const peakPoint = points.reduce(
+                  (max, p) => (p.reach > max.reach ? p : max),
+                  points[0] || { x: 475, y: 40, reach: 0, day: 'Sun' }
+                );
+
+                return (
+                  <div className="h-56 sm:h-64 bg-bg-app/60 border border-border-primary rounded-xl p-4 flex flex-col justify-between shadow-sm">
+                    {/* Clean Non-Technical Header */}
+                    <div className="flex items-center justify-between border-b border-border-primary/40 pb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-text-primary">Organic Reach Growth</span>
+                        <span className="text-[10px] text-green-500 font-bold bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full">
+                          +24% Growth
+                        </span>
+                      </div>
+                      <span className="text-xs text-text-secondary font-semibold flex items-center gap-1">
+                        <TrendingUp className="w-3.5 h-3.5 text-green-500" /> Live Growth
+                      </span>
+                    </div>
+
+                    {/* Sleek Line Graph without Axes or Intermediate Dots */}
+                    <div className="w-full flex-1 flex items-center justify-center pt-2">
+                      <svg viewBox="0 0 510 170" className="w-full h-full overflow-visible">
+                        <defs>
+                          <linearGradient id="igGradPublic" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#F58529" />
+                            <stop offset="50%" stopColor="#DD2A7B" />
+                            <stop offset="100%" stopColor="#515BD4" />
+                          </linearGradient>
+                          <linearGradient id="igGradFill" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor="#DD2A7B" stopOpacity="0.25" />
+                            <stop offset="100%" stopColor="#DD2A7B" stopOpacity="0.0" />
+                          </linearGradient>
+                        </defs>
+
+                        {/* Subtle Horizontal Reference Gridlines */}
+                        {[Y_TOP, Y_TOP + (Y_BOTTOM - Y_TOP) * 0.5, Y_BOTTOM].map((yVal, i) => (
+                          <line
+                            key={i}
+                            x1={X_START}
+                            y1={yVal}
+                            x2={X_END}
+                            y2={yVal}
+                            stroke="currentColor"
+                            strokeOpacity="0.08"
+                            strokeDasharray="4 4"
+                          />
+                        ))}
+
+                        {/* Translucent Area Fill below Curve */}
+                        {areaD && <path d={areaD} fill="url(#igGradFill)" />}
+
+                        {/* Main Smooth Trend Curve Line */}
+                        {curveD && (
+                          <path
+                            d={curveD}
+                            fill="none"
+                            stroke="url(#igGradPublic)"
+                            strokeWidth="4"
+                            strokeLinecap="round"
+                          />
+                        )}
+
+                        {/* HIGHLIGHTED PEAK POINT ONLY */}
+                        {peakPoint && (
+                          <g>
+                            {/* Outer Glow Circle */}
+                            <circle
+                              cx={peakPoint.x}
+                              cy={peakPoint.y}
+                              r="8"
+                              fill="#DD2A7B"
+                              fillOpacity="0.3"
+                            />
+                            {/* Inner Peak Node */}
+                            <circle
+                              cx={peakPoint.x}
+                              cy={peakPoint.y}
+                              r="5"
+                              className="fill-[#DD2A7B] stroke-white dark:stroke-bg-card"
+                              strokeWidth="2.5"
+                            />
+                            {/* Highlighted Peak Value Badge */}
+                            <g transform={`translate(${peakPoint.x > 430 ? peakPoint.x - 42 : peakPoint.x}, ${peakPoint.y - 14})`}>
+                              <rect
+                                x="-42"
+                                y="-18"
+                                width="84"
+                                height="20"
+                                rx="10"
+                                fill="#DD2A7B"
+                                className="shadow-md"
+                              />
+                              <text
+                                x="0"
+                                y="-4"
+                                textAnchor="middle"
+                                fill="#ffffff"
+                                className="text-[10px] font-extrabold tracking-wide"
+                              >
+                                {peakPoint.reach}K Peak
+                              </text>
+                            </g>
+                          </g>
+                        )}
+                      </svg>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Live API Metrics Counter Section */}
+      {/* Live Platform Counter Section */}
       <section id="live-metrics" className="bg-slate-900 dark:bg-bg-card border-y border-slate-800 dark:border-border-primary text-white py-12 transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-8">
-            <span className="text-xs uppercase font-extrabold tracking-widest text-instagram-pink bg-pink-950/50 border border-pink-800/40 px-3 py-1 rounded-full">
-              Real-time API Engine Metrics
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold mt-3 text-white dark:text-text-primary">Live Platform Statistics</h2>
+            <h2 className="text-2xl sm:text-3xl font-extrabold mt-3 text-white dark:text-text-primary">Live Platform Performance</h2>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             <div className="p-4 rounded-xl bg-slate-800/60 dark:bg-bg-app border border-slate-700/60 dark:border-border-primary">

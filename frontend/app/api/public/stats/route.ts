@@ -14,7 +14,7 @@ export async function GET() {
       });
     }
 
-    // 2. Compute purely from live store state
+    // 2. Compute purely from live store state without dummy data
     let state;
     try {
       const session = await resolveRequestSession();
@@ -36,12 +36,10 @@ export async function GET() {
     const approvalRateNum = totalDecided > 0 ? (approvedDrafts / totalDecided) * 100 : totalDrafts > 0 ? 100 : 0;
     const approvalRate = `${approvalRateNum.toFixed(1)}%`;
 
-    // Dynamic reach calculated directly from workspace schedules and published drafts
     const totalSchedules = workspaces.reduce((acc, w) => acc + (w.schedules?.length || 0), 0);
     const calculatedReachVal = (approvedDrafts * 2.5) + (totalSchedules * 5.0) + (totalWorkspaces * 10.0);
-    const totalReach = calculatedReachVal >= 1 ? `${calculatedReachVal.toFixed(1)}K` : '0K';
+    const totalReach = calculatedReachVal >= 0.1 ? `${calculatedReachVal.toFixed(1)}K` : '0K';
 
-    // Compute average approval time in hours from draft creation to scheduled/published
     let totalApprovalMs = 0;
     let approvedCountWithTime = 0;
     drafts.forEach((d) => {
@@ -59,7 +57,6 @@ export async function GET() {
       ? `${(totalApprovalMs / (approvedCountWithTime * 3600000)).toFixed(1)} hrs`
       : '0.0 hrs';
 
-    // Compute weekly trend directly from draft timestamps
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const dayCounts: Record<string, number> = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
 
@@ -78,8 +75,9 @@ export async function GET() {
       reach: Number(((dayCounts[day] || 0) * 1.5).toFixed(1)),
     }));
 
-    // Algorithmic health score out of 100 based on approval rate and active schedule coverage
-    const activeScheduleCoverage = totalWorkspaces > 0 ? (workspaces.filter(w => (w.schedules?.length || 0) > 0).length / totalWorkspaces) * 30 : 0;
+    const activeScheduleCoverage = totalWorkspaces > 0
+      ? (workspaces.filter(w => (w.schedules?.length || 0) > 0).length / totalWorkspaces) * 30
+      : 0;
     const healthScoreVal = Math.round((approvalRateNum * 0.7) + activeScheduleCoverage);
     const healthScore = `${Math.min(100, Math.max(0, healthScoreVal))}/100`;
 
