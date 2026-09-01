@@ -99,3 +99,7 @@ class UpdateDraftRequest(BaseModel):
     referenceUrls: list[str] | None = None
     referenceText: str | None = None
     history: list[DraftHistoryEntry] | None = None
+
+
+class SubmitFeedbackRequest(BaseModel):
+    feedback: str = Field(..., min_length=1)

@@ -379,4 +379,122 @@ Rules:
         }
 
 
+    def generate_from_feedback(
+        self,
+        *,
+        feedback: str,
+        previous_caption: str,
+        previous_li_caption: str | None,
+        previous_image_brief: str | None,
+        previous_li_image_brief: str | None,
+        previous_hashtags: list[str],
+        previous_li_hashtags: list[str],
+        previous_image_url: str | None,
+        # Brand context
+        brand_name: str | None = None,
+        tone: str | None = None,
+        keywords: list[str] | None = None,
+        target_audience: str | None = None,
+        brand_voice: str | None = None,
+        description: str | None = None,
+        rules: list[str] | None = None,
+        platforms: list[str] | None = None,
+        aspect_ratio: str = "1:1",
+    ) -> dict[str, Any]:
+        """
+        Generate a single improved post variation based on client feedback.
+        The previous caption and feedback are used as context so the AI improves,
+        rather than starting from scratch.
+        """
+        platforms_label = ", ".join(platforms or ["instagram", "linkedin"])
+        keyword_list = ", ".join(keywords or []) or "(none)"
+        brand_rules = "\n".join(f"- {rule}" for rule in (rules or []) if rule) or "(none)"
+        hashtags_str = ", ".join(f"#{h}" for h in previous_hashtags) or "(none)"
+        li_hashtags_str = ", ".join(f"#{h}" for h in previous_li_hashtags) or "(none)"
+
+        prompt_instructions = f"""
+You are an expert social media content creator for Pressforge.
+A client has reviewed the following post and provided revision feedback.
+Your task is to produce exactly 1 improved variation that addresses the feedback.
+
+--- PREVIOUS INSTAGRAM CAPTION ---
+{previous_caption or "(none)"}
+
+--- PREVIOUS INSTAGRAM HASHTAGS ---
+{hashtags_str}
+
+--- PREVIOUS LINKEDIN CAPTION ---
+{previous_li_caption or "(none)"}
+
+--- PREVIOUS LINKEDIN HASHTAGS ---
+{li_hashtags_str}
+
+--- PREVIOUS IMAGE BRIEF ---
+{previous_image_brief or "(none)"}
+
+--- CLIENT FEEDBACK / REVISION REQUEST ---
+"{feedback}"
+
+--- BRAND CONTEXT ---
+Brand name: "{brand_name or "Our Brand"}"
+Brand tone: "{tone or "Professional"}"
+Brand voice notes: "{brand_voice or ""}"
+Brand description: "{description or ""}"
+Target audience: "{target_audience or "General audience"}"
+Brand keywords: "{keyword_list}"
+Target platforms: "{platforms_label}"
+
+Brand rules (must follow):
+{brand_rules}
+
+Rules for your response:
+- Return exactly 1 variation (in the `variations` array).
+- Preserve the parts of the previous post that were not mentioned in feedback.
+- Directly address every point raised in the client feedback.
+- Instagram captions (caption) should feel platform-native; include the CTA naturally.
+- LinkedIn captions (liCaption) should be more professional and paragraph-friendly.
+- hashtags and liHashtags must be strings WITHOUT the # prefix.
+- Include brand keywords as hashtags when they fit.
+- imageBrief and liImageBrief must be hyper-detailed standalone prompts for an AI image generator.
+- Do not mention that you are an AI.
+""".strip()
+
+        raw = self._call_gemini(prompt_instructions)
+        raw_variations = raw.get("variations") or []
+        if not isinstance(raw_variations, list) or len(raw_variations) == 0:
+            raise ValueError(ContentErrorCodes.GENERATION_FAILED)
+
+        item = raw_variations[0]
+        hashtags = item.get("hashtags") or []
+        li_hashtags = item.get("liHashtags") or []
+        if not isinstance(hashtags, list):
+            hashtags = []
+        if not isinstance(li_hashtags, list):
+            li_hashtags = []
+
+        new_image_brief = (item.get("imageBrief") or "").strip()
+        image_url: str | None = previous_image_url
+        image_warning: str | None = None
+
+        if new_image_brief:
+            try:
+                pollinations_url = self.build_pollinations_url(new_image_brief, aspect_ratio)
+                image_url = self._rehost_image(pollinations_url) or pollinations_url
+            except Exception as exc:
+                logger.warning("Image generation failed during feedback regeneration: %s", exc)
+                image_warning = str(exc)
+                image_url = previous_image_url
+
+        return {
+            "caption": item.get("caption") or "",
+            "hashtags": [str(tag).lstrip("#") for tag in hashtags],
+            "imageBrief": new_image_brief,
+            "liCaption": item.get("liCaption") or "",
+            "liHashtags": [str(tag).lstrip("#") for tag in li_hashtags],
+            "liImageBrief": (item.get("liImageBrief") or "").strip(),
+            "imageUrl": image_url,
+            "imageWarning": image_warning,
+        }
+
+
 gemini_content_provider = GeminiContentProvider()

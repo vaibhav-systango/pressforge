@@ -11,6 +11,7 @@ from app.core.constants.content_constants import DraftErrorCodes, DraftErrorMess
 from app.schemas.draft import (
     CreateDraftRequest,
     UpdateDraftRequest,
+    SubmitFeedbackRequest,
     DraftResponse,
     DraftListResponse,
     PublishDraftResponse,
@@ -225,4 +226,29 @@ def publish_draft(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred.",
+        ) from exc
+
+
+@router.post(
+    "/{draft_id}/feedback",
+    response_model=DraftResponse,
+    summary="Submit client feedback and regenerate draft content via AI",
+)
+def submit_feedback(
+    draft_id: str,
+    body: SubmitFeedbackRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return draft_service.submit_feedback_and_regenerate(
+            db, current_user, draft_id, body.feedback
+        )
+    except ValueError as exc:
+        _raise_draft_error(str(exc))
+    except Exception as exc:
+        logger.error("Unexpected feedback regeneration error for draft %s: %s", draft_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI regeneration failed. Please try again.",
         ) from exc

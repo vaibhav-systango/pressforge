@@ -121,7 +121,15 @@ export function ApprovalsListView() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h4 className="text-sm font-bold text-text-primary">{draft.prompt}</h4>
-                    <span className="text-[10px] text-slate-400 font-semibold">Version {draft.version}.0</span>
+                    <span className="text-[10px] text-slate-400 font-semibold">v{draft.version ?? 1}</span>
+                    {(() => {
+                      const revCount = (draft.history ?? []).filter(h => h.action === 'Client Requested Changes').length;
+                      return revCount > 0 ? (
+                        <span className="text-[10px] font-bold text-purple-500 bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.5 rounded-full">
+                          {revCount} revision{revCount !== 1 ? 's' : ''}
+                        </span>
+                      ) : null;
+                    })()}
                   </div>
                   <p className="text-xs text-text-secondary line-clamp-2 leading-relaxed">{draft.caption}</p>
                   <div className="flex items-center gap-1.5 pt-1">
@@ -142,7 +150,7 @@ export function ApprovalsListView() {
                   </Link>
                 ) : (
                   <Link
-                    href={`/app/content/${draft.id}`}
+                    href={canApprove ? `/app/approvals/${draft.id}` : `/app/content/${draft.id}`}
                     className="text-xs font-bold text-text-secondary hover:text-text-primary hover:underline py-2 whitespace-nowrap cursor-pointer"
                   >
                     View History

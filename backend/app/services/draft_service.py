@@ -161,5 +161,100 @@ class DraftService:
         db.refresh(draft)
         return _draft_to_dict(draft)
 
+    def submit_feedback_and_regenerate(
+        self, db: Session, user: User, draft_id: str, feedback: str
+    ) -> dict:
+        """
+        Records client feedback in history, calls Gemini for an improved revision,
+        and updates the draft in-place (same ID, incremented version).
+        """
+        from app.repositories.workspace_repository import workspace_repository
+        from app.providers.gemini_content_provider import gemini_content_provider
+
+        draft = draft_repository.get_by_id(db, draft_id)
+        if not draft:
+            raise ValueError(DraftErrorCodes.DRAFT_NOT_FOUND)
+        self._get_accessible_workspace(db, user, draft.workspaceId)
+
+        workspace = workspace_repository.get_by_id(db, draft.workspaceId)
+
+        # ── 1. Snapshot current version into history ──────────────────────────
+        current_version = draft.version or 1
+        feedback_entry = {
+            "version": current_version,
+            "timestamp": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+            "action": "Client Requested Changes",
+            "caption": draft.caption,
+            "liCaption": draft.liCaption,
+            "hashtags": draft.hashtags or [],
+            "liHashtags": draft.liHashtags or [],
+            "imageBrief": draft.imageBrief,
+            "liImageBrief": draft.liImageBrief,
+            "imageUrl": draft.imageUrl,
+            "feedback": feedback,
+        }
+        existing_history = _history_to_dicts(draft.history)
+        new_history = [feedback_entry] + existing_history
+
+        # ── 2. AI regeneration ────────────────────────────────────────────────
+        try:
+            result = gemini_content_provider.generate_from_feedback(
+                feedback=feedback,
+                previous_caption=draft.caption or "",
+                previous_li_caption=draft.liCaption,
+                previous_image_brief=draft.imageBrief,
+                previous_li_image_brief=draft.liImageBrief,
+                previous_hashtags=draft.hashtags or [],
+                previous_li_hashtags=draft.liHashtags or [],
+                previous_image_url=draft.imageUrl,
+                brand_name=workspace.name if workspace else None,
+                tone=workspace.tone if workspace else None,
+                keywords=(workspace.keywords or []) if workspace else [],
+                target_audience=workspace.targetAudience if workspace else None,
+                brand_voice=workspace.brandVoice if workspace else None,
+                description=workspace.description if workspace else None,
+                rules=(workspace.rules or []) if workspace else [],
+                platforms=[draft.platform] if draft.platform and draft.platform != "both"
+                           else ["instagram", "linkedin"],
+            )
+        except Exception as exc:
+            logger.error("AI regeneration failed for draft %s: %s", draft_id, exc)
+            raise
+
+        next_version = current_version + 1
+        ai_entry = {
+            "version": next_version,
+            "timestamp": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+            "action": "AI Revised Post",
+            "caption": result["caption"],
+            "liCaption": result["liCaption"],
+            "hashtags": result["hashtags"],
+            "liHashtags": result["liHashtags"],
+            "imageBrief": result["imageBrief"],
+            "liImageBrief": result["liImageBrief"],
+            "imageUrl": result["imageUrl"],
+            "feedback": None,
+        }
+        new_history = [ai_entry] + new_history
+
+        # ── 3. Update draft in-place ──────────────────────────────────────────
+        updates = {
+            "status": "pending_approval",
+            "version": next_version,
+            "caption": result["caption"],
+            "hashtags": result["hashtags"],
+            "imageBrief": result["imageBrief"],
+            "imageUrl": result["imageUrl"],
+            "liCaption": result["liCaption"],
+            "liHashtags": result["liHashtags"],
+            "liImageBrief": result["liImageBrief"],
+            "history": new_history,
+            "updatedAt": generate_timestamp_ms(),
+        }
+        draft_repository.update(db, draft, **updates)
+        db.commit()
+        db.refresh(draft)
+        return _draft_to_dict(draft)
+
 
 draft_service = DraftService()
