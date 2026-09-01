@@ -39,7 +39,7 @@ export function applyThemeMode(mode: ThemeMode) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<ThemeMode>(() => getInitialMode());
+  const [mode, setModeState] = useState<ThemeMode>('auto');
 
   const setMode = (newMode: ThemeMode) => {
     setModeState(newMode);
@@ -53,6 +53,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const next: ThemeMode = mode === 'light' ? 'dark' : mode === 'dark' ? 'auto' : 'light';
     setMode(next);
   };
+
+  useEffect(() => {
+    // Read saved theme from localStorage after initial hydration pass
+    const stored = getInitialMode();
+    if (stored !== 'auto') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setModeState(stored);
+    }
+  }, []);
 
   useEffect(() => {
     applyThemeMode(mode);

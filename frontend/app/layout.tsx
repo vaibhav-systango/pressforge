@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 
 import { AppProviders } from '@/providers/app-providers';
 
@@ -14,8 +15,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <script
+      <head />
+      <body>
+        <Script
+          id="theme-script"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
@@ -39,8 +43,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             `,
           }}
         />
-      </head>
-      <body>
         <AppProviders>{children}</AppProviders>
       </body>
     </html>
