@@ -14,6 +14,7 @@ import {
   Loader2, History, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import type { Draft } from '@/lib/types';
+import { useDraft } from '@/lib/hooks/queries/use-draft';
 import { FeedbackThread } from './feedback-thread';
 
 const getSimulatedImage = (promptText: string) => {
@@ -38,7 +39,7 @@ export function ApprovalDetailView() {
   const searchParams = useSearchParams();
   const { state, updateDraft } = useAppState();
   const { user } = useAuth();
-  const draft = state.drafts.find((d) => d.id === id);
+  const { draft, isLoading: isDraftLoading } = useDraft(id);
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -78,6 +79,15 @@ export function ApprovalDetailView() {
         <h2 className="text-xl font-bold text-text-primary">Access Restricted</h2>
         <p className="text-sm text-text-secondary">This approval page is only accessible to client and individual users.</p>
         <Link href={id ? `/app/content/${id}` : '/app/approvals'} className="text-xs text-instagram-pink font-semibold mt-2 hover:underline inline-block">View Content History</Link>
+      </div>
+    );
+  }
+
+  if (isDraftLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-instagram-pink" />
+        <p className="text-sm font-semibold text-text-secondary">Loading approval details...</p>
       </div>
     );
   }

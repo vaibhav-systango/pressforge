@@ -1,11 +1,11 @@
 'use client';
 
-import type { DraftHistoryEntry } from '@/lib/types';
+import type { Draft, DraftHistoryEntry } from '@/lib/types';
+import { useDraft } from '@/lib/hooks/queries/use-draft';
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import { useParams } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useAppState } from '@/lib/queries/use-app-state';
 import { notifications } from '@mantine/notifications';
 import React, { useState } from 'react';
@@ -13,16 +13,42 @@ import {
   ChevronLeft, Save, Sparkles, Clock, X, Plus, Heart,
   MessageCircle, Send as ShareIcon, Bookmark, Undo, Link2,
   RefreshCw, Send, Edit3, Linkedin, Share2, ThumbsUp, MoreHorizontal,
-  Instagram, Check
+  Instagram, Check, Loader2,
 } from 'lucide-react';
 import { Select } from '@/components/common/select';
 
 export function ContentDetailView() {
-  const router = useRouter();
-  const { id } = useParams();
-  const { state, updateDraft } = useAppState();
+  const params = useParams();
+  const rawId = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : '';
+  const { draft, isLoading } = useDraft(rawId);
 
-  const draft = state.drafts.find((d) => d.id === id);
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-instagram-pink" />
+        <p className="text-sm font-semibold text-text-secondary">Loading draft details...</p>
+      </div>
+    );
+  }
+
+  if (!draft) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-xl font-bold text-text-primary">Draft Not Found</h2>
+        <p className="text-sm text-text-secondary mt-2">The requested draft could not be located.</p>
+        <Link href="/app/content" className="text-xs text-instagram-pink font-semibold mt-4 hover:underline inline-block">
+          Return to Content Planner
+        </Link>
+      </div>
+    );
+  }
+
+  return <ContentDetailForm draft={draft} />;
+}
+
+function ContentDetailForm({ draft }: { draft: Draft }) {
+  const router = useRouter();
+  const { state, updateDraft } = useAppState();
 
   // Simulated image fallback
   const getSimulatedImage = (promptText: string) => {
@@ -89,18 +115,6 @@ export function ContentDetailView() {
 
   // Mobile step switcher state
   const [mobileStep, setMobileStep] = useState<'preview' | 'guidelines' | 'edits'>('preview');
-
-  if (!draft) {
-    return (
-      <div className="text-center py-12">
-        <h2 className="text-xl font-bold text-text-primary">Draft Not Found</h2>
-        <p className="text-sm text-text-secondary mt-2">The requested draft could not be located.</p>
-        <Link href="/app/content" className="text-xs text-instagram-pink font-semibold mt-4 hover:underline inline-block">
-          Return to Content Planner
-        </Link>
-      </div>
-    );
-  }
 
   const activeWorkspace = state.workspaces.find((w) => w.id === draft.workspaceId) || state.workspaces[0];
 
