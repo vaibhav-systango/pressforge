@@ -1,31 +1,66 @@
 'use client';
 
 import Link from 'next/link';
+import React, { useState } from 'react';
+import { Sparkles, Instagram, Linkedin, Loader2, Search, Filter, X } from 'lucide-react';
 import { useAppState } from '@/lib/queries/use-app-state';
 import { useAuth } from '@/lib/hooks/queries/use-auth';
-import React, { useState } from 'react';
-import { Sparkles, Instagram, Linkedin } from 'lucide-react';
+import { usePaginatedDrafts } from '@/lib/hooks/queries/use-paginated-drafts';
+import { Pagination } from '@/components/ui/pagination';
+import { Select } from '@/components/ui/select';
 
 export function ContentListView() {
   const { state } = useAppState();
   const { user } = useAuth();
   const isClient = user?.userType === 'client' || state.currentUserType === 'client';
-  const isIndividual = user?.userType === 'individual' || state.currentUserType === 'individual' || state.accountType === 'individual';
+  const isIndividual =
+    user?.userType === 'individual' ||
+    state.currentUserType === 'individual' ||
+    state.accountType === 'individual';
   const canApprove = isClient || isIndividual;
+
   const [listTab, setListTab] = useState<'all' | 'draft' | 'pending' | 'approved' | 'published'>('all');
+  const [search, setSearch] = useState<string>('');
+  const [platform, setPlatform] = useState<string>('all');
+  const [page, setPage] = useState<number>(1);
 
-  // Filter drafts for current workspace
-  const workspaceDrafts = state.drafts.filter((d) => d.workspaceId === state.activeWorkspaceId);
+  const handleTabChange = (newTab: 'all' | 'draft' | 'pending' | 'approved' | 'published') => {
+    setListTab(newTab);
+    setPage(1);
+  };
 
-  // Filter list by tab
-  const filteredDrafts = workspaceDrafts.filter((d) => {
-    if (listTab === 'all') return true;
-    if (listTab === 'draft') return d.status === 'draft' || d.status === 'rejected';
-    if (listTab === 'pending') return d.status === 'pending_approval';
-    if (listTab === 'approved') return d.status === 'approved';
-    if (listTab === 'published') return d.status === 'published';
-    return true;
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value);
+    setPage(1);
+  };
+
+  const handlePlatformChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setPlatform(e.target.value);
+    setPage(1);
+  };
+
+  const handleClearFilters = () => {
+    setSearch('');
+    setPlatform('all');
+    setPage(1);
+  };
+
+  const {
+    drafts,
+    total,
+    totalPages,
+    isLoading,
+    isFetching,
+  } = usePaginatedDrafts({
+    workspaceId: state.activeWorkspaceId,
+    status: listTab,
+    search,
+    platform,
+    page,
+    limit: 10,
   });
+
+  const isFiltered = Boolean(search.trim() || platform !== 'all');
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in text-text-primary">
@@ -49,33 +84,83 @@ export function ContentListView() {
         </div>
       </div>
 
+      {/* Backend Driven Filter Bar */}
+      <div className="bg-bg-card border border-border-primary rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="relative flex-1 w-full">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
+          <input
+            type="text"
+            value={search}
+            onChange={handleSearchChange}
+            placeholder="Search content brief or caption..."
+            className="w-full bg-bg-app border border-border-primary rounded-xl pl-9 pr-3 py-2 text-xs font-medium text-text-primary placeholder:text-text-secondary/60 focus:outline-none focus:ring-1 focus:ring-instagram-pink"
+          />
+        </div>
+
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <Select
+            value={platform}
+            onChange={(e) => {
+              setPlatform(e.target.value);
+              setPage(1);
+            }}
+            options={[
+              { value: 'all', label: 'All Platforms' },
+              { value: 'instagram', label: 'Instagram' },
+              { value: 'linkedin', label: 'LinkedIn' },
+            ]}
+            icon={<Filter className="w-3.5 h-3.5" />}
+            variant="compact"
+            containerClassName="w-full sm:w-44"
+          />
+
+          {isFiltered && (
+            <button
+              onClick={handleClearFilters}
+              className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold text-red-500 bg-red-500/10 hover:bg-red-500/20 transition cursor-pointer shrink-0"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* List View */}
       <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-6">
         {/* Sub tabs */}
-        <div className="flex gap-1 border-b border-border-primary pb-3 overflow-x-auto flex-nowrap">
-          {[
-            { id: 'all', label: 'All Drafts' },
-            { id: 'draft', label: 'Drafts' },
-            { id: 'pending', label: 'Pending Approval' },
-            { id: 'approved', label: 'Scheduled' },
-            { id: 'published', label: 'Published' }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setListTab(tab.id as 'pending' | 'draft' | 'approved' | 'published' | 'all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition duration-150 cursor-pointer whitespace-nowrap shrink-0 ${
-                listTab === tab.id
-                  ? 'bg-bg-app border border-border-primary text-text-primary'
-                  : 'text-text-secondary hover:text-text-primary'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="flex items-center justify-between gap-2 border-b border-border-primary pb-3 overflow-x-auto">
+          <div className="flex gap-1 overflow-x-auto flex-nowrap">
+            {[
+              { id: 'all', label: 'All Drafts' },
+              { id: 'draft', label: 'Drafts' },
+              { id: 'pending', label: 'Pending Approval' },
+              { id: 'approved', label: 'Scheduled' },
+              { id: 'published', label: 'Published' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id as 'pending' | 'draft' | 'approved' | 'published' | 'all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition duration-150 cursor-pointer whitespace-nowrap shrink-0 ${
+                  listTab === tab.id
+                    ? 'bg-bg-app border border-border-primary text-text-primary shadow-xs'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          {isFetching && (
+            <div className="flex items-center gap-1.5 text-xs text-text-secondary shrink-0">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-instagram-pink" />
+              <span>Syncing...</span>
+            </div>
+          )}
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto border border-border-primary rounded-xl">
+        <div className="overflow-x-auto border border-border-primary rounded-xl relative">
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="bg-bg-app border-b border-border-primary text-[10px] font-bold text-text-secondary tracking-wide uppercase">
@@ -87,7 +172,7 @@ export function ContentListView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-primary">
-              {filteredDrafts.map((draft) => (
+              {drafts.map((draft) => (
                 <tr key={draft.id} className="hover:bg-bg-hover transition">
                   <td className="p-4 font-semibold text-xs text-text-primary max-w-[200px] truncate">
                     {draft.prompt}
@@ -134,7 +219,7 @@ export function ContentListView() {
                   </td>
                 </tr>
               ))}
-              {filteredDrafts.length === 0 && (
+              {drafts.length === 0 && !isLoading && (
                 <tr>
                   <td colSpan={5} className="p-8 text-center text-sm text-text-secondary italic">
                     No drafts match this filter.
@@ -144,8 +229,17 @@ export function ContentListView() {
             </tbody>
           </table>
         </div>
+
+        {/* Reusable Pagination Component */}
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={total}
+          pageSize={10}
+          onPageChange={(newPage) => setPage(newPage)}
+          isLoading={isLoading || isFetching}
+        />
       </div>
     </div>
   );
 }
-

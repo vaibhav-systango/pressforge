@@ -16,17 +16,35 @@ function mapDraftError(status: number): string {
   return 'DRAFT_FAILED';
 }
 
+import type { PaginatedDraftListResponse } from '@/lib/types/pagination';
+
 export async function GET(request: Request) {
   const accessToken = await getAccessToken();
   if (!accessToken) {
     return jsonError('Authentication required', 401, 'TOKEN_MISSING');
   }
 
-  const workspaceId = new URL(request.url).searchParams.get('workspaceId');
-  const query = workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : '';
+  const { searchParams } = new URL(request.url);
+  const workspaceId = searchParams.get('workspaceId');
+  const status = searchParams.get('status');
+  const search = searchParams.get('search');
+  const platform = searchParams.get('platform');
+  const page = searchParams.get('page');
+  const limit = searchParams.get('limit');
 
-  const { data, errorMessage, response } = await callBackend<DraftListResponse>(
-    `/drafts${query}`,
+  const queryParams = new URLSearchParams();
+  if (workspaceId) queryParams.set('workspaceId', workspaceId);
+  if (status) queryParams.set('status', status);
+  if (search) queryParams.set('search', search);
+  if (platform) queryParams.set('platform', platform);
+  if (page) queryParams.set('page', page);
+  if (limit) queryParams.set('limit', limit);
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString ? `/drafts?${queryString}` : '/drafts';
+
+  const { data, errorMessage, response } = await callBackend<PaginatedDraftListResponse>(
+    endpoint,
     { accessToken },
   );
 

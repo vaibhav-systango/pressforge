@@ -427,7 +427,7 @@ export function LandingPage() {
       <footer className="bg-bg-card border-t border-border-primary transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
           <p className="text-xs text-text-secondary">
-            &copy; 2026 PRESSFORGE AI. Live API Integrated Platform. Built with Next.js & Tailwind CSS.
+            &copy; 2026 PRESSFORGE AI. Live API Integrated Platform.
           </p>
           <div className="flex gap-4">
             <Link href="/auth/signup" className="text-xs font-semibold text-instagram-pink">Get Started</Link>

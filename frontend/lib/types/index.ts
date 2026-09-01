@@ -239,3 +239,5 @@ export interface AppState {
   targetAudience?: string;
   industry?: string;
 }
+
+export * from './pagination';

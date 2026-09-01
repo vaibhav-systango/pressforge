@@ -66,16 +66,52 @@ class DraftService:
         return workspace
 
     def list_drafts(
-        self, db: Session, user: User, *, workspace_id: str | None = None
+        self,
+        db: Session,
+        user: User,
+        *,
+        workspace_id: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
+        platform: str | None = None,
+        page: int = 1,
+        limit: int = 10,
     ) -> dict:
         if workspace_id:
             self._get_accessible_workspace(db, user, workspace_id)
-            drafts = draft_repository.list_by_workspace(db, workspace_id)
+            workspace_ids = [workspace_id]
         else:
             listed = workspace_service.list_workspaces(db, user)
             workspace_ids = [w["id"] for w in listed["workspaces"]]
-            drafts = draft_repository.list_by_workspaces(db, workspace_ids)
-        return {"drafts": [_draft_to_dict(d) for d in drafts]}
+
+        drafts, total = draft_repository.list_paginated(
+            db,
+            workspace_ids=workspace_ids,
+            status=status,
+            search=search,
+            platform=platform,
+            page=page,
+            limit=limit,
+        )
+        counts = draft_repository.get_status_counts(
+            db,
+            workspace_ids=workspace_ids,
+            search=search,
+            platform=platform,
+        )
+
+        total_pages = max(1, (total + limit - 1) // limit) if total > 0 else 1
+
+        return {
+            "drafts": [_draft_to_dict(d) for d in drafts],
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "total_pages": total_pages,
+            "has_next": page < total_pages,
+            "has_prev": page > 1,
+            "counts": counts,
+        }
 
     def get_draft(self, db: Session, user: User, draft_id: str) -> dict:
         draft = draft_repository.get_by_id(db, draft_id)

@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 import logging
 
@@ -136,15 +136,29 @@ def _raise_draft_error(code: str) -> None:
 @router.get(
     "",
     response_model=DraftListResponse,
-    summary="List drafts",
+    summary="List drafts with pagination and filters",
 )
 def list_drafts(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
     workspaceId: str | None = None,
+    status: str | None = None,
+    search: str | None = None,
+    platform: str | None = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
 ):
     try:
-        return draft_service.list_drafts(db, current_user, workspace_id=workspaceId)
+        return draft_service.list_drafts(
+            db,
+            current_user,
+            workspace_id=workspaceId,
+            status=status,
+            search=search,
+            platform=platform,
+            page=page,
+            limit=limit,
+        )
     except ValueError as exc:
         _raise_draft_error(str(exc))
 

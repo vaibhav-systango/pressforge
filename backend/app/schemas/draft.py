@@ -54,8 +54,24 @@ class PublishDraftResponse(BaseModel):
     message: str
 
 
+class DraftStatusCounts(BaseModel):
+    pending: int = 0
+    approved: int = 0
+    rejected: int = 0
+    draft: int = 0
+    published: int = 0
+    all: int = 0
+
+
 class DraftListResponse(BaseModel):
     drafts: list[DraftResponse]
+    total: int = 0
+    page: int = 1
+    limit: int = 10
+    total_pages: int = 1
+    has_next: bool = False
+    has_prev: bool = False
+    counts: DraftStatusCounts = Field(default_factory=DraftStatusCounts)
 
 
 class CreateDraftRequest(BaseModel):
