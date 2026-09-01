@@ -11,6 +11,7 @@ type NavLinkProps = {
   end?: boolean;
   className?: string | ((args: { isActive: boolean }) => string);
   children: ReactNode;
+  onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
 };
 
 function resolveActive(pathname: string, href: string, end?: boolean) {
@@ -21,13 +22,13 @@ function resolveActive(pathname: string, href: string, end?: boolean) {
   return pathname === href || (href !== '/' && pathname.startsWith(`${href}/`));
 }
 
-export function NavLink({ href, end, className, children }: NavLinkProps) {
+export function NavLink({ href, end, className, children, onClick }: NavLinkProps) {
   const pathname = usePathname();
   const isActive = resolveActive(pathname, href, end);
   const resolvedClassName = typeof className === 'function' ? className({ isActive }) : className;
 
   return (
-    <Link href={href} className={cn(resolvedClassName)} aria-current={isActive ? 'page' : undefined}>
+    <Link href={href} className={cn(resolvedClassName)} aria-current={isActive ? 'page' : undefined} onClick={onClick}>
       {children}
     </Link>
   );

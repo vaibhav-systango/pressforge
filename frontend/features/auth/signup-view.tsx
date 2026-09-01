@@ -63,13 +63,13 @@ export function SignupView() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-4">
-      <div className="w-full max-w-[400px] bg-white border border-[#EFEFEF] rounded-2xl p-8 shadow-sm flex flex-col gap-6">
+    <div className="min-h-screen bg-bg-app flex items-center justify-center p-4 transition-colors duration-200">
+      <div className="w-full max-w-[400px] bg-bg-card border border-border-primary rounded-2xl p-8 shadow-sm flex flex-col gap-6 transition-colors duration-200">
         <div className="text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-[#262626] flex items-center justify-center gap-1">
+          <h1 className="text-2xl font-bold tracking-tight text-text-primary flex items-center justify-center gap-1">
             PRESSFORGE<span className="text-instagram-pink font-extrabold">.AI</span>
           </h1>
-          <p className="text-[#737373] text-sm mt-2">
+          <p className="text-text-secondary text-sm mt-2">
             Create an account to start automating your PR & social media.
           </p>
         </div>
@@ -78,7 +78,7 @@ export function SignupView() {
           <ErrorMessage message={formError} />
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-[#737373]" htmlFor="name">
+            <label className="text-xs font-semibold text-text-secondary" htmlFor="name">
               Full Name
             </label>
             <input
@@ -86,7 +86,7 @@ export function SignupView() {
               type="text"
               placeholder="Jane Doe"
               {...form.getInputProps('fullName')}
-              className="border border-[#EFEFEF] bg-[#FAFAFA] text-[#262626] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
+              className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
             />
             {form.errors.fullName && (form.isTouched('fullName') || submitted) ? (
               <p className="text-[11px] text-red-500 font-medium">{form.errors.fullName}</p>
@@ -94,7 +94,7 @@ export function SignupView() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-[#737373]" htmlFor="email">
+            <label className="text-xs font-semibold text-text-secondary" htmlFor="email">
               Email Address
             </label>
             <input
@@ -102,7 +102,7 @@ export function SignupView() {
               type="email"
               placeholder="jane@example.com"
               {...form.getInputProps('email')}
-              className="border border-[#EFEFEF] bg-[#FAFAFA] text-[#262626] rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
+              className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
             />
             {form.errors.email && (form.isTouched('email') || submitted) ? (
               <p className="text-[11px] text-red-500 font-medium">{form.errors.email}</p>
@@ -113,12 +113,11 @@ export function SignupView() {
             id="password"
             label="Password"
             placeholder="••••••••"
-            className="border border-[#EFEFEF] bg-[#FAFAFA] text-[#262626]"
             {...form.getInputProps('password')}
             error={form.errors.password && (form.isTouched('password') || submitted) ? String(form.errors.password) : undefined}
           />
 
-          <label className="flex items-start gap-2 text-xs text-[#737373] cursor-pointer">
+          <label className="flex items-start gap-2 text-xs text-text-secondary cursor-pointer">
             <input
               type="checkbox"
               {...form.getInputProps('terms', { type: 'checkbox' })}
@@ -140,17 +139,14 @@ export function SignupView() {
           </button>
         </form>
 
-
-        <div className="border-t border-[#EFEFEF] pt-4 text-center">
-          <p className="text-xs text-[#737373]">
+        <div className="border-t border-border-primary pt-4 text-center">
+          <p className="text-xs text-text-secondary">
             Already have an account?{' '}
             <Link href="/auth/login" className="text-instagram-pink font-semibold hover:underline">
               Log In
             </Link>
           </p>
         </div>
-
-
       </div>
     </div>
   );

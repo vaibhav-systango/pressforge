@@ -1,7 +1,7 @@
 "use client";
 
 import { NavLink } from "@/components/navigation/nav-link";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useAppState } from "@/lib/queries/use-app-state";
 import { useAuth } from "@/lib/hooks/queries/use-auth";
 import type { AppState, ClientUser, Workspace } from "@/lib/types";
@@ -13,30 +13,26 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { formatAccountTypeLabel } from "@/lib/auth/me-user";
 import { formatOrganizationRole } from "@/lib/invitations/role-hierarchy";
 import {
-  LayoutDashboard,
   Calendar,
   MessageSquare,
   Send,
-  MailOpen,
-  BarChart3,
   Settings,
   ChevronDown,
   Plus,
   RefreshCw,
   LogOut,
   Building,
-  ShieldAlert,
   Users,
   User,
   Menu,
   X,
+  Loader2,
 } from "lucide-react";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { state, setActiveWorkspace, resetState, logout, updateState } = useAppState();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const router = useRouter();
   const pathname = usePathname();
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [showHeaderWorkspaceMenu, setShowHeaderWorkspaceMenu] = useState(false);
@@ -44,9 +40,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [showClientMenu, setShowClientMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Smooth loading state for workspace / client switching
+  const [isSwitching, setIsSwitching] = useState(false);
+  const [, setSwitchingTargetName] = useState<string>('');
+  const [switchingType, setSwitchingType] = useState<'workspace' | 'client' | null>(null);
+  const [switchingId, setSwitchingId] = useState<string | null>(null);
+
+  // Smooth loading state for sidebar route navigation
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [navigatingPageTitle, setNavigatingPageTitle] = useState<string>('');
+
   useEffect(() => {
+    if (isNavigating) {
+      const timer = setTimeout(() => {
+        setIsNavigating(false);
+        setNavigatingPageTitle('');
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [pathname, isNavigating]);
+
+  const handleNavClick = (targetHref: string, pageTitle: string) => {
+    if (pathname !== targetHref && !pathname.startsWith(`${targetHref}/`)) {
+      setIsNavigating(true);
+      setNavigatingPageTitle(pageTitle);
+    }
     setMobileMenuOpen(false);
-  }, [pathname]);
+  };
 
   const workspaceMenuRef = useRef<HTMLDivElement>(null);
   const headerWorkspaceMenuRef = useRef<HTMLDivElement>(null);
@@ -80,7 +100,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const [clientSearch, setClientSearch] = useState("");
   const debouncedClientSearch = useDebounce(clientSearch, 200);
-console.log(state)
+
   const {
     data: clientsData,
     fetchNextPage,
@@ -102,7 +122,7 @@ console.log(state)
       return res.json() as Promise<ClientUser[]>;
     },
     initialPageParam: 0,
-    getNextPageParam: (lastPage, allPages) => {
+    getNextPageParam: (lastPage: ClientUser[], allPages: ClientUser[][]) => {
       const LIMIT = 10;
       if (lastPage.length < LIMIT) return undefined;
       const totalLoaded = allPages.reduce((sum, page) => sum + page.length, 0);
@@ -113,42 +133,68 @@ console.log(state)
 
   const activeClients = clientsData ? clientsData.pages.flatMap((page) => page) : [];
 
-  const handleClientSelect = useCallback(async (c: ClientUser) => {
-    setShowClientMenu(false);
+  const handleClientSelect = useCallback(
+    async (c: ClientUser) => {
+      if (isSwitching) return;
 
-    // 1. Set the activeClientId in session state
-    await updateState({ activeClientId: c.id });
+      setIsSwitching(true);
+      setSwitchingType("client");
+      setSwitchingTargetName(c.name);
+      setSwitchingId(c.id);
+      setShowClientMenu(false);
 
-    // 2. Fetch workspaces filtered by this client from backend
-    try {
-      const res = await fetch(`/api/workspaces?clientId=${encodeURIComponent(c.id)}`);
-      if (res.ok) {
-        const wsData = await res.json() as { workspaces: Workspace[]; activeWorkspaceId: string | null };
-        const clientWorkspaces = wsData.workspaces || [];
+      const startTime = Date.now();
 
-        // 3. Update the app-state cache with client-filtered workspaces
-        queryClient.setQueryData(['app-state'], (old: { state: AppState } | undefined) => ({
-          state: {
-            ...(old?.state ?? {}),
-            activeClientId: c.id,
-            workspaces: clientWorkspaces,
-            activeWorkspaceId: clientWorkspaces[0]?.id ?? null,
-          },
-        }));
+      try {
+        // 1. Set the activeClientId in session state
+        await updateState({ activeClientId: c.id });
 
-        // 4. Set the first workspace as active on backend
-        if (clientWorkspaces.length > 0) {
-          await setActiveWorkspace(clientWorkspaces[0].id);
-        } else {
-          await setActiveWorkspace(null);
+        // 2. Fetch workspaces filtered by this client from backend
+        const res = await fetch(`/api/workspaces?clientId=${encodeURIComponent(c.id)}`);
+        if (res.ok) {
+          const wsData = (await res.json()) as { workspaces: Workspace[]; activeWorkspaceId: string | null };
+          const clientWorkspaces = wsData.workspaces || [];
+
+          // 3. Update the app-state cache with client-filtered workspaces
+          queryClient.setQueryData(["app-state"], (old: { state: AppState } | undefined) => {
+            if (!old?.state) return old;
+            return {
+              state: {
+                ...old.state,
+                activeClientId: c.id,
+                workspaces: clientWorkspaces,
+                activeWorkspaceId: clientWorkspaces[0]?.id ?? null,
+              },
+            };
+          });
+
+          // 4. Set the first workspace as active on backend
+          if (clientWorkspaces.length > 0) {
+            await setActiveWorkspace(clientWorkspaces[0].id);
+          } else {
+            await setActiveWorkspace(null);
+          }
         }
+        await queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      } catch (err) {
+        console.error("Failed to fetch workspaces for client:", err);
+        try {
+          await setActiveWorkspace(c.workspaceId || null);
+        } catch {}
+      } finally {
+        const elapsed = Date.now() - startTime;
+        if (elapsed < 350) {
+          await new Promise((resolve) => setTimeout(resolve, 350 - elapsed));
+        }
+
+        setIsSwitching(false);
+        setSwitchingType(null);
+        setSwitchingTargetName("");
+        setSwitchingId(null);
       }
-    } catch (err) {
-      console.error('Failed to fetch workspaces for client:', err);
-      // Fallback: set the client's single workspace if available
-      await setActiveWorkspace(c.workspaceId || null);
-    }
-  }, [updateState, setActiveWorkspace, queryClient]);
+    },
+    [isSwitching, updateState, setActiveWorkspace, queryClient]
+  );
 
   const isClient =
     user?.userType === "client" || state.currentUserType === "client";
@@ -163,7 +209,11 @@ console.log(state)
     if (user && !isClient && !isIndividual && availableClients.length > 0) {
       const isSelectedValid = availableClients.some((c) => c.id === state.activeClientId);
       if (!state.activeClientId || !isSelectedValid) {
-        handleClientSelect(availableClients[0]);
+        const firstClient = availableClients[0];
+        const timer = setTimeout(() => {
+          handleClientSelect(firstClient);
+        }, 0);
+        return () => clearTimeout(timer);
       }
     }
   }, [user, isClient, isIndividual, availableClients, state.activeClientId, handleClientSelect]);
@@ -183,35 +233,55 @@ console.log(state)
       : formatAccountTypeLabel(user.accountType)
     : (isClient ? "Client Reviewer" : "Brand Manager");
 
-  // When a client is selected, state.workspaces is already filtered by that client
-  // (set by handleClientSelect or mergeBackendWorkspaces in state API).
-  // So we just use state.workspaces directly.
   const filteredWorkspaces = state.workspaces;
 
-  // Get active workspace details
   const activeWorkspace =
     filteredWorkspaces.find((w) => w.id === state.activeWorkspaceId) ||
     filteredWorkspaces[0];
 
-  // Get active client details if any
-
-  // Selected client for organization header dropdown based on activeClientId
   const selectedClient =
     availableClients.find((c) => c.id === state.activeClientId) ||
     availableClients[0];
 
-  // Calculate pending approvals count
   const pendingApprovalsCount = state.drafts.filter(
     (d) =>
       d.workspaceId === state.activeWorkspaceId &&
       d.status === "pending_approval",
   ).length;
 
-  const handleWorkspaceChange = async (id: string) => {
-    await setActiveWorkspace(id);
-    setShowWorkspaceMenu(false);
-    setShowHeaderWorkspaceMenu(false);
-  };
+  const handleWorkspaceChange = useCallback(
+    async (id: string, name?: string) => {
+      if (isSwitching) return;
+      const wsName = name || filteredWorkspaces.find((w) => w.id === id)?.name || "Workspace";
+
+      setIsSwitching(true);
+      setSwitchingType("workspace");
+      setSwitchingTargetName(wsName);
+      setSwitchingId(id);
+      const startTime = Date.now();
+
+      try {
+        await setActiveWorkspace(id);
+        await queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      } catch (err) {
+        console.error("Failed to change workspace:", err);
+      } finally {
+        setShowWorkspaceMenu(false);
+        setShowHeaderWorkspaceMenu(false);
+
+        const elapsed = Date.now() - startTime;
+        if (elapsed < 350) {
+          await new Promise((resolve) => setTimeout(resolve, 350 - elapsed));
+        }
+
+        setIsSwitching(false);
+        setSwitchingType(null);
+        setSwitchingTargetName("");
+        setSwitchingId(null);
+      }
+    },
+    [isSwitching, filteredWorkspaces, setActiveWorkspace, queryClient]
+  );
 
   const handleLogout = async () => {
     await logout();
@@ -253,7 +323,8 @@ console.log(state)
           <div className="relative" ref={workspaceMenuRef}>
             <button
               onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
-              className="w-full flex items-center justify-between p-2.5 rounded-xl border border-border-primary hover:bg-bg-hover transition duration-200 text-left cursor-pointer"
+              disabled={isSwitching}
+              className="w-full flex items-center justify-between p-2.5 rounded-xl border border-border-primary hover:bg-bg-hover transition duration-200 text-left cursor-pointer disabled:opacity-80"
             >
               <div className="flex items-center gap-2.5 overflow-hidden">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] flex items-center justify-center text-white font-bold text-sm shrink-0">
@@ -268,7 +339,11 @@ console.log(state)
                   </p>
                 </div>
               </div>
-              <ChevronDown className="w-4 h-4 text-text-secondary shrink-0 ml-1" />
+              {isSwitching && switchingType === "workspace" ? (
+                <Loader2 className="w-4 h-4 text-instagram-pink animate-spin shrink-0 ml-1" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-text-secondary shrink-0 ml-1" />
+              )}
             </button>
 
             {showWorkspaceMenu && (
@@ -278,24 +353,33 @@ console.log(state)
                     No workspaces assigned to client
                   </div>
                 ) : (
-                  filteredWorkspaces.map((ws) => (
-                    <button
-                      key={ws.id}
-                      onClick={() => handleWorkspaceChange(ws.id)}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-bg-hover transition duration-150 cursor-pointer ${
-                        ws.id === (activeWorkspace?.id || state.activeWorkspaceId)
-                          ? "bg-bg-app font-semibold text-instagram-pink"
-                          : ""
-                      }`}
-                    >
-                      <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-text-secondary text-xs font-bold shrink-0">
-                        {ws.name.charAt(0)}
-                      </div>
-                      <span className="text-sm text-text-primary truncate">
-                        {ws.name}
-                      </span>
-                    </button>
-                  ))
+                  filteredWorkspaces.map((ws) => {
+                    const isTarget = switchingId === ws.id;
+                    return (
+                      <button
+                        key={ws.id}
+                        disabled={isSwitching}
+                        onClick={() => handleWorkspaceChange(ws.id, ws.name)}
+                        className={`w-full flex items-center justify-between px-3 py-2 text-left hover:bg-bg-hover transition duration-150 cursor-pointer ${
+                          ws.id === (activeWorkspace?.id || state.activeWorkspaceId)
+                            ? "bg-bg-app font-semibold text-instagram-pink"
+                            : ""
+                        } ${isTarget ? "opacity-75" : ""}`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-text-secondary text-xs font-bold shrink-0">
+                            {ws.name.charAt(0)}
+                          </div>
+                          <span className="text-sm text-text-primary truncate">
+                            {ws.name}
+                          </span>
+                        </div>
+                        {isTarget && (
+                          <Loader2 className="w-3.5 h-3.5 text-instagram-pink animate-spin shrink-0 ml-2" />
+                        )}
+                      </button>
+                    );
+                  })
                 )}
                 {!isClient && (
                   <div className="border-t border-border-primary mt-1.5 pt-1.5 px-3">
@@ -354,6 +438,7 @@ console.log(state)
 
                 <NavLink
                   href="/app/approvals"
+                  onClick={() => handleNavClick("/app/approvals", isClient ? "My Approvals" : "Client Approvals")}
                   className={({ isActive }) =>
                     `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
                       isActive
@@ -366,53 +451,56 @@ console.log(state)
                     <MessageSquare className="w-4 h-4" />
                     <span>{isClient ? "My Approvals" : "Client Approvals"}</span>
                   </div>
-                  {pendingApprovalsCount > 0 && (
-                    <span className="bg-instagram-pink text-white text-xs px-2 py-0.5 rounded-full font-bold">
-                      {pendingApprovalsCount}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {isNavigating && navigatingPageTitle === (isClient ? "My Approvals" : "Client Approvals") && (
+                      <Loader2 className="w-3.5 h-3.5 text-instagram-pink animate-spin shrink-0" />
+                    )}
+                    {pendingApprovalsCount > 0 && (
+                      <span className="bg-instagram-pink text-white text-xs px-2 py-0.5 rounded-full font-bold">
+                        {pendingApprovalsCount}
+                      </span>
+                    )}
+                  </div>
                 </NavLink>
-
-                {/* <NavLink
-                  href="/app/analytics"
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
-                      isActive
-                        ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
-                        : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-                    }`
-                  }
-                >
-                  <BarChart3 className="w-4 h-4" />
-                  <span>Performance Stats</span>
-                </NavLink> */}
 
                 <NavLink
                   href="/app/settings"
+                  onClick={() => handleNavClick("/app/settings", "Account Settings")}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
+                    `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
                       isActive
                         ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
                         : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                     }`
                   }
                 >
-                  <Settings className="w-4 h-4" />
-                  <span>Account Settings</span>
+                  <div className="flex items-center gap-3">
+                    <Settings className="w-4 h-4" />
+                    <span>Account Settings</span>
+                  </div>
+                  {isNavigating && navigatingPageTitle === "Account Settings" && (
+                    <Loader2 className="w-3.5 h-3.5 text-instagram-pink animate-spin shrink-0" />
+                  )}
                 </NavLink>
 
                 <NavLink
                   href="/app/workspaces"
+                  onClick={() => handleNavClick("/app/workspaces", "Workspace Profile")}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
+                    `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
                       isActive
                         ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
                         : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                     }`
                   }
                 >
-                  <Building className="w-4 h-4" />
-                  <span>Workspace Profile</span>
+                  <div className="flex items-center gap-3">
+                    <Building className="w-4 h-4" />
+                    <span>Workspace Profile</span>
+                  </div>
+                  {isNavigating && navigatingPageTitle === "Workspace Profile" && (
+                    <Loader2 className="w-3.5 h-3.5 text-instagram-pink animate-spin shrink-0" />
+                  )}
                 </NavLink>
               </>
             ) : (
@@ -420,20 +508,27 @@ console.log(state)
               <>
                 <NavLink
                   href="/app/content"
+                  onClick={() => handleNavClick("/app/content", "Content Planner")}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
+                    `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
                       isActive
                         ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
                         : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                     }`
                   }
                 >
-                  <Calendar className="w-4 h-4" />
-                  <span>Content Planner</span>
+                  <div className="flex items-center gap-3">
+                    <Calendar className="w-4 h-4" />
+                    <span>Content Planner</span>
+                  </div>
+                  {isNavigating && navigatingPageTitle === "Content Planner" && (
+                    <Loader2 className="w-3.5 h-3.5 text-instagram-pink animate-spin shrink-0" />
+                  )}
                 </NavLink>
 
                 <NavLink
                   href="/app/approvals"
+                  onClick={() => handleNavClick("/app/approvals", "Approvals")}
                   className={({ isActive }) =>
                     `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
                       isActive
@@ -446,100 +541,99 @@ console.log(state)
                     <MessageSquare className="w-4 h-4" />
                     <span>Approvals</span>
                   </div>
-                  {pendingApprovalsCount > 0 && (
-                    <span className="bg-instagram-pink text-white text-xs px-2 py-0.5 rounded-full font-bold">
-                      {pendingApprovalsCount}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {isNavigating && navigatingPageTitle === "Approvals" && (
+                      <Loader2 className="w-3.5 h-3.5 text-instagram-pink animate-spin shrink-0" />
+                    )}
+                    {pendingApprovalsCount > 0 && (
+                      <span className="bg-instagram-pink text-white text-xs px-2 py-0.5 rounded-full font-bold">
+                        {pendingApprovalsCount}
+                      </span>
+                    )}
+                  </div>
                 </NavLink>
 
                 <NavLink
                   href="/app/publishing"
+                  onClick={() => handleNavClick("/app/publishing", "Publishing Queue")}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
+                    `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
                       isActive
                         ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
                         : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                     }`
                   }
                 >
-                  <Send className="w-4 h-4" />
-                  <span>Publishing Queue</span>
+                  <div className="flex items-center gap-3">
+                    <Send className="w-4 h-4" />
+                    <span>Publishing Queue</span>
+                  </div>
+                  {isNavigating && navigatingPageTitle === "Publishing Queue" && (
+                    <Loader2 className="w-3.5 h-3.5 text-instagram-pink animate-spin shrink-0" />
+                  )}
                 </NavLink>
 
-
-                {/* <NavLink
-                  href="/app/analytics"
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
-                      isActive
-                        ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
-                        : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-                    }`
-                  }
-                >
-                  <BarChart3 className="w-4 h-4" />
-                  <span>Analytics</span>
-                </NavLink> */}
-
                 <div className="border-t border-border-primary my-2 pt-2 flex flex-col gap-1.5">
-                  {/* <NavLink
-                    href="/app"
-                    end
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
-                        isActive
-                          ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
-                          : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-                      }`
-                    }
-                  >
-                    <LayoutDashboard className="w-4 h-4" />
-                    <span>Dashboard</span>
-                  </NavLink> */}
-
                   {!isIndividual && (
                     <NavLink
                       href="/app/clients"
+                      onClick={() => handleNavClick("/app/clients", "Client Portals")}
                       className={({ isActive }) =>
-                        `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
+                        `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
                           isActive
                             ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
                             : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                         }`
                       }
                     >
-                      <Users className="w-4 h-4" />
-                      <span>Client Portals</span>
+                      <div className="flex items-center gap-3">
+                        <Users className="w-4 h-4" />
+                        <span>Client Portals</span>
+                      </div>
+                      {isNavigating && navigatingPageTitle === "Client Portals" && (
+                        <Loader2 className="w-3.5 h-3.5 text-instagram-pink animate-spin shrink-0" />
+                      )}
                     </NavLink>
                   )}
 
                   <NavLink
                     href="/app/workspaces"
+                    onClick={() => handleNavClick("/app/workspaces", "Workspaces")}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
+                      `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
                         isActive
                           ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
                           : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                       }`
                     }
                   >
-                    <Building className="w-4 h-4" />
-                    <span>Workspaces</span>
+                    <div className="flex items-center gap-3">
+                      <Building className="w-4 h-4" />
+                      <span>Workspaces</span>
+                    </div>
+                    {isNavigating && navigatingPageTitle === "Workspaces" && (
+                      <Loader2 className="w-3.5 h-3.5 text-instagram-pink animate-spin shrink-0" />
+                    )}
                   </NavLink>
 
                   <NavLink
                     href="/app/settings"
+                    onClick={() => handleNavClick("/app/settings", "Settings")}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
+                      `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
                         isActive
                           ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
                           : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                       }`
                     }
                   >
-                    <Settings className="w-4 h-4" />
-                    <span>Settings</span>
+                    <div className="flex items-center gap-3">
+                      <Settings className="w-4 h-4" />
+                      <span>Settings</span>
+                    </div>
+                    {isNavigating && navigatingPageTitle === "Settings" && (
+                      <Loader2 className="w-3.5 h-3.5 text-instagram-pink animate-spin shrink-0" />
+                    )}
                   </NavLink>
                 </div>
               </>
@@ -644,13 +738,18 @@ console.log(state)
                         setShowClientMenu((prev) => !prev);
                         setShowOrgMenu(false);
                       }}
-                      className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg border border-border-primary text-xs font-semibold text-text-primary hover:bg-bg-hover transition duration-150 shrink-0"
+                      disabled={isSwitching}
+                      className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg border border-border-primary text-xs font-semibold text-text-primary hover:bg-bg-hover transition duration-150 shrink-0 cursor-pointer disabled:opacity-80"
                     >
                       <Users className="w-3.5 h-3.5 text-text-secondary shrink-0" />
                       <span className="truncate max-w-[80px] xs:max-w-[120px] sm:max-w-none">
                         {selectedClient ? selectedClient.name : "Select Client"}
                       </span>
-                      <ChevronDown className="w-3 h-3 text-text-secondary shrink-0" />
+                      {isSwitching && switchingType === "client" ? (
+                        <Loader2 className="w-3 h-3 text-instagram-pink animate-spin shrink-0 ml-1" />
+                      ) : (
+                        <ChevronDown className="w-3 h-3 text-text-secondary shrink-0 ml-1" />
+                      )}
                     </button>
 
                     {showClientMenu && (
@@ -676,19 +775,26 @@ console.log(state)
                             onLoadMore={fetchNextPage}
                             isLoading={isFetchingNextPage}
                           >
-                            {activeClients.map((c) => (
-                              <button
-                                key={c.id}
-                                onClick={() => handleClientSelect(c)}
-                                className={`w-full text-left px-3 py-2 text-xs font-semibold text-text-primary hover:bg-bg-hover transition duration-150 ${
-                                  state.activeClientId === c.id || (c.workspaceId && activeWorkspace?.id === c.workspaceId)
-                                    ? "bg-bg-app font-bold text-instagram-pink"
-                                    : ""
-                                }`}
-                              >
-                                {c.name}
-                              </button>
-                            ))}
+                            {activeClients.map((c) => {
+                              const isTarget = switchingId === c.id;
+                              return (
+                                <button
+                                  key={c.id}
+                                  disabled={isSwitching}
+                                  onClick={() => handleClientSelect(c)}
+                                  className={`w-full flex items-center justify-between text-left px-3 py-2 text-xs font-semibold text-text-primary hover:bg-bg-hover transition duration-150 cursor-pointer ${
+                                    state.activeClientId === c.id || (c.workspaceId && activeWorkspace?.id === c.workspaceId)
+                                      ? "bg-bg-app font-bold text-instagram-pink"
+                                      : ""
+                                  } ${isTarget ? "opacity-75" : ""}`}
+                                >
+                                  <span className="truncate">{c.name}</span>
+                                  {isTarget && (
+                                    <Loader2 className="w-3.5 h-3.5 text-instagram-pink animate-spin shrink-0 ml-2" />
+                                  )}
+                                </button>
+                              );
+                            })}
                             {activeClients.length === 0 && (
                               <div className="px-3 py-2 text-xs text-text-secondary italic">
                                 No clients available
@@ -714,13 +820,18 @@ console.log(state)
             <div className="relative hidden md:block" ref={headerWorkspaceMenuRef}>
               <button
                 onClick={() => setShowHeaderWorkspaceMenu(!showHeaderWorkspaceMenu)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border-primary text-xs text-text-secondary hover:bg-bg-hover transition duration-150 shrink-0 cursor-pointer"
+                disabled={isSwitching}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border-primary text-xs text-text-secondary hover:bg-bg-hover transition duration-150 shrink-0 cursor-pointer disabled:opacity-80"
               >
                 <span>Active Workspace:</span>
                 <span className="font-semibold text-text-primary">
                   {activeWorkspace?.name || "Select Workspace"}
                 </span>
-                <ChevronDown className="w-3 h-3 text-text-secondary shrink-0" />
+                {isSwitching && switchingType === "workspace" ? (
+                  <Loader2 className="w-3 h-3 text-instagram-pink animate-spin shrink-0 ml-1" />
+                ) : (
+                  <ChevronDown className="w-3 h-3 text-text-secondary shrink-0 ml-1" />
+                )}
               </button>
 
               {showHeaderWorkspaceMenu && (
@@ -733,22 +844,31 @@ console.log(state)
                       No workspaces assigned
                     </div>
                   ) : (
-                    filteredWorkspaces.map((ws) => (
-                      <button
-                        key={ws.id}
-                        onClick={() => handleWorkspaceChange(ws.id)}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-bg-hover transition duration-150 cursor-pointer ${
-                          ws.id === (activeWorkspace?.id || state.activeWorkspaceId)
-                            ? "bg-bg-app font-semibold text-instagram-pink"
-                            : "text-text-primary"
-                        }`}
-                      >
-                        <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-text-secondary text-[10px] font-bold shrink-0">
-                          {ws.name.charAt(0)}
-                        </div>
-                        <span className="text-xs truncate">{ws.name}</span>
-                      </button>
-                    ))
+                    filteredWorkspaces.map((ws) => {
+                      const isTarget = switchingId === ws.id;
+                      return (
+                        <button
+                          key={ws.id}
+                          disabled={isSwitching}
+                          onClick={() => handleWorkspaceChange(ws.id, ws.name)}
+                          className={`w-full flex items-center justify-between px-3 py-2 text-left hover:bg-bg-hover transition duration-150 cursor-pointer ${
+                            ws.id === (activeWorkspace?.id || state.activeWorkspaceId)
+                              ? "bg-bg-app font-semibold text-instagram-pink"
+                              : "text-text-primary"
+                          } ${isTarget ? "opacity-75" : ""}`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-text-secondary text-[10px] font-bold shrink-0">
+                              {ws.name.charAt(0)}
+                            </div>
+                            <span className="text-xs truncate">{ws.name}</span>
+                          </div>
+                          {isTarget && (
+                            <Loader2 className="w-3.5 h-3.5 text-instagram-pink animate-spin shrink-0 ml-2" />
+                          )}
+                        </button>
+                      );
+                    })
                   )}
                 </div>
               )}
@@ -759,11 +879,27 @@ console.log(state)
             {/* Theme Toggle Button */}
             <ThemeToggle />
           </div>
+
+          {/* Top Progress Loading Bar */}
+          {(isSwitching || isNavigating) && (
+            <div className="fixed top-0 left-0 right-0 z-[100] h-1 overflow-hidden bg-pink-100 dark:bg-pink-950/40">
+              <div className="h-full bg-gradient-to-r from-[#F58529] via-[#DD2A7B] to-[#515BD4] animate-pulse w-full" />
+            </div>
+          )}
         </header>
 
         {/* Dynamic Route Content */}
-        <main className="p-4 sm:p-6 lg:p-8 flex-1 flex flex-col bg-bg-app transition-colors duration-200 min-w-0 overflow-x-hidden">
-          {children}
+        <main className="p-4 sm:p-6 lg:p-8 flex-1 flex flex-col bg-bg-app transition-colors duration-200 min-w-0 overflow-x-hidden relative">
+          {/* Main Circle Loader with subtle background blur */}
+          {(isSwitching || isNavigating) && (
+            <div className="absolute inset-0 z-40 backdrop-blur-[2px] bg-bg-app/20 flex items-center justify-center pointer-events-none transition-all duration-200">
+              <Loader2 className="w-8 h-8 text-instagram-pink animate-spin" />
+            </div>
+          )}
+
+          <div className={`flex-1 flex flex-col transition-all duration-200 ${(isSwitching || isNavigating) ? 'blur-[1px] opacity-90 pointer-events-none' : ''}`}>
+            {children}
+          </div>
         </main>
       </div>
     </div>

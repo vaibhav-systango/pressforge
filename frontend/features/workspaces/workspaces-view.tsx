@@ -415,6 +415,15 @@ export function WorkspacesView() {
           workspaces={workspaces}
           selectedWorkspaceId={selectedWorkspaceId}
           setSelectedWorkspaceId={setSelectedWorkspaceId}
+          onSelectWorkspace={async (id) => {
+            if (id !== state.activeWorkspaceId) {
+              try {
+                await setActiveWorkspace(id);
+              } catch (err) {
+                console.error('Failed to set active workspace:', err);
+              }
+            }
+          }}
           clients={state.clients || []}
           accountType={state.accountType}
           onDeleteClick={setDeleteConfirmId}

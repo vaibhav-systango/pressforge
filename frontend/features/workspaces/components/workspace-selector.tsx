@@ -11,6 +11,7 @@ interface WorkspaceSelectorProps {
   clients: ClientUser[];
   accountType: string;
   onDeleteClick: (id: string) => void;
+  onSelectWorkspace?: (id: string) => void;
 }
 
 export function WorkspaceSelector({
@@ -20,6 +21,7 @@ export function WorkspaceSelector({
   clients,
   accountType,
   onDeleteClick,
+  onSelectWorkspace,
 }: WorkspaceSelectorProps) {
   return (
     <div className="lg:col-span-3 bg-bg-card border border-border-primary rounded-2xl p-4 shadow-sm space-y-3">
@@ -40,6 +42,9 @@ export function WorkspaceSelector({
               <button
                 onClick={() => {
                   setSelectedWorkspaceId(ws.id);
+                  if (onSelectWorkspace) {
+                    onSelectWorkspace(ws.id);
+                  }
                 }}
                 className={`w-full flex items-center justify-between p-3 rounded-xl border text-left transition ${
                   isSelected 

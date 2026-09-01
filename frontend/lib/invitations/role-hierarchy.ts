@@ -29,6 +29,7 @@ export function resolveOrganizationRole(
   return null;
 }
 
-export function formatOrganizationRole(role: string): string {
+export function formatOrganizationRole(role?: string | null): string {
+  if (!role) return 'Member';
   return role.charAt(0) + role.slice(1).toLowerCase();
 }
