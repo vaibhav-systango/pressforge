@@ -92,16 +92,36 @@ class InstagramService:
             return response.json()
 
     def _exchange_for_long_lived_token(self, short_lived_token: str) -> dict:
-        params = {
-            "grant_type": "fb_exchange_token",
-            "client_id": settings.META_APP_ID,
+        # Try Instagram long-lived token endpoint first
+        ig_params = {
+            "grant_type": "ig_exchange_token",
             "client_secret": settings.META_APP_SECRET,
-            "fb_exchange_token": short_lived_token,
+            "access_token": short_lived_token,
         }
         with httpx.Client(timeout=30.0) as client:
-            response = client.get(f"{self._graph_base()}/oauth/access_token", params=params)
-            response.raise_for_status()
-            return response.json()
+            try:
+                resp = client.get("https://graph.instagram.com/access_token", params=ig_params)
+                if resp.status_code == 200:
+                    return resp.json()
+            except Exception as exc:
+                logger.warning("Instagram ig_exchange_token failed, trying fb_exchange_token: %s", exc)
+
+            # Fallback to FB exchange token
+            params = {
+                "grant_type": "fb_exchange_token",
+                "client_id": settings.META_APP_ID,
+                "client_secret": settings.META_APP_SECRET,
+                "fb_exchange_token": short_lived_token,
+            }
+            try:
+                response = client.get(f"{self._graph_base()}/oauth/access_token", params=params)
+                if response.status_code == 200:
+                    return response.json()
+            except Exception as exc:
+                logger.warning("FB exchange token failed: %s", exc)
+            
+            # If both long-lived exchanges fail, return the short-lived token
+            return {"access_token": short_lived_token, "expires_in": LONG_LIVED_TOKEN_TTL_SECONDS}
 
     def _discover_instagram_business_account(self, access_token: str) -> dict | None:
         params = {
@@ -127,13 +147,13 @@ class InstagramService:
             except Exception as exc:
                 logger.warning("Graph /me/accounts lookup skipped: %s", exc)
 
-            # Fallback to direct Instagram account profile via /me
+            # Fallback to direct Instagram account profile via graph.instagram.com/me
             try:
                 me_params = {
                     "fields": "id,username,name,profile_picture_url",
                     "access_token": access_token,
                 }
-                me_resp = client.get(f"{self._graph_base()}/me", params=me_params)
+                me_resp = client.get("https://graph.instagram.com/v17.0/me", params=me_params)
                 if me_resp.status_code == 200:
                     me_data = me_resp.json()
                     if me_data.get("id"):
@@ -145,6 +165,20 @@ class InstagramService:
                             "display_name": me_data.get("name") or me_data.get("username"),
                             "profile_picture_url": me_data.get("profile_picture_url"),
                         }
+                else:
+                    # Also try graph.instagram.com/me without version
+                    me_resp2 = client.get("https://graph.instagram.com/me", params=me_params)
+                    if me_resp2.status_code == 200:
+                        me_data2 = me_resp2.json()
+                        if me_data2.get("id"):
+                            return {
+                                "page_id": None,
+                                "page_access_token": access_token,
+                                "ig_id": me_data2.get("id"),
+                                "username": me_data2.get("username"),
+                                "display_name": me_data2.get("name") or me_data2.get("username"),
+                                "profile_picture_url": me_data2.get("profile_picture_url"),
+                            }
             except Exception as exc:
                 logger.error("Direct Instagram /me lookup error: %s", exc)
         return None
