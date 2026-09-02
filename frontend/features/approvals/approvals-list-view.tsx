@@ -73,6 +73,7 @@ export function ApprovalsListView() {
     isLoading,
     isInitialLoading,
     isFetching,
+    isTabLoading,
   } = usePaginatedDrafts({
     workspaceId: state.activeWorkspaceId,
     status: backendStatusFilter,
@@ -224,7 +225,7 @@ export function ApprovalsListView() {
         </h3>
 
         <div className="flex flex-col gap-4">
-          {isLoading && visibleDrafts.length === 0 ? (
+          {isTabLoading ? (
             <div className="flex flex-col gap-3">
               {[1, 2, 3].map((i) => (
                 <div

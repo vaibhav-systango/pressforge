@@ -63,12 +63,18 @@ export function usePaginatedDrafts({
     queryKey,
     queryFn: () => fetchPaginatedDrafts(activeWorkspaceId, status, search, platform, page, limit),
     staleTime: 10_000,
+    // Only keep previous data when ONLY the page changed (same workspace/status/search/platform).
+    // This prevents stale data flash when switching tabs or filters.
     placeholderData: (previousData, previousQuery) => {
-      const previousWorkspaceId = previousQuery?.queryKey?.[1];
-      if (previousWorkspaceId && previousWorkspaceId === activeWorkspaceId) {
-        return previousData;
-      }
-      return undefined;
+      if (!previousQuery || !previousData) return undefined;
+      const [, prevWorkspace, prevStatus, prevSearch, prevPlatform] = previousQuery.queryKey as string[];
+      const sameContext =
+        prevWorkspace === activeWorkspaceId &&
+        prevStatus === (status || 'all') &&
+        prevSearch === (search || '') &&
+        prevPlatform === (platform || 'all');
+      // Only carry over previous data when paging within same tab/filter context
+      return sameContext ? previousData : undefined;
     },
   });
 
@@ -147,6 +153,8 @@ export function usePaginatedDrafts({
   const emptyCounts = { pending: 0, approved: 0, rejected: 0, draft: 0, published: 0, all: 0 };
   const counts = query.data?.counts || cachedCounts || (query.isError ? fallbackCounts : emptyCounts);
   const isInitialLoading = query.isLoading && !query.data && !cachedCounts;
+  // True whenever data is actively loading for the current tab/filter (includes tab switches)
+  const isTabLoading = query.isFetching && !isSuccess;
 
   return {
     drafts,
@@ -160,6 +168,7 @@ export function usePaginatedDrafts({
     isLoading: query.isLoading,
     isInitialLoading,
     isFetching: query.isFetching,
+    isTabLoading,
     isError: query.isError,
     refetch: query.refetch,
   };

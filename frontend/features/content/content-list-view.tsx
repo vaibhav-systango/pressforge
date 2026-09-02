@@ -51,6 +51,7 @@ export function ContentListView() {
     totalPages,
     isLoading,
     isFetching,
+    isTabLoading,
   } = usePaginatedDrafts({
     workspaceId: state.activeWorkspaceId,
     status: listTab,
@@ -172,7 +173,7 @@ export function ContentListView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-primary">
-              {isLoading && drafts.length === 0 ? (
+              {isTabLoading ? (
                 [1, 2, 3].map((i) => (
                   <tr key={i} className="animate-pulse">
                     <td className="p-4"><div className="h-4 bg-border-primary/60 rounded w-28" /></td>
