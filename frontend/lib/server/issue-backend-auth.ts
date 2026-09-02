@@ -73,7 +73,7 @@ export async function issueBackendAuthResponse(
       path: '/',
       sameSite: 'lax',
       maxAge: REFRESH_TOKEN_TTL_SECONDS,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
     });
   }
 

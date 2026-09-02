@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 
 import type { SocialConnectionResponse } from '@/app/api/social/[platform]/connection/route';
 
@@ -53,9 +53,27 @@ export function useSocialConnection(platform: string) {
   });
 
   const connectMutation = useMutation({
-    mutationFn: () => startSocialConnect(platform),
-    onSuccess: (data) => {
-      window.location.href = data.authorizationUrl;
+    mutationFn: async () => {
+      // Pre-open new tab in user gesture context to prevent popup blocker
+      const popup = typeof window !== 'undefined' ? window.open('about:blank', '_blank') : null;
+      try {
+        const data = await startSocialConnect(platform);
+        if (popup && !popup.closed) {
+          popup.location.href = data.authorizationUrl;
+          popup.focus();
+        } else if (typeof window !== 'undefined') {
+          window.location.href = data.authorizationUrl;
+        }
+        return data;
+      } catch (error) {
+        if (popup && !popup.closed) {
+          popup.close();
+        }
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
     },
   });
 
@@ -65,6 +83,16 @@ export function useSocialConnection(platform: string) {
       queryClient.invalidateQueries({ queryKey });
     },
   });
+
+  useEffect(() => {
+    const onFocus = () => {
+      queryClient.invalidateQueries({ queryKey: ['social-connection', platform] });
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', onFocus);
+      return () => window.removeEventListener('focus', onFocus);
+    }
+  }, [platform, queryClient]);
 
   const refresh = useCallback(
     () => queryClient.invalidateQueries({ queryKey: ['social-connection', platform] }),

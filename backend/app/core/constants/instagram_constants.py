@@ -39,11 +39,10 @@ class InstagramErrorMessages:
     IMAGE_REQUIRED = "Instagram requires an image to publish."
 
 
-# Scopes required for Connect with Instagram (profile + account discovery only)
+# Scopes required for Instagram Business Login
 INSTAGRAM_CONNECT_SCOPES = [
-    "instagram_basic",
-    "pages_show_list",
-    "pages_read_engagement",
+    "instagram_business_basic",
+    "instagram_business_content_publish",
 ]
 
 LONG_LIVED_TOKEN_TTL_SECONDS = 60 * 24 * 60 * 60

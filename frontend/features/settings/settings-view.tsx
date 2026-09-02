@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/hooks/queries/use-auth';
 import {
   consumeSocialOAuthReturnTo,
   useLinkedInConnection,
+  useInstagramConnection,
 } from '@/lib/hooks/queries/use-social-connection';
 import { useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
@@ -45,6 +46,19 @@ export function SettingsView() {
     disconnectLinkedIn,
     refresh: refreshLinkedInConnection,
   } = useLinkedInConnection();
+
+  const {
+    connection: instagramConnection,
+    accountName: instagramAccountName,
+    isLoading: isInstagramLoading,
+    isConnecting: isInstagramConnecting,
+    isDisconnecting: isInstagramDisconnecting,
+    connectError: instagramConnectError,
+    disconnectError: instagramDisconnectError,
+    connectInstagram,
+    disconnectInstagram,
+    refresh: refreshInstagramConnection,
+  } = useInstagramConnection();
 
   const isClient = user?.userType === 'client' || state.currentUserType === 'client';
   const isIndividual = user?.userType === 'individual' || state.currentUserType === 'individual' || state.accountType === 'individual';
@@ -116,12 +130,28 @@ export function SettingsView() {
   });
   const linkedinConnected = linkedinConnection?.connected ?? false;
 
+  const [instagramOAuthMessage] = useState<string | null>(() =>
+    searchParams.get('platform') === 'instagram' && searchParams.get('status') === 'connected'
+      ? 'Instagram connected successfully.'
+      : null,
+  );
+  const [instagramOAuthError] = useState<string | null>(() => {
+    if (searchParams.get('platform') !== 'instagram' || searchParams.get('status') !== 'error') {
+      return null;
+    }
+    const reason = searchParams.get('reason');
+    return reason ? `Instagram connection failed: ${reason}` : 'Instagram connection failed.';
+  });
+  const instagramConnected = instagramConnection?.connected ?? false;
+
   useEffect(() => {
-    if (searchParams.get('platform') !== 'linkedin') return;
+    const platform = searchParams.get('platform');
+    if (platform !== 'linkedin' && platform !== 'instagram') return;
 
     const status = searchParams.get('status');
     if (status === 'connected') {
-      refreshLinkedInConnection();
+      if (platform === 'linkedin') refreshLinkedInConnection();
+      if (platform === 'instagram') refreshInstagramConnection();
       const returnTo = consumeSocialOAuthReturnTo();
       router.replace(returnTo ?? '/app/settings');
       return;
@@ -130,7 +160,7 @@ export function SettingsView() {
     }
 
     router.replace('/app/settings');
-  }, [refreshLinkedInConnection, router, searchParams]);
+  }, [refreshLinkedInConnection, refreshInstagramConnection, router, searchParams]);
 
 
 
@@ -567,13 +597,56 @@ export function SettingsView() {
                     </div>
                     <div>
                       <p className="font-bold text-text-primary">Instagram API</p>
-                      <p className="text-[9px] font-bold text-text-secondary">Coming soon</p>
+                      <p
+                        className={`text-[9px] font-bold ${
+                          instagramConnected ? 'text-green-600' : 'text-text-secondary'
+                        }`}
+                      >
+                        {isInstagramLoading
+                          ? 'Checking connection...'
+                          : instagramConnected
+                            ? `Connected${instagramAccountName ? ` as ${instagramAccountName}` : ''}`
+                            : 'Disconnected'}
+                      </p>
                     </div>
                   </div>
-                  <span className="rounded-lg border border-border-primary px-3 py-2 text-[10px] font-bold text-text-secondary">
-                    Unavailable
-                  </span>
+                  {instagramConnected ? (
+                    <button
+                      type="button"
+                      onClick={() => disconnectInstagram()}
+                      disabled={isInstagramLoading || isInstagramDisconnecting}
+                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                    >
+                      {isInstagramDisconnecting ? 'Disconnecting...' : 'Disconnect'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => connectInstagram('/app/settings')}
+                      disabled={isInstagramLoading || isInstagramConnecting}
+                      className="rounded-lg bg-instagram-pink px-3 py-2 text-[10px] font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                    >
+                      {isInstagramConnecting ? 'Redirecting...' : 'Connect Instagram'}
+                    </button>
+                  )}
                 </div>
+
+                {instagramOAuthMessage && (
+                  <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-[10px] font-semibold text-green-700">
+                    {instagramOAuthMessage}
+                  </p>
+                )}
+                {(instagramOAuthError || instagramConnectError || instagramDisconnectError) && (
+                  <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-semibold text-red-700">
+                    {instagramOAuthError ||
+                      (instagramConnectError instanceof Error
+                        ? instagramConnectError.message
+                        : null) ||
+                      (instagramDisconnectError instanceof Error
+                        ? instagramDisconnectError.message
+                        : 'Unable to update Instagram connection.')}
+                  </p>
+                )}
 
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">

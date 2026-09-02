@@ -14,6 +14,8 @@ const PUBLIC_API_PREFIXES = [
   '/api/session/init',
   '/api/invitations/accept',
   '/api/public',
+  '/api/v1/social',
+  '/api/social',
 ];
 
 const ACCESS_TOKEN_COOKIE = 'access_token';
@@ -29,11 +31,14 @@ async function attemptTokenRefresh(request: NextRequest): Promise<{ success: boo
   }
 
   try {
-    const refreshUrl = new URL('/api/auth/refresh', request.url);
+    const origin = process.env.INTERNAL_API_ORIGIN || 'http://127.0.0.1:3000';
+    const refreshUrl = new URL('/api/auth/refresh', origin);
     const res = await fetch(refreshUrl, {
       method: 'POST',
       headers: {
         'Cookie': request.headers.get('Cookie') ?? '',
+        'ngrok-skip-browser-warning': 'true',
+        'User-Agent': 'PressForge-Middleware',
       },
     });
 

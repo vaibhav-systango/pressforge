@@ -40,7 +40,7 @@ class InstagramService:
         return f"https://graph.facebook.com/{settings.META_API_VERSION}"
 
     def _oauth_dialog_url(self) -> str:
-        return f"https://www.facebook.com/{settings.META_API_VERSION}/dialog/oauth"
+        return "https://api.instagram.com/oauth/authorize"
 
     def _verify_org_membership(self, db: Session, user_id: str, organization_id: str) -> None:
         membership = db.query(OrganizationMember).filter(
@@ -69,6 +69,7 @@ class InstagramService:
         db.commit()
 
         params = {
+            "force_reauth": "true",
             "client_id": settings.META_APP_ID,
             "redirect_uri": self._callback_redirect_uri(),
             "scope": ",".join(INSTAGRAM_CONNECT_SCOPES),
@@ -78,14 +79,15 @@ class InstagramService:
         return f"{self._oauth_dialog_url()}?{urlencode(params)}"
 
     def _exchange_code_for_token(self, code: str) -> dict:
-        params = {
+        data = {
             "client_id": settings.META_APP_ID,
             "client_secret": settings.META_APP_SECRET,
+            "grant_type": "authorization_code",
             "redirect_uri": self._callback_redirect_uri(),
             "code": code,
         }
         with httpx.Client(timeout=30.0) as client:
-            response = client.get(f"{self._graph_base()}/oauth/access_token", params=params)
+            response = client.post("https://api.instagram.com/oauth/access_token", data=data)
             response.raise_for_status()
             return response.json()
 
@@ -107,21 +109,44 @@ class InstagramService:
             "access_token": access_token,
         }
         with httpx.Client(timeout=30.0) as client:
-            response = client.get(f"{self._graph_base()}/me/accounts", params=params)
-            response.raise_for_status()
-            data = response.json()
+            try:
+                response = client.get(f"{self._graph_base()}/me/accounts", params=params)
+                if response.status_code == 200:
+                    data = response.json()
+                    for page in data.get("data", []):
+                        ig_account = page.get("instagram_business_account")
+                        if ig_account and ig_account.get("id"):
+                            return {
+                                "page_id": page.get("id"),
+                                "page_access_token": page.get("access_token"),
+                                "ig_id": ig_account.get("id"),
+                                "username": ig_account.get("username"),
+                                "display_name": ig_account.get("name"),
+                                "profile_picture_url": ig_account.get("profile_picture_url"),
+                            }
+            except Exception as exc:
+                logger.warning("Graph /me/accounts lookup skipped: %s", exc)
 
-        for page in data.get("data", []):
-            ig_account = page.get("instagram_business_account")
-            if ig_account and ig_account.get("id"):
-                return {
-                    "page_id": page.get("id"),
-                    "page_access_token": page.get("access_token"),
-                    "ig_id": ig_account.get("id"),
-                    "username": ig_account.get("username"),
-                    "display_name": ig_account.get("name"),
-                    "profile_picture_url": ig_account.get("profile_picture_url"),
+            # Fallback to direct Instagram account profile via /me
+            try:
+                me_params = {
+                    "fields": "id,username,name,profile_picture_url",
+                    "access_token": access_token,
                 }
+                me_resp = client.get(f"{self._graph_base()}/me", params=me_params)
+                if me_resp.status_code == 200:
+                    me_data = me_resp.json()
+                    if me_data.get("id"):
+                        return {
+                            "page_id": None,
+                            "page_access_token": access_token,
+                            "ig_id": me_data.get("id"),
+                            "username": me_data.get("username"),
+                            "display_name": me_data.get("name") or me_data.get("username"),
+                            "profile_picture_url": me_data.get("profile_picture_url"),
+                        }
+            except Exception as exc:
+                logger.error("Direct Instagram /me lookup error: %s", exc)
         return None
 
     def handle_oauth_callback(self, db: Session, *, code: str, state: str) -> SocialAccount:

@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Select } from '@/components/common/select';
 import { useAppState } from '@/lib/queries/use-app-state';
 import { useAuth } from '@/lib/hooks/queries/use-auth';
-import { useLinkedInConnection } from '@/lib/hooks/queries/use-social-connection';
+import { useLinkedInConnection, useInstagramConnection } from '@/lib/hooks/queries/use-social-connection';
 import { useDashboardStats } from '@/lib/hooks/queries/use-dashboard-stats';
 import { usePaginatedDrafts } from '@/lib/hooks/queries/use-paginated-drafts';
 import {
@@ -49,6 +49,16 @@ export function DashboardView() {
     limit: 10,
   });
 
+  const {
+    connection: instagramConnection,
+    accountName: instagramAccountName,
+    isLoading: isInstagramLoading,
+    isConnecting: isInstagramConnecting,
+    isDisconnecting: isInstagramDisconnecting,
+    connectInstagram,
+    disconnectInstagram,
+  } = useInstagramConnection();
+
   const isLoading = isAppStateLoading || isStatsLoading;
 
   if (isLoading || !stats) {
@@ -69,6 +79,7 @@ export function DashboardView() {
   // Active workspace & client resolution
   const activeWorkspace = state.workspaces.find((w) => w.id === state.activeWorkspaceId) || state.workspaces[0];
   const linkedinConnected = linkedinConnection?.connected ?? state.connectedAccounts?.linkedin ?? false;
+  const instagramConnected = instagramConnection?.connected ?? state.connectedAccounts?.instagram ?? false;
 
   // Role detection
   const userType = user?.userType || state.currentUserType || 'agency';
@@ -304,6 +315,46 @@ export function DashboardView() {
             <div className="bg-bg-card border border-border-primary rounded-2xl p-6 shadow-sm space-y-4">
               <h3 className="text-base font-bold text-text-primary">Social Channels</h3>
               <div className="space-y-3">
+                {/* Instagram */}
+                <div className="flex flex-wrap items-center justify-between gap-3 text-sm border-b border-border-primary pb-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Instagram className="w-4 h-4 text-instagram-pink shrink-0" />
+                    <div className="min-w-0">
+                      <span className="font-semibold text-text-primary block truncate">Instagram</span>
+                      {instagramConnected && instagramAccountName && (
+                        <span className="text-xs text-text-secondary block truncate">
+                          {instagramAccountName}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {instagramConnected ? (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs font-bold text-green-600 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 px-2.5 py-1 rounded-full whitespace-nowrap">
+                        Connected
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => disconnectInstagram()}
+                        disabled={isInstagramLoading || isInstagramDisconnecting}
+                        className="text-xs font-bold text-red-500 hover:text-red-600 transition disabled:opacity-50 cursor-pointer"
+                      >
+                        {isInstagramDisconnecting ? '...' : 'Disconnect'}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => connectInstagram('/app')}
+                      disabled={isInstagramLoading || isInstagramConnecting}
+                      className="bg-instagram-pink hover:opacity-90 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow-sm disabled:opacity-50 cursor-pointer"
+                    >
+                      {isInstagramConnecting ? 'Connecting...' : 'Connect'}
+                    </button>
+                  )}
+                </div>
+
+                {/* LinkedIn */}
                 <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
                   <div className="flex items-center gap-2 min-w-0">
                     <Linkedin className="w-4 h-4 text-blue-600 shrink-0" />
@@ -743,6 +794,46 @@ export function DashboardView() {
               <h3 className="text-base font-bold text-text-primary">Social Channels</h3>
 
               <div className="space-y-3">
+                {/* Instagram */}
+                <div className="flex flex-wrap items-center justify-between gap-3 text-sm border-b border-border-primary pb-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Instagram className="w-4 h-4 text-instagram-pink shrink-0" />
+                    <div className="min-w-0">
+                      <span className="font-semibold text-text-primary block truncate">Instagram</span>
+                      {instagramConnected && instagramAccountName && (
+                        <span className="text-xs text-text-secondary block truncate">
+                          {instagramAccountName}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {instagramConnected ? (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs font-bold text-green-600 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 px-2.5 py-1 rounded-full whitespace-nowrap">
+                        Connected
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => disconnectInstagram()}
+                        disabled={isInstagramLoading || isInstagramDisconnecting}
+                        className="text-xs font-bold text-red-500 hover:text-red-600 transition disabled:opacity-50 cursor-pointer"
+                      >
+                        {isInstagramDisconnecting ? '...' : 'Disconnect'}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => connectInstagram('/app')}
+                      disabled={isInstagramLoading || isInstagramConnecting}
+                      className="bg-instagram-pink hover:opacity-90 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow-sm disabled:opacity-50 cursor-pointer"
+                    >
+                      {isInstagramConnecting ? 'Connecting...' : 'Connect'}
+                    </button>
+                  )}
+                </div>
+
+                {/* LinkedIn */}
                 <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
                   <div className="flex items-center gap-2 min-w-0">
                     <Linkedin className="w-4 h-4 text-blue-600 shrink-0" />

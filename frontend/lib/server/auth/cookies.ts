@@ -15,7 +15,7 @@ function cookieOptions(maxAge: number) {
     path: '/' as const,
     sameSite: 'lax' as const,
     maxAge,
-    secure: process.env.NODE_ENV === 'production',
+    secure: true,
   };
 }
 

@@ -44,12 +44,19 @@ export function LoginView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  const handleSubmit = form.onSubmit(async (values) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setFormError("");
+
+    const validation = form.validate();
+    if (validation.hasErrors) {
+      return;
+    }
+
     try {
       const result = await loginMutation.mutateAsync({
-        email: values.email,
-        password: values.password,
+        email: form.values.email,
+        password: form.values.password,
       });
       const fromParam = searchParams.get("from");
       if (fromParam && (fromParam.startsWith("/app") || fromParam.startsWith("/onboarding"))) {
@@ -66,7 +73,7 @@ export function LoginView() {
         color: "red",
       });
     }
-  });
+  };
 
   return (
     <div className="min-h-screen bg-bg-app flex items-center justify-center p-4 transition-colors duration-200">
@@ -94,7 +101,7 @@ export function LoginView() {
             <input
               id="email"
               type="email"
-              placeholder="jane@example.com"
+              placeholder="Enter your email"
               {...form.getInputProps("email")}
               className="border border-border-primary bg-bg-app text-text-primary rounded-xl px-3.5 py-2.5 text-sm focus:border-instagram-pink outline-none transition duration-150"
             />
@@ -106,7 +113,7 @@ export function LoginView() {
           <PasswordInput
             id="password"
             label="Password"
-            placeholder="••••••••"
+            placeholder="Enter your password"
             {...form.getInputProps("password")}
             error={form.errors.password ? String(form.errors.password) : undefined}
           />

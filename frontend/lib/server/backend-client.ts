@@ -53,6 +53,10 @@ export async function callBackend<T>(
     headers.set('Authorization', `Bearer ${accessToken}`);
   }
 
+  // Bypass ngrok warning page if backend is behind ngrok
+  headers.set('ngrok-skip-browser-warning', 'true');
+  headers.set('User-Agent', 'PressForge-Server');
+
   const url = `${API_BASE_URL}${path}`;
 
   let response: Response;

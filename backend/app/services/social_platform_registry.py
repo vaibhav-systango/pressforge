@@ -1,8 +1,10 @@
 from app.core.constants.social_constants import SocialErrorCodes
 from app.services.linkedin_service import linkedin_service
+from app.services.instagram_service import instagram_service
 
 _REGISTRY: dict[str, object] = {
     "linkedin": linkedin_service,
+    "instagram": instagram_service,
 }
 
 
