@@ -323,33 +323,160 @@ class PublishService:
         target_platform = (draft.platform or "linkedin").lower()
         if target_platform == "instagram":
             return self.publish_draft_to_instagram(db, user, draft_id, organization_id=organization_id)
+        elif target_platform == "linkedin":
+            return self.publish_draft_to_linkedin(db, user, draft_id, organization_id=organization_id)
         elif target_platform == "both":
+            if draft.status == "published":
+                raise ValueError(DraftErrorCodes.ALREADY_PUBLISHED)
+            if draft.status != "approved":
+                raise ValueError(DraftErrorCodes.NOT_APPROVED)
+
             results = []
             errors = []
-            try:
-                li_res = self.publish_draft_to_linkedin(db, user, draft_id, organization_id=organization_id)
-                results.append(f"LinkedIn ({li_res.get('externalPostId')})")
-            except Exception as exc:
-                errors.append(f"LinkedIn: {exc}")
 
+            # 1. Try LinkedIn
             try:
-                ig_res = self.publish_draft_to_instagram(db, user, draft_id, organization_id=organization_id)
-                results.append(f"Instagram ({ig_res.get('externalPostId')})")
+                li_caption = _build_linkedin_caption(draft)
+                if not li_caption:
+                    raise ValueError(LinkedInErrorCodes.EMPTY_CAPTION)
+
+                from app.models.organization_member import OrganizationMember, MemberWorkspace, OrganizationRole
+                from app.models.social_account import SocialAccount, SocialAccountStatus
+
+                workspace = workspace_repository.get_by_id(db, draft.workspaceId)
+                allocated_client_account = None
+                if workspace:
+                    client_members = db.query(OrganizationMember).filter(
+                        OrganizationMember.role == OrganizationRole.CLIENT.value,
+                        (OrganizationMember.workspaceId == workspace.id) |
+                        OrganizationMember.id.in_(
+                            db.query(MemberWorkspace.memberId).filter(MemberWorkspace.workspaceId == workspace.id)
+                        )
+                    ).all()
+
+                    client_user_ids = [m.userId for m in client_members]
+                    if client_user_ids:
+                        allocated_client_account = db.query(SocialAccount).filter(
+                            SocialAccount.userId.in_(client_user_ids),
+                            SocialAccount.platform == linkedin_service.PLATFORM,
+                            SocialAccount.status == SocialAccountStatus.ACTIVE.value
+                        ).order_by(SocialAccount.connectedAt.desc()).first()
+
+                if allocated_client_account:
+                    account = allocated_client_account
+                else:
+                    account = linkedin_service.get_connected_account(
+                        db,
+                        user,
+                        organization_id=organization_id,
+                    )
+
+                external_post_id = linkedin_service.create_ugc_post(
+                    db,
+                    account,
+                    text=li_caption,
+                    image_url=draft.imageUrl,
+                )
+                results.append(f"LinkedIn ({external_post_id})")
             except Exception as exc:
-                errors.append(f"Instagram: {exc}")
+                logger.error("[PUBLISH_BOTH] LinkedIn publish failed for draft %s: %s", draft_id, exc)
+                errors.append(f"LinkedIn: {_message_for_publish_error(str(exc))}")
+
+            # 2. Try Instagram
+            try:
+                ig_caption = _build_instagram_caption(draft)
+                if not ig_caption:
+                    raise ValueError(InstagramErrorCodes.EMPTY_CAPTION)
+
+                workspace = workspace_repository.get_by_id(db, draft.workspaceId)
+                allocated_client_account = None
+                if workspace:
+                    client_members = db.query(OrganizationMember).filter(
+                        OrganizationMember.role == OrganizationRole.CLIENT.value,
+                        (OrganizationMember.workspaceId == workspace.id) |
+                        OrganizationMember.id.in_(
+                            db.query(MemberWorkspace.memberId).filter(MemberWorkspace.workspaceId == workspace.id)
+                        )
+                    ).all()
+
+                    client_user_ids = [m.userId for m in client_members]
+                    if client_user_ids:
+                        allocated_client_account = db.query(SocialAccount).filter(
+                            SocialAccount.userId.in_(client_user_ids),
+                            SocialAccount.platform == instagram_service.PLATFORM,
+                            SocialAccount.status == SocialAccountStatus.ACTIVE.value
+                        ).order_by(SocialAccount.connectedAt.desc()).first()
+
+                if allocated_client_account:
+                    account = allocated_client_account
+                else:
+                    account = instagram_service.get_connected_account(
+                        db,
+                        user,
+                        organization_id=organization_id,
+                    )
+
+                logger.info("[PUBLISH_IG] Starting publish_draft_to_instagram for draft_id=%s, target image_url=%s", draft_id, draft.imageUrl)
+                external_post_id = instagram_service.create_ig_media_post(
+                    db,
+                    account,
+                    text=ig_caption,
+                    image_url=draft.imageUrl or (workspace.logoUrl if workspace else None),
+                )
+                logger.info("[PUBLISH_IG] Success! Created media post ID=%s for draft_id=%s", external_post_id, draft_id)
+                results.append(f"Instagram ({external_post_id})")
+            except Exception as exc:
+                logger.error("[PUBLISH_BOTH] Instagram publish failed for draft %s: %s", draft_id, exc)
+                errors.append(f"Instagram: {_message_for_publish_error(str(exc))}")
 
             if not results:
-                raise ValueError(f"Failed to publish: {'; '.join(errors)}")
+                err_msg = "; ".join(errors)
+                self._record_publish_error(db, draft, err_msg)
+                raise ValueError(err_msg)
 
-            fresh_draft = draft_repository.get_by_id(db, draft_id)
-            payload = _draft_to_dict(fresh_draft) if fresh_draft else {}
+            now_ms = generate_timestamp_ms()
+            history = list(draft.history or [])
+            history.append(
+                {
+                    "version": (draft.version or 1) + 1,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "action": "published_both",
+                    "caption": draft.caption,
+                    "liCaption": draft.liCaption,
+                    "feedback": f"Published to {', '.join(results)}",
+                    "hashtags": draft.hashtags or [],
+                    "liHashtags": draft.liHashtags or [],
+                    "imageBrief": draft.imageBrief,
+                    "liImageBrief": draft.liImageBrief,
+                    "imageUrl": draft.imageUrl,
+                }
+            )
+
+            publish_error = "; ".join(errors) if errors else None
+
+            draft_repository.update(
+                db,
+                draft,
+                status="published",
+                publishedAt=now_ms,
+                externalPostId=", ".join(results),
+                publishError=publish_error,
+                history=history,
+                version=(draft.version or 1) + 1,
+                updatedAt=now_ms,
+                scheduledAt=draft.scheduledAt or datetime.now(timezone.utc).isoformat(),
+            )
+            db.commit()
+            db.refresh(draft)
+
+            payload = _draft_to_dict(draft)
             payload["platform"] = "both"
             return {
                 "draft": payload,
                 "platform": "both",
                 "externalPostId": ", ".join(results),
-                "publishedAt": generate_timestamp_ms(),
-                "message": f"Published successfully to {', '.join(results)}.",
+                "publishedAt": now_ms,
+                "message": f"Published successfully to {', '.join(results)}." + (f" (Warnings: {publish_error})" if publish_error else ""),
             }
         else:
             return self.publish_draft_to_linkedin(db, user, draft_id, organization_id=organization_id)

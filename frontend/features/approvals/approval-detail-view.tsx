@@ -43,9 +43,25 @@ export function ApprovalDetailView() {
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [activeTab, setActiveTab] = useState<'instagram' | 'linkedin'>(
-    draft?.platform === 'linkedin' ? 'linkedin' : 'instagram',
+  const [activeTab, setActiveTab] = useState<'instagram' | 'linkedin'>('instagram');
+
+  const creatorPlatform = (draft?.platform || 'linkedin').toLowerCase() as 'instagram' | 'linkedin' | 'both';
+  const [selectedPlatform, setSelectedPlatform] = useState<'instagram' | 'linkedin' | 'both'>(
+    (draft?.platform as 'instagram' | 'linkedin' | 'both') || 'both'
   );
+
+  useEffect(() => {
+    if (draft?.platform) {
+      const p = (draft.platform.toLowerCase() as 'instagram' | 'linkedin' | 'both') || 'both';
+      setSelectedPlatform(p);
+      if (p === 'linkedin') {
+        setActiveTab('linkedin');
+      } else {
+        setActiveTab('instagram');
+      }
+    }
+  }, [draft?.platform]);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { connection: linkedinConnection, connectLinkedIn, isLoading: isLinkedInLoading, refresh: refreshLinkedInConnection } = useLinkedInConnection();
@@ -105,11 +121,10 @@ export function ApprovalDetailView() {
   const activeWorkspace = state.workspaces.find((w) => w.id === draft.workspaceId) || state.workspaces[0];
   const imageUrl = draft.imageUrl || getSimulatedImage(draft.prompt ?? '');
 
-  const targetPlatform = (draft.platform || 'linkedin').toLowerCase();
   const linkedinConnected = linkedinConnection?.connected ?? false;
   const instagramConnected = instagramConnection?.connected ?? false;
-  const requiresLinkedIn = targetPlatform === 'linkedin' || targetPlatform === 'both';
-  const requiresInstagram = targetPlatform === 'instagram' || targetPlatform === 'both';
+  const requiresLinkedIn = selectedPlatform === 'linkedin' || selectedPlatform === 'both';
+  const requiresInstagram = selectedPlatform === 'instagram' || selectedPlatform === 'both';
   const isLinkedInMissing = requiresLinkedIn && !isLinkedInLoading && !linkedinConnected;
   const isInstagramMissing = requiresInstagram && !isInstagramLoading && !instagramConnected;
   const isApprovalDisabled = canApprove && (isLinkedInMissing || isInstagramMissing);
@@ -125,11 +140,17 @@ export function ApprovalDetailView() {
 
     updateDraft({
       ...draft,
+      platform: selectedPlatform,
       status: 'approved',
       scheduledAt: scheduledDate.toISOString(),
       version: nextVersion,
       history: [
-        { version: nextVersion, timestamp: new Date().toISOString(), action: 'Post Approved & Scheduled', caption: draft.caption },
+        {
+          version: nextVersion,
+          timestamp: new Date().toISOString(),
+          action: `Post Approved & Scheduled (${selectedPlatform === 'both' ? 'Both LinkedIn & IG' : selectedPlatform === 'instagram' ? 'Instagram' : 'LinkedIn'})`,
+          caption: draft.caption,
+        },
         ...(draft.history ?? []),
       ],
     });
@@ -208,6 +229,78 @@ export function ApprovalDetailView() {
               <p className="text-xs text-text-secondary mt-1">Review the preview on the right and select an action.</p>
             </div>
 
+            {/* Target Platform Selector (Only show choice if creator created draft for both platforms) */}
+            {creatorPlatform === 'both' ? (
+              <div className="space-y-2 pt-3 border-t border-border-primary">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-text-primary uppercase tracking-wider">
+                    Select Target Platform to Post:
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPlatform('both');
+                    }}
+                    className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold transition border cursor-pointer ${
+                      selectedPlatform === 'both'
+                        ? 'bg-gradient-to-r from-[#F58529] to-[#DD2A7B] text-white border-transparent shadow-xs'
+                        : 'bg-bg-app border-border-primary text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Both</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPlatform('linkedin');
+                      setActiveTab('linkedin');
+                    }}
+                    className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold transition border cursor-pointer ${
+                      selectedPlatform === 'linkedin'
+                        ? 'bg-blue-600 text-white border-transparent shadow-xs'
+                        : 'bg-bg-app border-border-primary text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    <Linkedin className="w-3.5 h-3.5" />
+                    <span>LinkedIn</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPlatform('instagram');
+                      setActiveTab('instagram');
+                    }}
+                    className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold transition border cursor-pointer ${
+                      selectedPlatform === 'instagram'
+                        ? 'bg-instagram-pink text-white border-transparent shadow-xs'
+                        : 'bg-bg-app border-border-primary text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    <Instagram className="w-3.5 h-3.5" />
+                    <span>Instagram</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between pt-3 border-t border-border-primary text-xs">
+                <span className="text-text-secondary font-medium">Target Publishing Platform:</span>
+                <span className="font-bold text-text-primary capitalize flex items-center gap-1.5 bg-bg-app px-2.5 py-1 rounded-lg border border-border-primary">
+                  {creatorPlatform === 'instagram' ? (
+                    <>
+                      <Instagram className="w-3.5 h-3.5 text-instagram-pink" /> Instagram
+                    </>
+                  ) : (
+                    <>
+                      <Linkedin className="w-3.5 h-3.5 text-blue-600" /> LinkedIn
+                    </>
+                  )}
+                </span>
+              </div>
+            )}
+
             {isApprovalDisabled && (
               <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900/50 p-4 text-xs space-y-2">
                 <p className="font-semibold text-red-800 dark:text-red-400">Social Account Connection Required</p>
@@ -228,7 +321,10 @@ export function ApprovalDetailView() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-border-primary">
               <button type="button" onClick={handleApprove} disabled={isApprovalDisabled}
                 className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-bold transition whitespace-nowrap shadow-xs ${isApprovalDisabled ? 'bg-slate-200 dark:bg-slate-800/80 text-slate-400 border border-border-primary cursor-not-allowed' : 'bg-gradient-to-r from-[#F58529] to-[#DD2A7B] hover:opacity-95 text-white cursor-pointer'}`}>
-                <Check className="w-4 h-4 shrink-0" /><span>Approve & Schedule</span>
+                <Check className="w-4 h-4 shrink-0" />
+                <span>
+                  Approve ({selectedPlatform === 'both' ? 'Both' : selectedPlatform === 'instagram' ? 'Instagram' : 'LinkedIn'})
+                </span>
               </button>
               <button type="button" onClick={handleRejectOnly}
                 className="w-full flex items-center justify-center gap-2 bg-bg-app hover:bg-bg-hover border border-border-primary text-text-primary px-4 py-3 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer shadow-xs">
@@ -300,10 +396,11 @@ export function ApprovalDetailView() {
                 {activeTab === 'instagram' ? <Instagram className="w-4 h-4 text-instagram-pink" /> : <Linkedin className="w-4 h-4 text-blue-600" />}
                 <span className="text-[11px] font-bold text-text-primary capitalize">{activeTab} Preview</span>
               </div>
-              {draft.platform === 'both' && (
+              {creatorPlatform === 'both' && (
                 <div className="flex gap-1 bg-bg-app p-0.5 rounded-full border border-border-primary">
-                  <button onClick={() => setActiveTab('instagram')} className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase transition cursor-pointer ${activeTab === 'instagram' ? 'bg-instagram-pink text-white shadow-xs' : 'text-text-secondary'}`}>Insta</button>
-                  <button onClick={() => setActiveTab('linkedin')} className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase transition cursor-pointer ${activeTab === 'linkedin' ? 'bg-blue-600 text-white shadow-xs' : 'text-text-secondary'}`}>LinkedIn</button>
+                  <button onClick={() => { setSelectedPlatform('both'); }} className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase transition cursor-pointer ${selectedPlatform === 'both' ? 'bg-gradient-to-r from-[#F58529] to-[#DD2A7B] text-white shadow-xs' : 'text-text-secondary'}`}>Both</button>
+                  <button onClick={() => { setSelectedPlatform('instagram'); setActiveTab('instagram'); }} className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase transition cursor-pointer ${selectedPlatform === 'instagram' ? 'bg-instagram-pink text-white shadow-xs' : 'text-text-secondary'}`}>Insta</button>
+                  <button onClick={() => { setSelectedPlatform('linkedin'); setActiveTab('linkedin'); }} className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase transition cursor-pointer ${selectedPlatform === 'linkedin' ? 'bg-blue-600 text-white shadow-xs' : 'text-text-secondary'}`}>LinkedIn</button>
                 </div>
               )}
             </div>
