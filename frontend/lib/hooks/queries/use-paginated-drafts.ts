@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useAppState } from '@/lib/queries/use-app-state';
 import type { Draft } from '@/lib/types';
 import type { PaginatedDraftListResponse } from '@/lib/types/pagination';
@@ -46,6 +46,7 @@ export function usePaginatedDrafts({
   limit = 10,
 }: UsePaginatedDraftsOptions = {}) {
   const { state } = useAppState();
+  const queryClient = useQueryClient();
   const activeWorkspaceId = workspaceId ?? state.activeWorkspaceId;
 
   const queryKey = [
@@ -62,6 +63,13 @@ export function usePaginatedDrafts({
     queryKey,
     queryFn: () => fetchPaginatedDrafts(activeWorkspaceId, status, search, platform, page, limit),
     staleTime: 10_000,
+    placeholderData: (previousData, previousQuery) => {
+      const previousWorkspaceId = previousQuery?.queryKey?.[1];
+      if (previousWorkspaceId && previousWorkspaceId === activeWorkspaceId) {
+        return previousData;
+      }
+      return undefined;
+    },
   });
 
   // Client-side fallback if query fails or state has local drafts
@@ -115,14 +123,30 @@ export function usePaginatedDrafts({
     all: allWorkspaceDrafts.length,
   };
 
+  // Look for any cached counts for this activeWorkspaceId in TanStack Query Cache
+  const cachedQueries = queryClient.getQueriesData<PaginatedDraftListResponse>({
+    queryKey: ['paginated-drafts', activeWorkspaceId],
+  });
+  const cachedCounts = cachedQueries.find(([, data]) => data?.counts)?.[1]?.counts;
+
   const isSuccess = query.isSuccess && !!query.data;
 
-  const drafts: Draft[] = isSuccess ? query.data.drafts : paginatedLocal;
-  const total: number = isSuccess ? query.data.total : totalLocal;
-  const totalPages: number = isSuccess ? query.data.total_pages : totalPagesLocal;
-  const hasNext: boolean = isSuccess ? query.data.has_next : page < totalPagesLocal;
-  const hasPrev: boolean = isSuccess ? query.data.has_prev : page > 1;
-  const counts = isSuccess && query.data.counts ? query.data.counts : fallbackCounts;
+  // Do NOT return dummy mock data while loading.
+  // Return query.data.drafts when success, or empty array while loading, or paginatedLocal only if there's an error.
+  const drafts: Draft[] = isSuccess
+    ? query.data.drafts
+    : query.isError
+    ? paginatedLocal
+    : [];
+
+  const total: number = isSuccess ? query.data.total : query.isError ? totalLocal : 0;
+  const totalPages: number = isSuccess ? query.data.total_pages : query.isError ? totalPagesLocal : 1;
+  const hasNext: boolean = isSuccess ? query.data.has_next : query.isError ? page < totalPagesLocal : false;
+  const hasPrev: boolean = isSuccess ? query.data.has_prev : query.isError ? page > 1 : false;
+
+  const emptyCounts = { pending: 0, approved: 0, rejected: 0, draft: 0, published: 0, all: 0 };
+  const counts = query.data?.counts || cachedCounts || (query.isError ? fallbackCounts : emptyCounts);
+  const isInitialLoading = query.isLoading && !query.data && !cachedCounts;
 
   return {
     drafts,
@@ -134,6 +158,7 @@ export function usePaginatedDrafts({
     hasPrev,
     counts,
     isLoading: query.isLoading,
+    isInitialLoading,
     isFetching: query.isFetching,
     isError: query.isError,
     refetch: query.refetch,

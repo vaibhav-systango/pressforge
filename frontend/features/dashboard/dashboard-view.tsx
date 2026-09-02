@@ -7,6 +7,7 @@ import { useAppState } from '@/lib/queries/use-app-state';
 import { useAuth } from '@/lib/hooks/queries/use-auth';
 import { useLinkedInConnection } from '@/lib/hooks/queries/use-social-connection';
 import { useDashboardStats } from '@/lib/hooks/queries/use-dashboard-stats';
+import { usePaginatedDrafts } from '@/lib/hooks/queries/use-paginated-drafts';
 import {
   Sparkles,
   Calendar,
@@ -41,6 +42,12 @@ export function DashboardView() {
     connectLinkedIn,
     disconnectLinkedIn,
   } = useLinkedInConnection();
+
+  const { counts: workspaceDraftCounts, drafts: backendPendingDrafts } = usePaginatedDrafts({
+    workspaceId: state.activeWorkspaceId,
+    status: 'pending_approval',
+    limit: 10,
+  });
 
   const isLoading = isAppStateLoading || isStatsLoading;
 
@@ -85,12 +92,13 @@ export function DashboardView() {
 
   const accessibleWsIds = accessibleWorkspaces.map(w => w.id);
 
-  // Aggregate drafts across all accessible workspaces for this role
+  // Aggregate drafts across all accessible workspaces for fallback
   const roleDrafts = state.drafts.filter((d) => accessibleWsIds.length > 0 ? accessibleWsIds.includes(d.workspaceId) : true);
   const drafts = roleDrafts.length > 0 ? roleDrafts : state.drafts;
-  const clientPending = drafts.filter((d) => d.status === 'pending_approval');
-  const clientApproved = drafts.filter((d) => d.status === 'approved' || d.status === 'published');
-  const clientRejected = drafts.filter((d) => d.status === 'rejected');
+  const clientPending = backendPendingDrafts.length > 0 ? backendPendingDrafts : drafts.filter((d) => d.status === 'pending_approval');
+  const clientPendingCount = workspaceDraftCounts.pending;
+  const clientApprovedCount = workspaceDraftCounts.approved;
+  const clientRejectedCount = workspaceDraftCounts.rejected;
 
   // KPI Metrics from API stats endpoint
   const weeklyReach = stats.kpis.weeklyReach;
@@ -144,7 +152,7 @@ export function DashboardView() {
               <AlertCircle className="w-5 h-5 text-yellow-500 group-hover:scale-110 transition duration-150" />
             </div>
             <div className="mt-4 flex items-baseline justify-between">
-              <p className="text-3xl font-extrabold text-text-primary">{clientPending.length}</p>
+              <p className="text-3xl font-extrabold text-text-primary">{clientPendingCount}</p>
               <span className="text-xs font-semibold text-instagram-pink flex items-center gap-0.5">
                 Review Pending <ChevronRight className="w-3 h-3" />
               </span>
@@ -156,7 +164,7 @@ export function DashboardView() {
               <span className="text-xs font-bold text-text-secondary uppercase tracking-wide">Scheduled & Approved</span>
               <CheckCircle2 className="w-5 h-5 text-green-500" />
             </div>
-            <p className="text-3xl font-extrabold text-text-primary mt-4">{clientApproved.length}</p>
+            <p className="text-3xl font-extrabold text-text-primary mt-4">{clientApprovedCount}</p>
           </div>
 
           <div className="bg-bg-card border border-border-primary p-5 rounded-2xl text-left shadow-sm">
@@ -164,7 +172,7 @@ export function DashboardView() {
               <span className="text-xs font-bold text-text-secondary uppercase tracking-wide">Revision Requests</span>
               <XCircle className="w-5 h-5 text-red-500" />
             </div>
-            <p className="text-3xl font-extrabold text-text-primary mt-4">{clientRejected.length}</p>
+            <p className="text-3xl font-extrabold text-text-primary mt-4">{clientRejectedCount}</p>
           </div>
         </div>
 

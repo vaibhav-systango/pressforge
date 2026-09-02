@@ -172,53 +172,65 @@ export function ContentListView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-primary">
-              {drafts.map((draft) => (
-                <tr key={draft.id} className="hover:bg-bg-hover transition">
-                  <td className="p-4 font-semibold text-xs text-text-primary max-w-[200px] truncate">
-                    {draft.prompt}
-                  </td>
-                  <td className="p-4 text-xs text-text-secondary max-w-[350px] truncate">
-                    {draft.caption}
-                  </td>
-                  <td className="p-4">
-                    <div className="flex flex-wrap gap-1.5">
-                      {(!draft.platform || draft.platform === 'instagram' || draft.platform === 'both') && (
-                        <span className="inline-flex items-center gap-1 text-[10px] text-instagram-pink bg-pink-500/10 px-2 py-0.5 rounded-full font-bold">
-                          <Instagram className="w-3 h-3" /> Instagram
-                        </span>
-                      )}
-                      {(draft.platform === 'linkedin' || draft.platform === 'both') && (
-                        <span className="inline-flex items-center gap-1 text-[10px] text-blue-600 bg-blue-500/10 px-2 py-0.5 rounded-full font-bold">
-                          <Linkedin className="w-3 h-3" /> LinkedIn
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <span
-                      className={`inline-block text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                        draft.status === 'approved'
-                          ? 'bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-900'
-                          : draft.status === 'pending_approval'
-                          ? 'bg-yellow-50 dark:bg-yellow-950/20 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-900'
-                          : draft.status === 'rejected'
-                          ? 'bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900'
-                          : 'bg-bg-app border border-border-primary text-text-secondary'
-                      }`}
-                    >
-                      {draft.status.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td className="p-4 text-right shrink-0">
-                    <Link
-                      href={draft.status === 'pending_approval' && canApprove ? `/app/approvals/${draft.id}` : `/app/content/${draft.id}`}
-                      className="text-xs font-bold text-instagram-pink hover:underline"
-                    >
-                      Open details
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+              {isLoading && drafts.length === 0 ? (
+                [1, 2, 3].map((i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="p-4"><div className="h-4 bg-border-primary/60 rounded w-28" /></td>
+                    <td className="p-4"><div className="h-3 bg-border-primary/40 rounded w-48" /></td>
+                    <td className="p-4"><div className="h-4 bg-border-primary/40 rounded w-16" /></td>
+                    <td className="p-4"><div className="h-4 bg-border-primary/40 rounded w-20" /></td>
+                    <td className="p-4 text-right"><div className="h-4 bg-border-primary/40 rounded w-16 ml-auto" /></td>
+                  </tr>
+                ))
+              ) : (
+                drafts.map((draft) => (
+                  <tr key={draft.id} className="hover:bg-bg-hover transition">
+                    <td className="p-4 font-semibold text-xs text-text-primary max-w-[200px] truncate">
+                      {draft.prompt}
+                    </td>
+                    <td className="p-4 text-xs text-text-secondary max-w-[350px] truncate">
+                      {draft.caption}
+                    </td>
+                    <td className="p-4">
+                      <div className="flex flex-wrap gap-1.5">
+                        {(!draft.platform || draft.platform === 'instagram' || draft.platform === 'both') && (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-instagram-pink bg-pink-500/10 px-2 py-0.5 rounded-full font-bold">
+                            <Instagram className="w-3 h-3" /> Instagram
+                          </span>
+                        )}
+                        {(draft.platform === 'linkedin' || draft.platform === 'both') && (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-blue-600 bg-blue-500/10 px-2 py-0.5 rounded-full font-bold">
+                            <Linkedin className="w-3 h-3" /> LinkedIn
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <span
+                        className={`inline-block text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                          draft.status === 'approved'
+                            ? 'bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-900'
+                            : draft.status === 'pending_approval'
+                            ? 'bg-yellow-50 dark:bg-yellow-950/20 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-900'
+                            : draft.status === 'rejected'
+                            ? 'bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900'
+                            : 'bg-bg-app border border-border-primary text-text-secondary'
+                        }`}
+                      >
+                        {draft.status.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right shrink-0">
+                      <Link
+                        href={draft.status === 'pending_approval' && canApprove ? `/app/approvals/${draft.id}` : `/app/content/${draft.id}`}
+                        className="text-xs font-bold text-instagram-pink hover:underline"
+                      >
+                        Open details
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              )}
               {drafts.length === 0 && !isLoading && (
                 <tr>
                   <td colSpan={5} className="p-8 text-center text-sm text-text-secondary italic">

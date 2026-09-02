@@ -71,6 +71,7 @@ export function ApprovalsListView() {
     totalPages,
     counts,
     isLoading,
+    isInitialLoading,
     isFetching,
   } = usePaginatedDrafts({
     workspaceId: state.activeWorkspaceId,
@@ -121,7 +122,11 @@ export function ApprovalsListView() {
             </span>
             <AlertCircle className="w-4.5 h-4.5 text-yellow-500" />
           </div>
-          <p className="text-2xl font-extrabold text-text-primary mt-2">{counts.pending}</p>
+          {isInitialLoading ? (
+            <div className="h-7 w-12 bg-border-primary/50 rounded animate-pulse mt-2" />
+          ) : (
+            <p className="text-2xl font-extrabold text-text-primary mt-2">{counts.pending}</p>
+          )}
         </button>
 
         <button
@@ -138,7 +143,11 @@ export function ApprovalsListView() {
             </span>
             <CheckCircle2 className="w-4.5 h-4.5 text-green-500" />
           </div>
-          <p className="text-2xl font-extrabold text-text-primary mt-2">{counts.approved}</p>
+          {isInitialLoading ? (
+            <div className="h-7 w-12 bg-border-primary/50 rounded animate-pulse mt-2" />
+          ) : (
+            <p className="text-2xl font-extrabold text-text-primary mt-2">{counts.approved}</p>
+          )}
         </button>
 
         <button
@@ -155,7 +164,11 @@ export function ApprovalsListView() {
             </span>
             <XCircle className="w-4.5 h-4.5 text-red-500" />
           </div>
-          <p className="text-2xl font-extrabold text-text-primary mt-2">{counts.rejected}</p>
+          {isInitialLoading ? (
+            <div className="h-7 w-12 bg-border-primary/50 rounded animate-pulse mt-2" />
+          ) : (
+            <p className="text-2xl font-extrabold text-text-primary mt-2">{counts.rejected}</p>
+          )}
         </button>
       </div>
 
@@ -211,56 +224,75 @@ export function ApprovalsListView() {
         </h3>
 
         <div className="flex flex-col gap-4">
-          {visibleDrafts.map((draft) => (
-            <div
-              key={draft.id}
-              className="border border-border-primary rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-bg-app/50 transition"
-            >
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] flex items-center justify-center text-white text-xs font-extrabold shrink-0 mt-0.5">
-                  {draft.prompt ? draft.prompt.charAt(0) : 'P'}
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="text-sm font-bold text-text-primary">{draft.prompt}</h4>
-                    <span className="text-[10px] text-slate-400 font-semibold">v{draft.version ?? 1}</span>
-                    {(() => {
-                      const revCount = (draft.history ?? []).filter((h) => h.action === 'Client Requested Changes').length;
-                      return revCount > 0 ? (
-                        <span className="text-[10px] font-bold text-purple-500 bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.5 rounded-full">
-                          {revCount} revision{revCount !== 1 ? 's' : ''}
-                        </span>
-                      ) : null;
-                    })()}
-                  </div>
-                  <p className="text-xs text-text-secondary line-clamp-2 leading-relaxed">{draft.caption}</p>
-                  <div className="flex items-center gap-1.5 pt-1">
-                    <Instagram className="w-3.5 h-3.5 text-instagram-pink" />
-                    <Linkedin className="w-3.5 h-3.5 text-blue-600" />
+          {isLoading && visibleDrafts.length === 0 ? (
+            <div className="flex flex-col gap-3">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="border border-border-primary rounded-2xl p-5 bg-bg-app/40 animate-pulse flex items-center justify-between gap-4"
+                >
+                  <div className="flex items-start gap-4 min-w-0 flex-1">
+                    <div className="w-10 h-10 rounded-full bg-border-primary/60 shrink-0 mt-0.5" />
+                    <div className="space-y-2 flex-1">
+                      <div className="h-4 bg-border-primary/60 rounded w-1/3" />
+                      <div className="h-3 bg-border-primary/40 rounded w-3/4" />
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="shrink-0 flex items-center gap-3 self-end sm:self-center">
-                {activeTab === 'pending' && canApprove ? (
-                  <Link
-                    href={`/app/approvals/${draft.id}`}
-                    className="flex items-center gap-1.5 bg-gradient-to-r from-[#F58529] to-[#DD2A7B] text-white px-4 py-2 rounded-xl text-xs font-bold hover:opacity-95 transition shadow-xs whitespace-nowrap cursor-pointer"
-                  >
-                    <span>Review & Approve</span>
-                    <ArrowRight className="w-3.5 h-3.5 shrink-0" />
-                  </Link>
-                ) : (
-                  <Link
-                    href={canApprove ? `/app/approvals/${draft.id}` : `/app/content/${draft.id}`}
-                    className="text-xs font-bold text-text-secondary hover:text-text-primary hover:underline py-2 whitespace-nowrap cursor-pointer"
-                  >
-                    View History
-                  </Link>
-                )}
-              </div>
+              ))}
             </div>
-          ))}
+          ) : (
+            visibleDrafts.map((draft) => (
+              <div
+                key={draft.id}
+                className="border border-border-primary rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-bg-app/50 transition"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] flex items-center justify-center text-white text-xs font-extrabold shrink-0 mt-0.5">
+                    {draft.prompt ? draft.prompt.charAt(0) : 'P'}
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-sm font-bold text-text-primary">{draft.prompt}</h4>
+                      <span className="text-[10px] text-slate-400 font-semibold">v{draft.version ?? 1}</span>
+                      {(() => {
+                        const revCount = (draft.history ?? []).filter((h) => h.action === 'Client Requested Changes').length;
+                        return revCount > 0 ? (
+                          <span className="text-[10px] font-bold text-purple-500 bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.5 rounded-full">
+                            {revCount} revision{revCount !== 1 ? 's' : ''}
+                          </span>
+                        ) : null;
+                      })()}
+                    </div>
+                    <p className="text-xs text-text-secondary line-clamp-2 leading-relaxed">{draft.caption}</p>
+                    <div className="flex items-center gap-1.5 pt-1">
+                      <Instagram className="w-3.5 h-3.5 text-instagram-pink" />
+                      <Linkedin className="w-3.5 h-3.5 text-blue-600" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="shrink-0 flex items-center gap-3 self-end sm:self-center">
+                  {activeTab === 'pending' && canApprove ? (
+                    <Link
+                      href={`/app/approvals/${draft.id}`}
+                      className="flex items-center gap-1.5 bg-gradient-to-r from-[#F58529] to-[#DD2A7B] text-white px-4 py-2 rounded-xl text-xs font-bold hover:opacity-95 transition shadow-xs whitespace-nowrap cursor-pointer"
+                    >
+                      <span>Review & Approve</span>
+                      <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+                    </Link>
+                  ) : (
+                    <Link
+                      href={canApprove ? `/app/approvals/${draft.id}` : `/app/content/${draft.id}`}
+                      className="text-xs font-bold text-text-secondary hover:text-text-primary hover:underline py-2 whitespace-nowrap cursor-pointer"
+                    >
+                      View History
+                    </Link>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
 
           {visibleDrafts.length === 0 && !isLoading && (
             <div className="text-center py-10 space-y-2">

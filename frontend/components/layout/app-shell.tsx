@@ -4,6 +4,7 @@ import { NavLink } from "@/components/navigation/nav-link";
 import { usePathname } from "next/navigation";
 import { useAppState } from "@/lib/queries/use-app-state";
 import { useAuth } from "@/lib/hooks/queries/use-auth";
+import { usePaginatedDrafts } from "@/lib/hooks/queries/use-paginated-drafts";
 import type { AppState, ClientUser, Workspace } from "@/lib/types";
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
@@ -243,11 +244,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     availableClients.find((c) => c.id === state.activeClientId) ||
     availableClients[0];
 
-  const pendingApprovalsCount = state.drafts.filter(
-    (d) =>
-      d.workspaceId === state.activeWorkspaceId &&
-      d.status === "pending_approval",
-  ).length;
+  const { counts: draftCounts, isInitialLoading: isDraftsLoading } = usePaginatedDrafts({
+    workspaceId: activeWorkspace?.id ?? state.activeWorkspaceId,
+    limit: 1,
+  });
+
+  const pendingApprovalsCount = draftCounts.pending;
 
   const handleWorkspaceChange = useCallback(
     async (id: string, name?: string) => {
@@ -455,11 +457,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     {isNavigating && navigatingPageTitle === (isClient ? "My Approvals" : "Client Approvals") && (
                       <Loader2 className="w-3.5 h-3.5 text-instagram-pink animate-spin shrink-0" />
                     )}
-                    {pendingApprovalsCount > 0 && (
+                    {isDraftsLoading ? (
+                      <span className="w-2.5 h-2.5 rounded-full bg-instagram-pink animate-pulse shrink-0" />
+                    ) : pendingApprovalsCount > 0 ? (
                       <span className="bg-instagram-pink text-white text-xs px-2 py-0.5 rounded-full font-bold">
                         {pendingApprovalsCount}
                       </span>
-                    )}
+                    ) : null}
                   </div>
                 </NavLink>
 
@@ -545,11 +549,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     {isNavigating && navigatingPageTitle === "Approvals" && (
                       <Loader2 className="w-3.5 h-3.5 text-instagram-pink animate-spin shrink-0" />
                     )}
-                    {pendingApprovalsCount > 0 && (
+                    {isDraftsLoading ? (
+                      <span className="w-2.5 h-2.5 rounded-full bg-instagram-pink animate-pulse shrink-0" />
+                    ) : pendingApprovalsCount > 0 ? (
                       <span className="bg-instagram-pink text-white text-xs px-2 py-0.5 rounded-full font-bold">
                         {pendingApprovalsCount}
                       </span>
-                    )}
+                    ) : null}
                   </div>
                 </NavLink>
 
