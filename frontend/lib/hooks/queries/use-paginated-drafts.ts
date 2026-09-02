@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppState } from '@/lib/queries/use-app-state';
 import type { Draft } from '@/lib/types';
 import type { PaginatedDraftListResponse } from '@/lib/types/pagination';
