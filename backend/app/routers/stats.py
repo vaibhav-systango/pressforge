@@ -11,6 +11,7 @@ from app.models.draft import Draft
 from app.models.organization import Organization
 from app.models.workspace_schedule import WorkspaceSchedule
 from app.core.dependencies import get_current_user
+from app.services.workspace_service import workspace_service
 
 router = APIRouter()
 

@@ -208,9 +208,17 @@ def update_draft(
     db: Annotated[Session, Depends(get_db)],
 ):
     try:
-        return draft_service.update_draft(
+        updated = draft_service.update_draft(
             db, current_user, draft_id, body.model_dump(exclude_unset=True)
         )
+        if updated.get("status") in ("approved", "approved_all"):
+            logger.info("[DRAFT_ROUTER] Draft %s approved by client. Publishing this specific draft immediately.", draft_id)
+            try:
+                pub_result = publish_service.publish_draft(db, current_user, draft_id)
+                logger.info("[DRAFT_ROUTER] Direct publish result for draft %s: %s", draft_id, pub_result)
+            except Exception as pub_exc:
+                logger.error("[DRAFT_ROUTER] Direct publish error for draft %s: %s", draft_id, pub_exc)
+        return updated
     except ValueError as exc:
         _raise_draft_error(str(exc))
 

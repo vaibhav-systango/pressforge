@@ -252,6 +252,7 @@ class PublishService:
                 organization_id=organization_id,
             )
 
+        logger.info("[PUBLISH_IG] Starting publish_draft_to_instagram for draft_id=%s, target image_url=%s", draft_id, draft.imageUrl)
         try:
             external_post_id = instagram_service.create_ig_media_post(
                 db,
@@ -259,10 +260,12 @@ class PublishService:
                 text=caption,
                 image_url=draft.imageUrl or (workspace.logoUrl if workspace else None),
             )
-        except ValueError:
+            logger.info("[PUBLISH_IG] Success! Created media post ID=%s for draft_id=%s", external_post_id, draft_id)
+        except ValueError as exc:
+            logger.error("[PUBLISH_IG] ValueError publishing to Instagram for draft_id=%s: %s", draft_id, exc)
             raise
         except Exception as exc:
-            logger.error("Unexpected Instagram publish error: %s", exc)
+            logger.error("[PUBLISH_IG] Unexpected Instagram publish error for draft_id=%s: %s", draft_id, exc)
             raise ValueError(InstagramErrorCodes.PUBLISH_FAILED) from exc
 
         now_ms = generate_timestamp_ms()

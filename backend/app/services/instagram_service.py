@@ -37,7 +37,7 @@ class InstagramService:
             raise ValueError(InstagramErrorCodes.META_NOT_CONFIGURED)
 
     def _graph_base(self) -> str:
-        return f"https://graph.facebook.com/{settings.META_API_VERSION}"
+        return f"https://graph.instagram.com/{settings.META_API_VERSION}"
 
     def _oauth_dialog_url(self) -> str:
         return "https://api.instagram.com/oauth/authorize"
@@ -405,15 +405,17 @@ class InstagramService:
             "access_token": access_token,
         }
 
+        logger.info("[INSTAGRAM_SERVICE] Creating media container for IG User ID %s with image_url=%s", ig_user_id, image_url)
         try:
             with httpx.Client(timeout=60.0) as client:
                 resp = client.post(create_media_url, data=params)
+                logger.info("[INSTAGRAM_SERVICE] Container creation HTTP %s: %s", resp.status_code, resp.text)
                 if resp.status_code in (401, 403):
                     social_account_repository.update_status(db, account, SocialAccountStatus.EXPIRED.value)
                     db.commit()
                     raise ValueError(InstagramErrorCodes.TOKEN_EXPIRED)
                 if resp.status_code >= 400:
-                    logger.error("Instagram media container creation error %s: %s", resp.status_code, resp.text)
+                    logger.error("[INSTAGRAM_SERVICE] Instagram media container creation error %s: %s", resp.status_code, resp.text)
                     raise ValueError(InstagramErrorCodes.PUBLISH_FAILED)
 
                 container_data = resp.json()
@@ -421,18 +423,32 @@ class InstagramService:
                 if not creation_id:
                     raise ValueError(InstagramErrorCodes.PUBLISH_FAILED)
 
+                logger.info("[INSTAGRAM_SERVICE] Container created with ID=%s. Waiting 3s for Instagram processing...", creation_id)
+                import time
+                time.sleep(3.0)
+
                 publish_media_url = f"{self._graph_base()}/{ig_user_id}/media_publish"
                 pub_params = {
                     "creation_id": creation_id,
                     "access_token": access_token,
                 }
                 pub_resp = client.post(publish_media_url, data=pub_params)
+                logger.info("[INSTAGRAM_SERVICE] Media publish HTTP %s: %s", pub_resp.status_code, pub_resp.text)
                 if pub_resp.status_code >= 400:
-                    logger.error("Instagram publish container error %s: %s", pub_resp.status_code, pub_resp.text)
+                    pub_err_text = pub_resp.text
+                    if "9007" in pub_err_text or "2207027" in pub_err_text:
+                        logger.info("[INSTAGRAM_SERVICE] Media not ready yet (9007). Retrying after 5s delay...")
+                        time.sleep(5.0)
+                        pub_resp = client.post(publish_media_url, data=pub_params)
+                        logger.info("[INSTAGRAM_SERVICE] Retry Media publish HTTP %s: %s", pub_resp.status_code, pub_resp.text)
+
+                if pub_resp.status_code >= 400:
+                    logger.error("[INSTAGRAM_SERVICE] Instagram publish container error %s: %s", pub_resp.status_code, pub_resp.text)
                     raise ValueError(InstagramErrorCodes.PUBLISH_FAILED)
 
                 pub_data = pub_resp.json()
                 media_id = pub_data.get("id") or creation_id
+                logger.info("[INSTAGRAM_SERVICE] Media published successfully with Media ID=%s", media_id)
                 return str(media_id)
         except ValueError:
             raise
