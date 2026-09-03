@@ -113,6 +113,9 @@ export function ContentNewView() {
   const [liHashtags, setLinkedinHashtags] = useState<string[]>([]);
   const [liImageBrief, setLinkedinImageBrief] = useState("");
 
+  // Full Gemini prompt (for copy/debug)
+  const [geminiPrompt, setGeminiPrompt] = useState("");
+
   // Variations & Tweak state
   const [variations, setVariations] = useState<Variation[]>([]);
   const [activeVarIdx, setActiveVarIdx] = useState(0);
@@ -211,7 +214,11 @@ export function ContentNewView() {
       const data = (await res.json()) as {
         variations: Variation[];
         prompt: string;
+        geminiPrompt?: string;
       };
+
+      // Store the exact Gemini prompt for display
+      setGeminiPrompt(data.geminiPrompt || "");
 
       const updatedVars = (data.variations || []).map((v) => ({
         ...v,
@@ -679,6 +686,9 @@ export function ContentNewView() {
                 liHashtags={liHashtags}
                 localWebsite={localWebsite}
                 generating={generating}
+                imageBrief={imageBrief}
+                liImageBrief={liImageBrief}
+                geminiPrompt={geminiPrompt}
               />
 
               {/* Save / Launch Actions */}

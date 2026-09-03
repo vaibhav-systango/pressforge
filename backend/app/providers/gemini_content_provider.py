@@ -269,17 +269,6 @@ OUTPUT RULES
             },
         }
 
-        # ── PROMPT DEBUG LOG ──────────────────────────────────────────────
-        logger.info(
-            "\n%s\nFINAL GEMINI PROMPT (%d chars)\n%s\n%s\n%s",
-            "=" * 80,
-            len(prompt_instructions),
-            "=" * 80,
-            prompt_instructions,
-            "=" * 80,
-        )
-        # ─────────────────────────────────────────────────────────────────
-
         models = self._model_candidates()
         last_was_overload = False
         last_exc: Exception | None = None
@@ -379,17 +368,36 @@ OUTPUT RULES
         )
         return f"https://image.pollinations.ai/prompt/{encoded}?{params}"
 
-    def _rehost_image(self, pollinations_url: str) -> str | None:
-        try:
-            with httpx.Client(timeout=120.0, follow_redirects=True) as client:
-                image_response = client.get(pollinations_url)
-                image_response.raise_for_status()
-                content_type = image_response.headers.get("content-type", "image/png")
-                if "image" not in content_type:
-                    content_type = "image/png"
-                file_bytes = image_response.content
-        except Exception as exc:
-            logger.warning("Failed to download Pollinations image: %s", exc)
+    def _rehost_image(self, pollinations_url: str, *, max_retries: int = 3) -> str | None:
+        """Download from Pollinations and upload to Cloudinary.
+        Retries on 429 Too Many Requests with exponential backoff.
+        """
+        for attempt in range(max_retries):
+            try:
+                with httpx.Client(timeout=120.0, follow_redirects=True) as client:
+                    image_response = client.get(pollinations_url)
+                    if image_response.status_code == 429:
+                        wait = 2 ** attempt * 5  # 5s, 10s, 20s
+                        logger.warning(
+                            "Pollinations 429 rate-limit — retrying in %ds (attempt %d/%d)",
+                            wait, attempt + 1, max_retries,
+                        )
+                        time.sleep(wait)
+                        continue
+                    image_response.raise_for_status()
+                    content_type = image_response.headers.get("content-type", "image/png")
+                    if "image" not in content_type:
+                        content_type = "image/png"
+                    file_bytes = image_response.content
+                    break  # success — exit retry loop
+            except httpx.HTTPStatusError:
+                raise  # non-429 HTTP errors are not retried
+            except Exception as exc:
+                logger.warning("Failed to download Pollinations image: %s", exc)
+                return None
+        else:
+            # All retries exhausted
+            logger.warning("Pollinations image still rate-limited after %d attempts", max_retries)
             return None
 
         try:
@@ -450,17 +458,34 @@ OUTPUT RULES
         raw_variations = raw_variations[:3]
 
         image_url: str | None = None
+        li_image_url: str | None = None
         image_warning: str | None = None
+
         first_brief = (raw_variations[0].get("imageBrief") or "").strip()
+        first_li_brief = (raw_variations[0].get("liImageBrief") or "").strip()
+
+        # Generate ONE Instagram image (1:1 square)
         if first_brief:
             try:
-                pollinations_url = self.build_pollinations_url(first_brief, aspect_ratio)
+                pollinations_url = self.build_pollinations_url(first_brief, "1:1")
                 image_url = self._rehost_image(pollinations_url) or pollinations_url
             except Exception as exc:
-                logger.warning("Image generation failed: %s", exc)
+                logger.warning("Instagram image generation failed: %s", exc)
                 image_warning = str(exc)
         else:
-            image_warning = "No image brief returned from model."
+            image_warning = "No imageBrief returned from model."
+
+        # Brief pause between requests to avoid Pollinations rate-limiting
+        time.sleep(5)
+
+        # Generate ONE LinkedIn image (16:9 landscape)
+        li_brief_to_use = first_li_brief or first_brief
+        if li_brief_to_use:
+            try:
+                li_pollinations_url = self.build_pollinations_url(li_brief_to_use, "16:9")
+                li_image_url = self._rehost_image(li_pollinations_url) or li_pollinations_url
+            except Exception as exc:
+                logger.warning("LinkedIn image generation failed: %s", exc)
 
         variations = []
         for index, item in enumerate(raw_variations):
@@ -480,13 +505,15 @@ OUTPUT RULES
                     "liCaption": item.get("liCaption") or "",
                     "liHashtags": [str(tag).lstrip("#") for tag in li_hashtags],
                     "liImageBrief": item.get("liImageBrief") or "",
-                    "imageUrl": image_url,
+                    "imageUrl": image_url,        # Instagram 1:1
+                    "liImageUrl": li_image_url,   # LinkedIn 16:9
                 }
             )
 
         return {
             "variations": variations,
             "prompt": prompt,
+            "geminiPrompt": instructions,   # exact prompt sent to Gemini API
             "imageWarning": image_warning,
         }
 
@@ -502,6 +529,7 @@ OUTPUT RULES
         previous_hashtags: list[str],
         previous_li_hashtags: list[str],
         previous_image_url: str | None,
+        previous_li_image_url: str | None = None,
         # Brand context
         brand_name: str | None = None,
         tone: str | None = None,
@@ -624,17 +652,31 @@ OUTPUT RULES
             li_hashtags = []
 
         new_image_brief = (item.get("imageBrief") or "").strip()
+        new_li_image_brief = (item.get("liImageBrief") or "").strip()
+
         image_url: str | None = previous_image_url
+        li_image_url: str | None = previous_li_image_url
         image_warning: str | None = None
 
+        # Regenerate Instagram image (1:1) if brief changed
         if new_image_brief:
             try:
-                pollinations_url = self.build_pollinations_url(new_image_brief, aspect_ratio)
+                pollinations_url = self.build_pollinations_url(new_image_brief, "1:1")
                 image_url = self._rehost_image(pollinations_url) or pollinations_url
             except Exception as exc:
-                logger.warning("Image generation failed during feedback regeneration: %s", exc)
+                logger.warning("Instagram image generation failed during feedback: %s", exc)
                 image_warning = str(exc)
                 image_url = previous_image_url
+
+        # Regenerate LinkedIn image (16:9) if brief changed
+        li_brief_to_use = new_li_image_brief or new_image_brief
+        if li_brief_to_use:
+            try:
+                li_pollinations_url = self.build_pollinations_url(li_brief_to_use, "16:9")
+                li_image_url = self._rehost_image(li_pollinations_url) or li_pollinations_url
+            except Exception as exc:
+                logger.warning("LinkedIn image generation failed during feedback: %s", exc)
+                li_image_url = previous_li_image_url
 
         return {
             "caption": item.get("caption") or "",
@@ -642,8 +684,9 @@ OUTPUT RULES
             "imageBrief": new_image_brief,
             "liCaption": item.get("liCaption") or "",
             "liHashtags": [str(tag).lstrip("#") for tag in li_hashtags],
-            "liImageBrief": (item.get("liImageBrief") or "").strip(),
-            "imageUrl": image_url,
+            "liImageBrief": new_li_image_brief,
+            "imageUrl": image_url,        # Instagram 1:1
+            "liImageUrl": li_image_url,   # LinkedIn 16:9
             "imageWarning": image_warning,
         }
 

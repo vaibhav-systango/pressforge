@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
-import { Heart, MessageCircle, Send as ShareIcon, Bookmark, MoreHorizontal, ThumbsUp, Share2, Send, RefreshCw } from 'lucide-react';
+import { Heart, MessageCircle, Send as ShareIcon, Bookmark, MoreHorizontal, ThumbsUp, Share2, Send, RefreshCw, Copy, Check } from 'lucide-react';
 
 interface PostPreviewProps {
   activePlatformTab: 'instagram' | 'linkedin';
@@ -15,6 +15,9 @@ interface PostPreviewProps {
   liHashtags: string[];
   localWebsite: string;
   generating?: boolean;
+  imageBrief?: string;
+  liImageBrief?: string;
+  geminiPrompt?: string;
 }
 
 export function PostPreview({
@@ -28,7 +31,21 @@ export function PostPreview({
   liHashtags,
   localWebsite,
   generating = false,
+  imageBrief = '',
+  liImageBrief = '',
+  geminiPrompt = '',
 }: PostPreviewProps) {
+  const [copiedInsta, setCopiedInsta] = useState(false);
+  const [copiedLi, setCopiedLi] = useState(false);
+  const [copiedGemini, setCopiedGemini] = useState(false);
+
+  const handleCopy = (text: string, setter: (v: boolean) => void) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      setter(true);
+      setTimeout(() => setter(false), 2000);
+    });
+  };
   if (activePlatformTab === 'instagram') {
     return (
       <div className="bg-bg-card border border-border-primary rounded-2xl overflow-hidden shadow-md max-w-md mx-auto">
@@ -81,6 +98,46 @@ export function PostPreview({
           </div>
           <Bookmark className="w-4.5 h-4.5 text-text-primary hover:opacity-80 transition cursor-pointer" />
         </div>
+
+        {/* Image Prompt Tag */}
+        {!generating && imageBrief && (
+          <div className="px-3 pb-2">
+            <button
+              type="button"
+              onClick={() => handleCopy(imageBrief, setCopiedInsta)}
+              title={imageBrief}
+              className="inline-flex items-center gap-1.5 max-w-full bg-bg-app border border-border-primary rounded-md px-2 py-1 text-[9px] text-text-secondary hover:text-text-primary hover:border-instagram-pink transition cursor-pointer group"
+            >
+              {copiedInsta
+                ? <Check className="w-2.5 h-2.5 text-green-500 shrink-0" />
+                : <Copy className="w-2.5 h-2.5 shrink-0 group-hover:text-instagram-pink" />
+              }
+              <span className="truncate max-w-[240px]">
+                {copiedInsta ? 'Prompt copied!' : imageBrief.slice(0, 60) + (imageBrief.length > 60 ? '…' : '')}
+              </span>
+            </button>
+          </div>
+        )}
+
+        {/* Gemini Prompt Tag */}
+        {!generating && geminiPrompt && (
+          <div className="px-3 pb-2">
+            <button
+              type="button"
+              onClick={() => handleCopy(geminiPrompt, setCopiedGemini)}
+              title={geminiPrompt}
+              className="inline-flex items-center gap-1.5 max-w-full bg-bg-app border border-border-primary rounded-md px-2 py-1 text-[9px] text-text-secondary hover:text-text-primary hover:border-purple-500 transition cursor-pointer group"
+            >
+              {copiedGemini
+                ? <Check className="w-2.5 h-2.5 text-green-500 shrink-0" />
+                : <Copy className="w-2.5 h-2.5 shrink-0 group-hover:text-purple-500" />
+              }
+              <span className="truncate max-w-[240px] font-semibold text-purple-500/70 group-hover:text-purple-500">
+                {copiedGemini ? 'Copied!' : 'Gemini Prompt · click to copy'}
+              </span>
+            </button>
+          </div>
+        )}
 
         {generating ? (
           <div className="px-3 pb-4 space-y-2 animate-pulse">
@@ -221,6 +278,46 @@ export function PostPreview({
           <span>Send</span>
         </button>
       </div>
+
+      {/* LinkedIn Image Prompt Tag */}
+      {!generating && (liImageBrief || imageBrief) && (
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={() => handleCopy(liImageBrief || imageBrief, setCopiedLi)}
+            title={liImageBrief || imageBrief}
+            className="inline-flex items-center gap-1.5 max-w-full bg-bg-app border border-border-primary rounded-md px-2 py-1 text-[9px] text-text-secondary hover:text-text-primary hover:border-blue-500 transition cursor-pointer group"
+          >
+            {copiedLi
+              ? <Check className="w-2.5 h-2.5 text-green-500 shrink-0" />
+              : <Copy className="w-2.5 h-2.5 shrink-0 group-hover:text-blue-500" />
+            }
+            <span className="truncate max-w-[240px]">
+              {copiedLi ? 'Prompt copied!' : (liImageBrief || imageBrief).slice(0, 60) + ((liImageBrief || imageBrief).length > 60 ? '…' : '')}
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* Gemini Prompt Tag */}
+      {!generating && geminiPrompt && (
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={() => handleCopy(geminiPrompt, setCopiedGemini)}
+            title={geminiPrompt}
+            className="inline-flex items-center gap-1.5 max-w-full bg-bg-app border border-border-primary rounded-md px-2 py-1 text-[9px] text-text-secondary hover:text-text-primary hover:border-purple-500 transition cursor-pointer group"
+          >
+            {copiedGemini
+              ? <Check className="w-2.5 h-2.5 text-green-500 shrink-0" />
+              : <Copy className="w-2.5 h-2.5 shrink-0 group-hover:text-purple-500" />
+            }
+            <span className="truncate max-w-[240px] font-semibold text-purple-500/70 group-hover:text-purple-500">
+              {copiedGemini ? 'Copied!' : 'Gemini Prompt · click to copy'}
+            </span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
