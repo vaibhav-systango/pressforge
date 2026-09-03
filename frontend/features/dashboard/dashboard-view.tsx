@@ -192,7 +192,7 @@ export function DashboardView() {
           <div className="flex items-center justify-between border-b border-border-primary pb-3 mb-4">
             <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-instagram-pink" />
-              <span>Workspace Performance Metrics (API Engine)</span>
+              <span>Workspace Performance Metrics</span>
             </h3>
             <Link href="/app/analytics" className="text-xs font-semibold text-instagram-pink hover:underline">
               View Detailed Analytics

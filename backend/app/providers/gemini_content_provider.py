@@ -96,39 +96,139 @@ class GeminiContentProvider:
         refs = "\n".join(f"- {url}" for url in reference_urls) if reference_urls else "(none)"
         brand_rules = "\n".join(f"- {rule}" for rule in (rules or []) if rule) or "(none)"
 
+        # Build a rich workspace identity block that Gemini uses as the #1 source of truth
+        workspace_identity = (
+            f"Brand name: {brand_name or 'Our Brand'}\n"
+            f"Industry / niche: {description or '(see brand voice below)'}\n"
+            f"Brand tone: {tone or 'Professional'}\n"
+            f"Target audience: {target_audience or 'General audience'}\n"
+            f"Brand voice & visual style guidelines (PRIMARY SOURCE): {brand_voice or '(none - use visual style field)'}\n"
+            f"Brand keywords: {keyword_list}\n"
+            f"Requested visual style override: {visual_style or '(use brand guidelines above)'}\n"
+        )
+
         return f"""
-You are an expert social media content creator for Pressforge.
-Create exactly 3 distinct post variations tailored for the selected platforms.
+You are an expert social media content strategist and AI image prompt engineer for Pressforge.
+Your single most important job is to produce PERFECT imageBrief and liImageBrief values that
+will generate stunning, on-brand visuals when sent directly to an AI image generator (Flux/Pollinations).
 
-Content brief / prompt: "{prompt or "(None - generate based on workspace details, brand guidelines, and target campaign goal)"}"
-Campaign goal: "{goal or "Brand Awareness"}"
-Call to action: "{cta or "Learn more"}"
-Visual style: "{visual_style or "Photorealistic"}"
-Target platforms: "{platforms_label}"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WORKSPACE BRAND IDENTITY  ← PRIMARY SOURCE OF TRUTH (99% weight)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{workspace_identity}
 
-Brand name: "{brand_name or "Our Brand"}"
-Brand tone: "{tone or "Professional"}"
-Brand voice notes: "{brand_voice or ""}"
-Brand description: "{description or ""}"
-Target audience: "{target_audience or "General audience"}"
-Brand keywords to incorporate into hashtags when relevant: "{keyword_list}"
-
-Brand rules (must follow):
+Brand rules (MUST follow — override everything else):
 {brand_rules}
 
-Reference URLs:
-{refs}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CONTENT REQUEST  ← SECONDARY (topic direction only, 1% weight)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Content brief / topic prompt: "{prompt or '(none — generate a topic that fits the workspace brand perfectly)'}"
+Campaign goal: "{goal or 'Brand Awareness'}"
+Call to action: "{cta or 'Save this post'}"
+Target platforms: "{platforms_label}"
+Reference URLs: {refs}
+Reference notes: "{reference_text or ''}"
 
-Reference text / notes:
-"{reference_text or ""}"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AI IMAGE GENERATOR HARD CONSTRAINTS  ← READ THIS FIRST — NON-NEGOTIABLE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The imageBrief is sent to Pollinations.ai (Flux model). This generator has CRITICAL limitations:
 
-Rules:
-- Return exactly 3 variations with different angles (punchy, thoughtful, engagement-led).
-- Instagram captions (caption) should feel platform-native; include the CTA naturally.
-- LinkedIn captions (liCaption) should be more professional and paragraph-friendly.
-- hashtags and liHashtags must be strings WITHOUT the # prefix.
-- Include brand keywords as hashtags when they fit (TitleCase without spaces, e.g. OrganicCotton).
-- imageBrief and liImageBrief must be hyper-detailed standalone prompts for an AI image generator matching visual style "{visual_style or "Photorealistic"}".
+  ✗ CANNOT generate photorealistic human beings — results are always distorted, blurry,
+    anatomically wrong, or completely rejected. This includes children, adults, and any human body part.
+  ✗ Prompting for "child model", "person wearing clothing", "kid in outfit" will ALWAYS produce
+    terrible, unusable output — regardless of how detailed the prompt is.
+  ✗ CANNOT render fine text, logos, or UI overlays reliably.
+  ✓ CAN generate stunning: product flat-lays, styled clothing on surfaces, fabric close-ups,
+    studio product shots, still-life arrangements, atmospheric scenes, fireworks, food, décor.
+
+THEREFORE — even if the brand voice says "show a child model" — YOU MUST NOT include
+human subjects in the imageBrief. Instead, achieve the brand's intent through the techniques below.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+IMAGE BRIEF RULES  ← CRITICAL — READ CAREFULLY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The imageBrief field MUST be a complete, self-contained AI image generation prompt (80-150 words).
+Read the brand voice and visual style above carefully — then choose the correct template below.
+
+──────────────────────────────────────────
+TEMPLATE A — PHOTOREALISTIC / LIFESTYLE / PRODUCT / EVENT BRANDS
+Use when the brand voice mentions: festive, celebration, food, fashion, beauty, travel, fireworks,
+photography, luxury, organic, warm, nature, cultural, religious, or any real-world product/event.
+──────────────────────────────────────────
+Write a cinematic, photorealistic AI image prompt. Include:
+  • [SCENE: describe the primary visual scene — location, time of day, atmosphere]
+  • [SUBJECT: the hero product/element with precise visual details — NO humans]
+  • [LIGHTING: studio softbox, golden hour, dramatic night sky, etc.]
+  • [COLOR PALETTE: 3-5 dominant colors from the brand voice]
+  • [COMPOSITION: overhead knolling / flat-lay / centered / rule-of-thirds + negative space]
+  • [STYLE KEYWORDS: photorealistic, commercial photography, 8K, sharp focus, no text, no people,
+    no watermarks, Sigma 85mm f/1.4, professional studio lighting]
+  • [MOOD: emotional feeling grounded in brand voice]
+
+  SPECIAL RULE — CLOTHING / FASHION / KIDS APPAREL BRANDS:
+  Because the image generator cannot render human models, use these premium product photography
+  techniques instead — they look stunning AND are Pollinations-compatible:
+    Option 1 — PREMIUM FLAT LAY: Clothing items expertly arranged in a styled flat-lay on a
+      clean linen/wood/marble surface with complementary props (tiny shoes, folded accessories,
+      fabric swatches). Overhead shot, soft diffused lighting, product as clear hero.
+    Option 2 — STYLED DETAIL SHOT: Extreme close-up macro of the clothing fabric, stitching,
+      buttons, embroidery, or print pattern — showing craftsmanship and texture. Shallow depth of
+      field, sharp focus on the detail, creamy bokeh background.
+    Option 3 — EDITORIAL PRODUCT STILL LIFE: One or two clothing items beautifully folded/arranged
+      on a premium surface with tasteful props (small flowers, ribbon, color-coordinated items).
+      Warm studio lighting, aspirational lifestyle mood.
+    → Pick whichever option best fits the specific post topic.
+
+Example for kids clothing brand:
+  "Premium overhead flat-lay of a soft pastel yellow cotton romper neatly arranged on a warm ivory
+   linen surface, paired with tiny white sneakers, a small floral hair clip, and a folded muslin
+   swaddle. Soft diffused studio lighting casting gentle shadows. Color palette: butter yellow, ivory
+   white, sage green, blush pink. Clean centered composition with generous negative space at top
+   for text. Photorealistic, commercial product photography, 8K sharp focus, Sigma 85mm,
+   no people, no text, warm organic mood, premium children's fashion catalog quality."
+
+Example for festive/events brand (Diwali, etc.):
+  "Cinematic overhead shot of glowing clay diyas on burgundy silk, scattered marigold petals,
+   vibrant multicolor fireworks in dark night sky, warm golden bokeh, dramatic chiaroscuro lighting,
+   saffron orange, ruby red, deep indigo, gleaming gold, 8K photorealistic, Sigma 85mm,
+   no text, no people, premium festive mood."
+
+──────────────────────────────────────────
+TEMPLATE B — TECH / SAAS / DIGITAL / INFOGRAPHIC BRANDS
+Use when the brand voice mentions: productivity, software, apps, tools, SaaS, startup, AI,
+minimal, clean, corporate, B2B, or digital services.
+──────────────────────────────────────────
+  "[BACKGROUND: flat clean color, e.g. pure flat matte white #FFFFFF or dark slate #121212],
+   [HEADLINE: bold heavy black sans-serif text reading '[ACTUAL POST HEADLINE]' centered at top],
+   [ICONS: 3-6 specific named real app icons floating with soft drop shadows,
+    e.g. Notion icon, ChatGPT icon, Stripe icon — 3D glossy claymation style],
+   [DOODLES: hand-drawn black ink sketch arrows and annotation lines connecting elements],
+   [LAYOUT: clean knolling flat-lay or split-comparison grid],
+   [STYLE: hyper-clean, minimal, viral Instagram infographic, 1:1 square, sharp, no blur]"
+
+──────────────────────────────────────────
+RULES (apply to ALL templates):
+- NEVER include humans, people, children, models, faces, or body parts in ANY brief.
+- NEVER use the tech/infographic template for lifestyle, festive, food, fashion, or event brands.
+- NEVER use the photorealistic template for B2B SaaS or digital tool brands.
+- DO NOT write abstract metaphors (cubes, spheres, generic shapes).
+- DO NOT use vague terms like "modern design" or "technology concept".
+- DO NOT generate briefs shorter than 80 words.
+- ALWAYS ground every visual decision in the workspace brand rules and voice above.
+- For Template B: ALWAYS name specific real-world recognizable app icons.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OUTPUT RULES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Return exactly 3 variations with different headline angles (punchy curiosity-gap, relatable meme, listicle).
+- Instagram captions (caption): hook line 1 → 3-5 bullet points → CTA. Platform-native tone.
+- LinkedIn captions (liCaption): professional paragraph format, same topic.
+- hashtags and liHashtags must be plain strings WITHOUT the # prefix.
+- Include brand keywords as hashtags when relevant (TitleCase, no spaces).
+- imageBrief: 80-150 words, follow the correct template above for this brand type.
+- liImageBrief: same template adapted for a LinkedIn professional aesthetic.
 - Do not mention that you are an AI.
 """.strip()
 
@@ -168,6 +268,18 @@ Rules:
                 "responseSchema": _RESPONSE_SCHEMA,
             },
         }
+
+        # ── PROMPT DEBUG LOG ──────────────────────────────────────────────
+        logger.info(
+            "\n%s\nFINAL GEMINI PROMPT (%d chars)\n%s\n%s\n%s",
+            "=" * 80,
+            len(prompt_instructions),
+            "=" * 80,
+            prompt_instructions,
+            "=" * 80,
+        )
+        # ─────────────────────────────────────────────────────────────────
+
         models = self._model_candidates()
         last_was_overload = False
         last_exc: Exception | None = None
@@ -413,49 +525,88 @@ Rules:
         li_hashtags_str = ", ".join(f"#{h}" for h in previous_li_hashtags) or "(none)"
 
         prompt_instructions = f"""
-You are an expert social media content creator for Pressforge.
+You are an expert social media content strategist and AI image prompt engineer for Pressforge.
 A client has reviewed the following post and provided revision feedback.
-Your task is to produce exactly 1 improved variation that addresses the feedback.
+Produce exactly 1 improved variation that addresses the feedback.
 
---- PREVIOUS INSTAGRAM CAPTION ---
-{previous_caption or "(none)"}
-
---- PREVIOUS INSTAGRAM HASHTAGS ---
-{hashtags_str}
-
---- PREVIOUS LINKEDIN CAPTION ---
-{previous_li_caption or "(none)"}
-
---- PREVIOUS LINKEDIN HASHTAGS ---
-{li_hashtags_str}
-
---- PREVIOUS IMAGE BRIEF ---
-{previous_image_brief or "(none)"}
-
---- CLIENT FEEDBACK / REVISION REQUEST ---
-"{feedback}"
-
---- BRAND CONTEXT ---
-Brand name: "{brand_name or "Our Brand"}"
-Brand tone: "{tone or "Professional"}"
-Brand voice notes: "{brand_voice or ""}"
-Brand description: "{description or ""}"
-Target audience: "{target_audience or "General audience"}"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WORKSPACE BRAND IDENTITY  ← PRIMARY SOURCE OF TRUTH (99% weight)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Brand name: "{brand_name or 'Our Brand'}"
+Brand tone: "{tone or 'Professional'}"
+Brand voice & visual style (PRIMARY): "{brand_voice or '(none)'}"
+Brand description: "{description or '(none)'}"
+Target audience: "{target_audience or 'General audience'}"
 Brand keywords: "{keyword_list}"
 Target platforms: "{platforms_label}"
 
-Brand rules (must follow):
+Brand rules (MUST follow — override everything else):
 {brand_rules}
 
-Rules for your response:
-- Return exactly 1 variation (in the `variations` array).
-- Preserve the parts of the previous post that were not mentioned in feedback.
-- Directly address every point raised in the client feedback.
-- Instagram captions (caption) should feel platform-native; include the CTA naturally.
-- LinkedIn captions (liCaption) should be more professional and paragraph-friendly.
-- hashtags and liHashtags must be strings WITHOUT the # prefix.
-- Include brand keywords as hashtags when they fit.
-- imageBrief and liImageBrief must be hyper-detailed standalone prompts for an AI image generator.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PREVIOUS POST (only change what feedback requests)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Instagram caption: {previous_caption or '(none)'}
+Instagram hashtags: {hashtags_str}
+LinkedIn caption: {previous_li_caption or '(none)'}
+LinkedIn hashtags: {li_hashtags_str}
+Image brief: {previous_image_brief or '(none)'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CLIENT FEEDBACK ← address every point
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"{feedback}"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AI IMAGE GENERATOR HARD CONSTRAINTS  ← NON-NEGOTIABLE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The imageBrief is sent to Pollinations.ai (Flux model). CRITICAL limitations:
+  ✗ CANNOT generate photorealistic humans — children, adults, body parts — always distorted/rejected.
+  ✗ "child model", "person wearing clothing", "kid in outfit" ALWAYS produce unusable output.
+  ✓ CAN generate: product flat-lays, styled clothing on surfaces, fabric close-ups, still-life, fireworks, food, décor.
+THEREFORE: NEVER include human subjects in imageBrief regardless of brand rules. Use product techniques below.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+IMAGE BRIEF RULES  ← CRITICAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Read the brand voice above carefully — then choose the correct template:
+
+TEMPLATE A — PHOTOREALISTIC / LIFESTYLE / PRODUCT / EVENT / FESTIVE BRANDS
+(Use when brand mentions: festive, celebration, fireworks, food, fashion, travel, organic, cultural, luxury, events)
+Write a cinematic photorealistic AI image prompt — NO humans. Include:
+  • Scene + primary product/subject with exact visual details
+  • Lighting style (golden hour, dramatic night sky, studio softbox, cinematic)
+  • Color palette (3-5 colors from brand voice)
+  • Composition (overhead / flat-lay / rule-of-thirds + negative space for text)
+  • Style keywords: photorealistic, 8K, commercial photography, sharp focus, no text, no people
+  • Mood aligned to brand voice
+
+  CLOTHING / FASHION / KIDS BRANDS — use one of these product photography approaches:
+    Option 1 — FLAT LAY: Clothing styled on linen/wood/marble surface with small props (shoes, accessories).
+    Option 2 — DETAIL SHOT: Extreme close-up macro of fabric texture, stitching, print pattern.
+    Option 3 — STILL LIFE: Folded/arranged clothing on premium surface with tasteful props.
+
+TEMPLATE B — TECH / SAAS / DIGITAL / INFOGRAPHIC BRANDS
+(Use when brand mentions: apps, software, productivity, SaaS, AI tools, startup, B2B)
+  "[BACKGROUND: flat clean color], [HEADLINE: bold text reading actual headline],
+   [ICONS: 3-6 named real app icons floating with drop shadows],
+   [DOODLES: hand-drawn ink sketch arrows], [LAYOUT: knolling flat-lay],
+   [STYLE: minimal, infographic, 1:1 square, sharp]"
+
+RULES: DO NOT mix templates. NEVER include humans/children/people/body parts. DO NOT write briefs shorter than 80 words.
+For Template B: always name specific real-world app icons.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OUTPUT RULES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Return exactly 1 variation in the `variations` array.
+- Preserve untouched parts from the previous post.
+- Directly address every point in the client feedback.
+- Instagram captions: hook → bullets → CTA. Platform-native.
+- LinkedIn captions: professional paragraph format.
+- hashtags and liHashtags must be plain strings WITHOUT the # prefix.
+- imageBrief: 80-150 words, follow template above.
+- liImageBrief: same template, professional LinkedIn tone.
 - Do not mention that you are an AI.
 """.strip()
 
