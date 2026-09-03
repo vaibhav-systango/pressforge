@@ -43,7 +43,7 @@ interface LocalHistoryItem {
 
 export function ContentNewView() {
   const router = useRouter();
-  const { state, addDraft } = useAppState();
+  const { state, addDraft, updateDraft } = useAppState();
   const { user } = useAuth();
 
   const activeWorkspace =
@@ -101,6 +101,7 @@ export function ContentNewView() {
   // Generation & State
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState(false);
+  const [autoSavedDraftId, setAutoSavedDraftId] = useState<string | null>(null);
 
   // Active Draft Content (Instagram)
   const [caption, setCaption] = useState("");
@@ -260,6 +261,43 @@ export function ContentNewView() {
         imageUrl: updatedVars[0].imageUrl,
       };
       setHistory([initialHistoryItem]);
+
+      // Auto-save generated draft so it is safely persisted in the backend database and won't be lost on refresh
+      try {
+        const autoDraftId = 'draft-' + Date.now();
+        let autoPlatform: 'instagram' | 'linkedin' | 'both' = 'instagram';
+        if (targetPlatforms.includes('instagram') && targetPlatforms.includes('linkedin')) {
+          autoPlatform = 'both';
+        } else if (targetPlatforms.includes('linkedin')) {
+          autoPlatform = 'linkedin';
+        }
+        const result = await addDraft({
+          id: autoDraftId,
+          workspaceId: state.activeWorkspaceId,
+          prompt,
+          caption: updatedVars[0].caption,
+          hashtags: updatedVars[0].hashtags,
+          imageBrief: updatedVars[0].imageBrief,
+          status: 'generated',
+          version: 1,
+          history: [initialHistoryItem],
+          referenceUrls,
+          referenceText,
+          goal,
+          cta,
+          visualStyle,
+          imageUrl: updatedVars[0].imageUrl,
+          platform: autoPlatform,
+          liCaption: updatedVars[0].liCaption,
+          liHashtags: updatedVars[0].liHashtags,
+          liImageBrief: updatedVars[0].liImageBrief,
+        });
+        if (result?.draft?.id) {
+          setAutoSavedDraftId(result.draft.id);
+        }
+      } catch (autoSaveErr) {
+        console.error('Auto-save generated draft failed:', autoSaveErr);
+      }
 
       setGenerated(true);
       setMobileStep('preview');
@@ -489,8 +527,8 @@ export function ContentNewView() {
       : history;
 
     try {
-      await addDraft({
-        id,
+      const draftPayload = {
+        id: autoSavedDraftId || id,
         workspaceId: state.activeWorkspaceId,
         prompt,
         caption,
@@ -523,7 +561,13 @@ export function ContentNewView() {
         liCaption,
         liHashtags,
         liImageBrief,
-      });
+      };
+
+      if (autoSavedDraftId) {
+        await updateDraft(draftPayload);
+      } else {
+        await addDraft(draftPayload);
+      }
     } catch (err) {
       notifications.show({
         title: 'Save failed',

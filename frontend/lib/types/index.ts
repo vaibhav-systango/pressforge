@@ -125,7 +125,7 @@ export interface Draft {
   title?: string;
   content?: string;
   platform?: string;
-  status: 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'published';
+  status: 'generated' | 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'published';
   createdAt?: string;
   scheduledAt?: string;
   caption?: string;

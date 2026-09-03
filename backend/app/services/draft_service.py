@@ -148,11 +148,12 @@ class DraftService:
         db.commit()
         db.refresh(draft)
 
-        try:
-            from app.services.notification_service import notification_service
-            notification_service.dispatch_draft_notification(db, draft)
-        except Exception as e:
-            logger.error("Failed to dispatch draft creation notification: %s", e)
+        if draft.status == "pending_approval":
+            try:
+                from app.services.notification_service import notification_service
+                notification_service.dispatch_draft_notification(db, draft)
+            except Exception as e:
+                logger.error("Failed to dispatch draft creation notification: %s", e)
 
         return _draft_to_dict(draft)
 
@@ -161,6 +162,8 @@ class DraftService:
         if not draft:
             raise ValueError(DraftErrorCodes.DRAFT_NOT_FOUND)
         self._get_accessible_workspace(db, user, draft.workspaceId)
+
+        previous_status = draft.status
 
         updatable = (
             "prompt",
@@ -195,6 +198,15 @@ class DraftService:
         draft_repository.update(db, draft, **updates)
         db.commit()
         db.refresh(draft)
+
+        new_status = updates.get("status")
+        if previous_status != "pending_approval" and new_status == "pending_approval":
+            try:
+                from app.services.notification_service import notification_service
+                notification_service.dispatch_draft_notification(db, draft)
+            except Exception as e:
+                logger.error("Failed to dispatch draft update notification: %s", e)
+
         return _draft_to_dict(draft)
 
     def submit_feedback_and_regenerate(

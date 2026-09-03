@@ -85,12 +85,13 @@ export function usePaginatedDrafts({
 
   const filterDraft = (d: Draft) => {
     if (status && status !== 'all') {
-      if (status === 'draft' && d.status !== 'draft' && d.status !== 'rejected') return false;
+      if (status === 'draft' && d.status !== 'draft') return false;
       if ((status === 'pending' || status === 'pending_approval') && d.status !== 'pending_approval') return false;
       if (status === 'approved' && d.status !== 'approved') return false;
       if (status === 'published' && d.status !== 'published') return false;
       if (status === 'approved_all' && d.status !== 'approved' && d.status !== 'published') return false;
       if (status === 'rejected' && d.status !== 'rejected') return false;
+      if ((status === 'generated' || status === 'generated_images') && d.status !== 'generated') return false;
     }
 
     if (platform && platform !== 'all') {
@@ -115,10 +116,11 @@ export function usePaginatedDrafts({
   const paginatedLocal = filteredLocalDrafts.slice(offsetLocal, offsetLocal + limit);
 
   const pendingCount = allWorkspaceDrafts.filter((d) => d.status === 'pending_approval').length;
-  const approvedCount = allWorkspaceDrafts.filter((d) => d.status === 'approved' || d.status === 'published').length;
+  const approvedCount = allWorkspaceDrafts.filter((d) => d.status === 'approved').length;
   const rejectedCount = allWorkspaceDrafts.filter((d) => d.status === 'rejected').length;
-  const draftCount = allWorkspaceDrafts.filter((d) => d.status === 'draft' || d.status === 'rejected').length;
+  const draftCount = allWorkspaceDrafts.filter((d) => d.status === 'draft').length;
   const publishedCount = allWorkspaceDrafts.filter((d) => d.status === 'published').length;
+  const generatedCount = allWorkspaceDrafts.filter((d) => d.status === 'generated').length;
 
   const fallbackCounts = {
     pending: pendingCount,
@@ -126,6 +128,8 @@ export function usePaginatedDrafts({
     rejected: rejectedCount,
     draft: draftCount,
     published: publishedCount,
+    generated: generatedCount,
+    generated_images: generatedCount,
     all: allWorkspaceDrafts.length,
   };
 

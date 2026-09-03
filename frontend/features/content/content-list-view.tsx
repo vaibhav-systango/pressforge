@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import React, { useState } from 'react';
-import { Sparkles, Instagram, Linkedin, Loader2, Search, Filter, X } from 'lucide-react';
+import Image from 'next/image';
+import { Sparkles, Instagram, Linkedin, Loader2, Search, Filter, X, Image as ImageIcon } from 'lucide-react';
 import { useAppState } from '@/lib/queries/use-app-state';
 import { useAuth } from '@/lib/hooks/queries/use-auth';
 import { usePaginatedDrafts } from '@/lib/hooks/queries/use-paginated-drafts';
@@ -19,12 +20,12 @@ export function ContentListView() {
     state.accountType === 'individual';
   const canApprove = isClient || isIndividual;
 
-  const [listTab, setListTab] = useState<'all' | 'draft' | 'pending' | 'approved' | 'published'>('all');
+  const [listTab, setListTab] = useState<'all' | 'generated' | 'draft' | 'pending' | 'approved' | 'published' | 'rejected'>('all');
   const [search, setSearch] = useState<string>('');
   const [platform, setPlatform] = useState<string>('all');
   const [page, setPage] = useState<number>(1);
 
-  const handleTabChange = (newTab: 'all' | 'draft' | 'pending' | 'approved' | 'published') => {
+  const handleTabChange = (newTab: 'all' | 'generated' | 'draft' | 'pending' | 'approved' | 'published' | 'rejected') => {
     setListTab(newTab);
     setPage(1);
   };
@@ -134,14 +135,16 @@ export function ContentListView() {
           <div className="flex gap-1 overflow-x-auto flex-nowrap">
             {[
               { id: 'all', label: 'All Drafts' },
+              { id: 'generated', label: 'Generated' },
               { id: 'draft', label: 'Drafts' },
               { id: 'pending', label: 'Pending Approval' },
               { id: 'approved', label: 'Scheduled' },
               { id: 'published', label: 'Published' },
+              { id: 'rejected', label: 'Rejected' },
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => handleTabChange(tab.id as 'pending' | 'draft' | 'approved' | 'published' | 'all')}
+                onClick={() => handleTabChange(tab.id as 'all' | 'generated' | 'draft' | 'pending' | 'approved' | 'published' | 'rejected')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition duration-150 cursor-pointer whitespace-nowrap shrink-0 ${
                   listTab === tab.id
                     ? 'bg-bg-app border border-border-primary text-text-primary shadow-xs'
@@ -186,8 +189,25 @@ export function ContentListView() {
               ) : (
                 drafts.map((draft) => (
                   <tr key={draft.id} className="hover:bg-bg-hover transition">
-                    <td className="p-4 font-semibold text-xs text-text-primary max-w-[200px] truncate">
-                      {draft.prompt}
+                    <td className="p-4 font-semibold text-xs text-text-primary max-w-[200px]">
+                      <div className="flex items-center gap-2.5">
+                        {draft.imageUrl ? (
+                          <div className="relative w-9 h-9 rounded-md overflow-hidden bg-bg-app border border-border-primary shrink-0">
+                            <Image
+                              src={draft.imageUrl}
+                              alt="Generated Media"
+                              fill
+                              unoptimized
+                              className="object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-9 h-9 rounded-md bg-bg-app border border-border-primary flex items-center justify-center shrink-0 text-text-secondary">
+                            <ImageIcon className="w-4 h-4 opacity-50" />
+                          </div>
+                        )}
+                        <span className="truncate">{draft.prompt}</span>
+                      </div>
                     </td>
                     <td className="p-4 text-xs text-text-secondary max-w-[350px] truncate">
                       {draft.caption}
@@ -215,6 +235,10 @@ export function ContentListView() {
                             ? 'bg-yellow-50 dark:bg-yellow-950/20 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-900'
                             : draft.status === 'rejected'
                             ? 'bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900'
+                            : draft.status === 'published'
+                            ? 'bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-900'
+                            : draft.status === 'generated'
+                            ? 'bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-900'
                             : 'bg-bg-app border border-border-primary text-text-secondary'
                         }`}
                       >

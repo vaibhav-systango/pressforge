@@ -60,6 +60,8 @@ class DraftStatusCounts(BaseModel):
     rejected: int = 0
     draft: int = 0
     published: int = 0
+    generated: int = 0
+    generated_images: int = 0
     all: int = 0
 
 

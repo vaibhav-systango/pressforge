@@ -1,6 +1,7 @@
 import type { Campaign, ClientUser, Draft } from '@/lib/types';
 
 const DRAFT_STATUSES: readonly Draft['status'][] = [
+  'generated',
   'draft',
   'pending_approval',
   'approved',

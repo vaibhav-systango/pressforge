@@ -43,13 +43,15 @@ class DraftRepository:
             if status in ("pending", "pending_approval"):
                 query = query.filter(Draft.status == "pending_approval")
             elif status == "draft":
-                query = query.filter(Draft.status.in_(["draft", "rejected"]))
+                query = query.filter(Draft.status == "draft")
             elif status == "approved":
                 query = query.filter(Draft.status == "approved")
             elif status == "published":
                 query = query.filter(Draft.status == "published")
             elif status == "approved_all":
                 query = query.filter(Draft.status.in_(["approved", "published"]))
+            elif status in ("generated", "generated_images", "generated_image", "images", "image"):
+                query = query.filter(Draft.status == "generated")
             elif status == "rejected":
                 query = query.filter(Draft.status == "rejected")
             else:
@@ -102,7 +104,7 @@ class DraftRepository:
         platform: str | None = None,
     ) -> dict[str, int]:
         if not workspace_ids:
-            return {"pending": 0, "approved": 0, "rejected": 0, "draft": 0, "published": 0, "all": 0}
+            return {"pending": 0, "approved": 0, "rejected": 0, "draft": 0, "published": 0, "generated": 0, "generated_images": 0, "all": 0}
 
         base_query = db.query(Draft.status, func.count(Draft.id)).filter(Draft.workspaceId.in_(workspace_ids))
         if platform and platform != "all":
@@ -121,10 +123,11 @@ class DraftRepository:
 
         counts_by_status = {st: cnt for st, cnt in rows}
 
+        generated = counts_by_status.get("generated", 0)
         pending = counts_by_status.get("pending_approval", 0)
-        approved = counts_by_status.get("approved", 0) + counts_by_status.get("published", 0)
+        approved = counts_by_status.get("approved", 0)
         rejected = counts_by_status.get("rejected", 0)
-        draft = counts_by_status.get("draft", 0) + counts_by_status.get("rejected", 0)
+        draft = counts_by_status.get("draft", 0)
         published = counts_by_status.get("published", 0)
         total_all = sum(counts_by_status.values())
 
@@ -134,6 +137,8 @@ class DraftRepository:
             "rejected": rejected,
             "draft": draft,
             "published": published,
+            "generated": generated,
+            "generated_images": generated,
             "all": total_all,
         }
 

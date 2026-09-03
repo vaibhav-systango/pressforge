@@ -30,6 +30,8 @@ export interface DraftStatusCounts {
   rejected: number;
   draft: number;
   published: number;
+  generated?: number;
+  generated_images?: number;
   all: number;
 }
 
