@@ -458,34 +458,20 @@ OUTPUT RULES
         raw_variations = raw_variations[:3]
 
         image_url: str | None = None
-        li_image_url: str | None = None
         image_warning: str | None = None
 
-        first_brief = (raw_variations[0].get("imageBrief") or "").strip()
-        first_li_brief = (raw_variations[0].get("liImageBrief") or "").strip()
+        first_brief = (raw_variations[0].get("imageBrief") or raw_variations[0].get("liImageBrief") or "").strip()
 
-        # Generate ONE Instagram image (1:1 square)
+        # Generate ONE image
         if first_brief:
             try:
-                pollinations_url = self.build_pollinations_url(first_brief, "1:1")
+                pollinations_url = self.build_pollinations_url(first_brief, aspect_ratio)
                 image_url = self._rehost_image(pollinations_url) or pollinations_url
             except Exception as exc:
-                logger.warning("Instagram image generation failed: %s", exc)
+                logger.warning("Image generation failed: %s", exc)
                 image_warning = str(exc)
         else:
             image_warning = "No imageBrief returned from model."
-
-        # Brief pause between requests to avoid Pollinations rate-limiting
-        time.sleep(5)
-
-        # Generate ONE LinkedIn image (16:9 landscape)
-        li_brief_to_use = first_li_brief or first_brief
-        if li_brief_to_use:
-            try:
-                li_pollinations_url = self.build_pollinations_url(li_brief_to_use, "16:9")
-                li_image_url = self._rehost_image(li_pollinations_url) or li_pollinations_url
-            except Exception as exc:
-                logger.warning("LinkedIn image generation failed: %s", exc)
 
         variations = []
         for index, item in enumerate(raw_variations):
@@ -505,8 +491,7 @@ OUTPUT RULES
                     "liCaption": item.get("liCaption") or "",
                     "liHashtags": [str(tag).lstrip("#") for tag in li_hashtags],
                     "liImageBrief": item.get("liImageBrief") or "",
-                    "imageUrl": image_url,        # Instagram 1:1
-                    "liImageUrl": li_image_url,   # LinkedIn 16:9
+                    "imageUrl": image_url,
                 }
             )
 
@@ -655,28 +640,17 @@ OUTPUT RULES
         new_li_image_brief = (item.get("liImageBrief") or "").strip()
 
         image_url: str | None = previous_image_url
-        li_image_url: str | None = previous_li_image_url
         image_warning: str | None = None
 
-        # Regenerate Instagram image (1:1) if brief changed
-        if new_image_brief:
+        brief_to_use = new_image_brief or new_li_image_brief
+        if brief_to_use:
             try:
-                pollinations_url = self.build_pollinations_url(new_image_brief, "1:1")
+                pollinations_url = self.build_pollinations_url(brief_to_use, aspect_ratio)
                 image_url = self._rehost_image(pollinations_url) or pollinations_url
             except Exception as exc:
-                logger.warning("Instagram image generation failed during feedback: %s", exc)
+                logger.warning("Image generation failed during feedback: %s", exc)
                 image_warning = str(exc)
                 image_url = previous_image_url
-
-        # Regenerate LinkedIn image (16:9) if brief changed
-        li_brief_to_use = new_li_image_brief or new_image_brief
-        if li_brief_to_use:
-            try:
-                li_pollinations_url = self.build_pollinations_url(li_brief_to_use, "16:9")
-                li_image_url = self._rehost_image(li_pollinations_url) or li_pollinations_url
-            except Exception as exc:
-                logger.warning("LinkedIn image generation failed during feedback: %s", exc)
-                li_image_url = previous_li_image_url
 
         return {
             "caption": item.get("caption") or "",
@@ -685,8 +659,7 @@ OUTPUT RULES
             "liCaption": item.get("liCaption") or "",
             "liHashtags": [str(tag).lstrip("#") for tag in li_hashtags],
             "liImageBrief": new_li_image_brief,
-            "imageUrl": image_url,        # Instagram 1:1
-            "liImageUrl": li_image_url,   # LinkedIn 16:9
+            "imageUrl": image_url,
             "imageWarning": image_warning,
         }
 
