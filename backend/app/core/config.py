@@ -91,6 +91,42 @@ class Settings(BaseSettings):
         description="Fallback Gemini model id",
     )
 
+    # Image generation — Qwen-Image is the preferred self-hosted renderer. The
+    # configured endpoint must implement OpenAI's POST /v1/images/generations
+    # response format. If it is unset or unavailable, Pollinations Flux is used.
+    QWEN_IMAGE_API_URL: str = Field(
+        default="",
+        description="OpenAI-compatible Qwen-Image generation endpoint URL",
+    )
+    QWEN_IMAGE_API_KEY: str = Field(
+        default="",
+        description="Optional bearer token for the Qwen-Image endpoint",
+    )
+    QWEN_IMAGE_MODEL: str = Field(
+        default="Qwen-Image",
+        description="Model identifier exposed by the self-hosted Qwen endpoint",
+    )
+    QWEN_IMAGE_TIMEOUT_SECONDS: float = Field(
+        default=120.0,
+        description="Timeout for one Qwen-Image render request",
+    )
+    ALIBABA_DASHSCOPE_API_KEY: str = Field(
+        default="",
+        description="Alibaba Cloud Model Studio API key for native Qwen-Image calls",
+    )
+    ALIBABA_WORKSPACE_ID: str = Field(
+        default="",
+        description="Alibaba Cloud Model Studio workspace ID",
+    )
+    ALIBABA_REGION: str = Field(
+        default="ap-southeast-1",
+        description="Alibaba Model Studio region: ap-southeast-1 (Singapore) or cn-beijing",
+    )
+    ALIBABA_QWEN_IMAGE_MODEL: str = Field(
+        default="qwen-image-2.0-pro",
+        description="Alibaba Model Studio Qwen image model ID",
+    )
+
     # Social OAuth token encryption
     TOKEN_ENCRYPTION_KEY: str = Field(
         default="",

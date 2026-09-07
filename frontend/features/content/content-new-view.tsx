@@ -26,6 +26,14 @@ interface Variation {
   liHashtags: string[];
   liImageBrief: string;
   imageUrl: string;
+  imagePromptEvaluation?: ImagePromptEvaluation;
+}
+
+interface ImagePromptEvaluation {
+  overallScore: number;
+  status: 'ready' | 'needs_review';
+  criteria: Array<{ name: string; score: number; maxScore: number }>;
+  suggestions: string[];
 }
 
 interface LocalHistoryItem {
@@ -712,12 +720,13 @@ export function ContentNewView() {
                 )}
               </div>
 
-              {/* Variations Selector Tabs */}
-              <VariationSelector
-                variations={variations}
-                activeVarIdx={activeVarIdx}
-                onSelectVariation={handleSelectVariation}
-              />
+              {variations.length > 1 && (
+                <VariationSelector
+                  variations={variations}
+                  activeVarIdx={activeVarIdx}
+                  onSelectVariation={handleSelectVariation}
+                />
+              )}
 
               <PostPreview
                 activePlatformTab={activePlatformTab}
@@ -733,6 +742,7 @@ export function ContentNewView() {
                 imageBrief={imageBrief}
                 liImageBrief={liImageBrief}
                 geminiPrompt={geminiPrompt}
+                imagePromptEvaluation={variations[activeVarIdx]?.imagePromptEvaluation}
               />
 
               {/* Save / Launch Actions */}

@@ -17,6 +17,12 @@ type GenerateResponse = {
     liHashtags: string[];
     liImageBrief: string;
     imageUrl: string | null;
+    imagePromptEvaluation?: {
+      overallScore: number;
+      status: 'ready' | 'needs_review';
+      criteria: Array<{ name: string; score: number; maxScore: number }>;
+      suggestions: string[];
+    };
   }>;
   prompt: string;
   imageWarning?: string | null;
