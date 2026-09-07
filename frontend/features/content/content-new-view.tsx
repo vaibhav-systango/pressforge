@@ -49,6 +49,7 @@ interface LocalHistoryItem {
   imageUrl: string;
 }
 
+/** Coordinate content generation, editing, previewing, and draft persistence. */
 export function ContentNewView() {
   const router = useRouter();
   const { state, addDraft, updateDraft } = useAppState();

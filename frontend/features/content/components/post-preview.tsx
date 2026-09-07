@@ -28,6 +28,7 @@ interface PostPreviewProps {
   imagePromptEvaluation?: ImagePromptEvaluation;
 }
 
+/** Render the generated post preview for the selected social platform. */
 export function PostPreview({
   activePlatformTab,
   localBrandName,
@@ -48,6 +49,7 @@ export function PostPreview({
   const [copiedLi, setCopiedLi] = useState(false);
   const [copiedGemini, setCopiedGemini] = useState(false);
 
+  /** Copy preview text and briefly expose confirmation through the given setter. */
   const handleCopy = (text: string, setter: (v: boolean) => void) => {
     if (!text) return;
     navigator.clipboard.writeText(text).then(() => {

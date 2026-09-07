@@ -28,6 +28,7 @@ type GenerateResponse = {
   imageWarning?: string | null;
 };
 
+/** Forward an authenticated content-generation request to the backend. */
 export async function POST(request: Request) {
   const body = await parseJsonBody<AiGenerateRequest>(request);
   if (!body?.workspaceId) {

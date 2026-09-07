@@ -242,6 +242,7 @@ OUTPUT RULES
         trace_id: str | None = None,
         purpose: str = "content_generation",
     ) -> dict[str, Any]:
+        """Call Gemini with retry and model fallback, returning parsed JSON."""
         self._ensure_configured()
         payload = {
             "contents": [{"parts": [{"text": prompt_instructions}]}],
@@ -366,6 +367,7 @@ OUTPUT RULES
         *,
         seed: int | None = None,
     ) -> str:
+        """Build a Pollinations Flux URL for the prompt and aspect ratio."""
         sizes = {
             "1:1": (1024, 1024),
             "16:9": (1280, 720),
@@ -712,6 +714,7 @@ fields with valid placeholders. Do not include commentary outside the JSON respo
         rules: list[str] | None = None,
         aspect_ratio: str = "1:1",
     ) -> dict[str, Any]:
+        """Generate, evaluate, render, and normalize one content variation."""
         trace_id = generate_ulid()
         logger.info(
             "Content generation request trace_id=%s prompt_chars=%d platforms=%s aspect_ratio=%s",

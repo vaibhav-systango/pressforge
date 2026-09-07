@@ -21,15 +21,18 @@ class QwenImageProvider:
     }
 
     def is_alibaba_configured(self) -> bool:
+        """Return whether the Alibaba-native Qwen credentials are configured."""
         return bool(
             settings.ALIBABA_DASHSCOPE_API_KEY.strip()
             and settings.ALIBABA_WORKSPACE_ID.strip()
         )
 
     def is_configured(self) -> bool:
+        """Return whether any supported Qwen image backend is configured."""
         return self.is_alibaba_configured() or bool(settings.QWEN_IMAGE_API_URL.strip())
 
     def _alibaba_url(self) -> str:
+        """Build the regional Alibaba Model Studio generation endpoint URL."""
         region_suffixes = {
             "ap-southeast-1": "ap-southeast-1.maas.aliyuncs.com",
             "cn-beijing": "cn-beijing.maas.aliyuncs.com",
@@ -43,6 +46,7 @@ class QwenImageProvider:
         )
 
     def _download_image(self, client: httpx.Client, image_url: str) -> tuple[bytes, str]:
+        """Download an image and return its bytes and normalized content type."""
         response = client.get(image_url)
         response.raise_for_status()
         content_type = response.headers.get("content-type", "image/png").split(";", 1)[0]
@@ -57,6 +61,7 @@ class QwenImageProvider:
         trace_id: str,
         variation: int,
     ) -> tuple[bytes, str]:
+        """Render and download an image through Alibaba Model Studio."""
         payload = {
             "model": settings.ALIBABA_QWEN_IMAGE_MODEL,
             "input": {
@@ -103,6 +108,7 @@ class QwenImageProvider:
         trace_id: str,
         variation: int,
     ) -> tuple[bytes, str]:
+        """Render an image through an OpenAI-compatible Qwen endpoint."""
         headers = {"content-type": "application/json"}
         if settings.QWEN_IMAGE_API_KEY:
             headers["authorization"] = f"Bearer {settings.QWEN_IMAGE_API_KEY}"
