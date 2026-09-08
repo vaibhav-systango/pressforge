@@ -1,6 +1,7 @@
 import json
 import logging
 import random
+import re
 import time
 import urllib.parse
 from typing import Any
@@ -11,12 +12,21 @@ from app.core.config import settings
 from app.core.constants.content_constants import ContentErrorCodes
 from app.models.user import generate_ulid
 from app.providers.cloudinary_provider import cloudinary_provider
+from app.providers.qwen_image_provider import qwen_image_provider
 
 logger = logging.getLogger(__name__)
 
-VARIATION_NAMES = ("Variation A", "Variation B", "Variation C")
+VARIATION_NAMES = ("Generated Draft",)
 _RETRYABLE_STATUS_CODES = frozenset({429, 500, 503})
 _MAX_ATTEMPTS_PER_MODEL = 3
+_PROMPT_STOP_WORDS = frozenset({
+    "about", "and", "are", "content", "create", "for", "from", "into", "next",
+    "post", "the", "this", "with", "your",
+})
+_GENERIC_TOPIC_TERMS = frozenset({
+    "ai", "artificial", "cloud", "digital", "future", "innovation", "modern",
+    "technology", "tech", "trends",
+})
 
 _RESPONSE_SCHEMA: dict[str, Any] = {
     "type": "OBJECT",
@@ -113,7 +123,7 @@ Your single most important job is to produce PERFECT imageBrief and liImageBrief
 will generate stunning, on-brand visuals when sent directly to an AI image generator (Flux/Pollinations).
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-WORKSPACE BRAND IDENTITY  ← PRIMARY SOURCE OF TRUTH (99% weight)
+WORKSPACE BRAND IDENTITY  ← VISUAL GUARDRAILS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 {workspace_identity}
 
@@ -121,7 +131,7 @@ Brand rules (MUST follow — override everything else):
 {brand_rules}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CONTENT REQUEST  ← SECONDARY (topic direction only, 1% weight)
+CONTENT REQUEST  ← REQUIRED SUBJECT AND MESSAGE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Content brief / topic prompt: "{prompt or '(none — generate a topic that fits the workspace brand perfectly)'}"
 Campaign goal: "{goal or 'Brand Awareness'}"
@@ -133,102 +143,66 @@ Reference notes: "{reference_text or ''}"
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 AI IMAGE GENERATOR HARD CONSTRAINTS  ← READ THIS FIRST — NON-NEGOTIABLE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-The imageBrief is sent to Pollinations.ai (Flux model). This generator has CRITICAL limitations:
+The imageBrief is sent to Qwen-Image when configured, with Pollinations Flux as a fallback. Follow these constraints:
 
-  ✗ CANNOT generate photorealistic human beings — results are always distorted, blurry,
-    anatomically wrong, or completely rejected. This includes children, adults, and any human body part.
-  ✗ Prompting for "child model", "person wearing clothing", "kid in outfit" will ALWAYS produce
-    terrible, unusable output — regardless of how detailed the prompt is.
-  ✗ CANNOT render fine text, logos, or UI overlays reliably.
-  ✓ CAN generate stunning: product flat-lays, styled clothing on surfaces, fabric close-ups,
-    studio product shots, still-life arrangements, atmospheric scenes, fireworks, food, décor.
+  ✗ Do not ask it to render readable headlines, exact logos, brand marks, app interfaces, or watermarks.
+    Add those in the design editor after generation.
+  ✓ A single, clearly described human subject is allowed when it is essential to the post. Avoid crowds,
+    tiny faces, and complex hand poses. Use product-only imagery when a person is not needed.
+  ✓ It excels at product photography, still lifes, food, décor, atmospheric scenes, and simple editorial
+    lifestyle photography.
 
-THEREFORE — even if the brand voice says "show a child model" — YOU MUST NOT include
-human subjects in the imageBrief. Instead, achieve the brand's intent through the techniques below.
+The image must communicate BOTH the content request and brand identity. Do not make a generic brand image.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 IMAGE BRIEF RULES  ← CRITICAL — READ CAREFULLY
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-The imageBrief field MUST be a complete, self-contained AI image generation prompt (80-150 words).
-Read the brand voice and visual style above carefully — then choose the correct template below.
+The imageBrief field MUST be a complete, self-contained AI image generation prompt (60-110 words).
+Read the content request and brand context carefully, then create the most appropriate visual treatment.
+
+QUALITY GATE — COMPLETE THIS BEFORE YOU RETURN JSON:
+Before returning the imageBrief, silently audit it against this rubric and rewrite it yourself until it scores
+at least 80/100. Do not return a draft that requires a later repair call. The rubric is:
+specific topic/hero subject (30), concrete visual details and environment (25), composition and lighting
+(20), generator compatibility: no readable text/logos/UI (15), and focused 60-110-word length (10).
+If the content request is broad, choose one concrete angle that fits the requested goal; never use a
+generic laptop, abstract technology shape, or vague "future tech" scene as the hero subject.
+
+For a short or vague user request, expand it privately using the workspace context into a specific visual story.
+Never ask the user for more detail and never echo a vague request as the hero subject. Before returning, verify
+that the brief explicitly names a hero, a setting/surface/material, two supporting props or details, lighting,
+a named colour palette, composition/framing, focus/depth/contrast or negative space, mood, and exclusions.
 
 ──────────────────────────────────────────
-TEMPLATE A — PHOTOREALISTIC / LIFESTYLE / PRODUCT / EVENT BRANDS
-Use when the brand voice mentions: festive, celebration, food, fashion, beauty, travel, fireworks,
-photography, luxury, organic, warm, nature, cultural, religious, or any real-world product/event.
+UNIVERSAL VISUAL-BRIEF FRAMEWORK
 ──────────────────────────────────────────
-Write a cinematic, photorealistic AI image prompt. Include:
-  • [SCENE: describe the primary visual scene — location, time of day, atmosphere]
-  • [SUBJECT: the hero product/element with precise visual details — NO humans]
-  • [LIGHTING: studio softbox, golden hour, dramatic night sky, etc.]
-  • [COLOR PALETTE: 3-5 dominant colors from the brand voice]
-  • [COMPOSITION: overhead knolling / flat-lay / centered / rule-of-thirds + negative space]
-  • [STYLE KEYWORDS: photorealistic, commercial photography, 8K, sharp focus, no text, no people,
-    no watermarks, Sigma 85mm f/1.4, professional studio lighting]
-  • [MOOD: emotional feeling grounded in brand voice]
+First infer the post's concrete visual story from the topic, campaign goal, audience, brand voice, and keywords.
+Then choose the medium that best serves that story: product photography, editorial lifestyle photography,
+still life, atmospheric location photography, food/fashion detail photography, or a text-free editorial
+illustration. Do not classify the brand into a fixed template.
 
-  SPECIAL RULE — CLOTHING / FASHION / KIDS APPAREL BRANDS:
-  Because the image generator cannot render human models, use these premium product photography
-  techniques instead — they look stunning AND are Pollinations-compatible:
-    Option 1 — PREMIUM FLAT LAY: Clothing items expertly arranged in a styled flat-lay on a
-      clean linen/wood/marble surface with complementary props (tiny shoes, folded accessories,
-      fabric swatches). Overhead shot, soft diffused lighting, product as clear hero.
-    Option 2 — STYLED DETAIL SHOT: Extreme close-up macro of the clothing fabric, stitching,
-      buttons, embroidery, or print pattern — showing craftsmanship and texture. Shallow depth of
-      field, sharp focus on the detail, creamy bokeh background.
-    Option 3 — EDITORIAL PRODUCT STILL LIFE: One or two clothing items beautifully folded/arranged
-      on a premium surface with tasteful props (small flowers, ribbon, color-coordinated items).
-      Warm studio lighting, aspirational lifestyle mood.
-    → Pick whichever option best fits the specific post topic.
+Every brief must include:
+  • One precise hero subject and a specific use case, moment, or setting.
+  • Two or more supporting objects/details that make the topic recognizable.
+  • Lighting, a 3-5-colour palette, composition, mood, and image style.
+  • Clear negative space only when post-production copy is needed.
+  • "No readable text, no logos, no watermarks" and no request for app icons or UI screenshots.
 
-Example for kids clothing brand:
-  "Premium overhead flat-lay of a soft pastel yellow cotton romper neatly arranged on a warm ivory
-   linen surface, paired with tiny white sneakers, a small floral hair clip, and a folded muslin
-   swaddle. Soft diffused studio lighting casting gentle shadows. Color palette: butter yellow, ivory
-   white, sage green, blush pink. Clean centered composition with generous negative space at top
-   for text. Photorealistic, commercial product photography, 8K sharp focus, Sigma 85mm,
-   no people, no text, warm organic mood, premium children's fashion catalog quality."
-
-Example for festive/events brand (Diwali, etc.):
-  "Cinematic overhead shot of glowing clay diyas on burgundy silk, scattered marigold petals,
-   vibrant multicolor fireworks in dark night sky, warm golden bokeh, dramatic chiaroscuro lighting,
-   saffron orange, ruby red, deep indigo, gleaming gold, 8K photorealistic, Sigma 85mm,
-   no text, no people, premium festive mood."
-
-──────────────────────────────────────────
-TEMPLATE B — TECH / SAAS / DIGITAL / INFOGRAPHIC BRANDS
-Use when the brand voice mentions: productivity, software, apps, tools, SaaS, startup, AI,
-minimal, clean, corporate, B2B, or digital services.
-──────────────────────────────────────────
-  "[BACKGROUND: flat clean color, e.g. pure flat matte white #FFFFFF or dark slate #121212],
-   [HEADLINE: bold heavy black sans-serif text reading '[ACTUAL POST HEADLINE]' centered at top],
-   [ICONS: 3-6 specific named real app icons floating with soft drop shadows,
-    e.g. Notion icon, ChatGPT icon, Stripe icon — 3D glossy claymation style],
-   [DOODLES: hand-drawn black ink sketch arrows and annotation lines connecting elements],
-   [LAYOUT: clean knolling flat-lay or split-comparison grid],
-   [STYLE: hyper-clean, minimal, viral Instagram infographic, 1:1 square, sharp, no blur]"
-
-──────────────────────────────────────────
-RULES (apply to ALL templates):
-- NEVER include humans, people, children, models, faces, or body parts in ANY brief.
-- NEVER use the tech/infographic template for lifestyle, festive, food, fashion, or event brands.
-- NEVER use the photorealistic template for B2B SaaS or digital tool brands.
-- DO NOT write abstract metaphors (cubes, spheres, generic shapes).
-- DO NOT use vague terms like "modern design" or "technology concept".
-- DO NOT generate briefs shorter than 80 words.
-- ALWAYS ground every visual decision in the workspace brand rules and voice above.
-- For Template B: ALWAYS name specific real-world recognizable app icons.
+Choose a single, clearly described person only when it adds meaning; otherwise use the product, scene, or
+process as the hero. For a broad brief, select one specific angle supported by the brand context—never a
+generic laptop, keyboard, phone, desk scene, abstract cube, or vague "future technology" visual. Do not
+invent product claims. Keep all visual decisions grounded in the supplied content and brand context.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 OUTPUT RULES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- Return exactly 3 variations with different headline angles (punchy curiosity-gap, relatable meme, listicle).
+- Return exactly 1 definitive, production-ready variation. Do not create alternatives or variations.
 - Instagram captions (caption): hook line 1 → 3-5 bullet points → CTA. Platform-native tone.
 - LinkedIn captions (liCaption): professional paragraph format, same topic.
 - hashtags and liHashtags must be plain strings WITHOUT the # prefix.
 - Include brand keywords as hashtags when relevant (TitleCase, no spaces).
-- imageBrief: 80-150 words, follow the correct template above for this brand type.
-- liImageBrief: same template adapted for a LinkedIn professional aesthetic.
+- imageBrief: 60-110 words, follow the universal visual-brief framework above.
+- liImageBrief: same visual concept adapted for a LinkedIn professional aesthetic.
 - Do not mention that you are an AI.
 """.strip()
 
@@ -255,11 +229,20 @@ OUTPUT RULES
         )
         return client.post(
             url,
-            params={"key": settings.GEMINI_API_KEY},
+            # Keep credentials out of the query string. httpx logs request URLs at
+            # INFO level, so using `?key=...` can leak the API key into application logs.
+            headers={"x-goog-api-key": settings.GEMINI_API_KEY},
             json=payload,
         )
 
-    def _call_gemini(self, prompt_instructions: str) -> dict[str, Any]:
+    def _call_gemini(
+        self,
+        prompt_instructions: str,
+        *,
+        trace_id: str | None = None,
+        purpose: str = "content_generation",
+    ) -> dict[str, Any]:
+        """Call Gemini with retry and model fallback, returning parsed JSON."""
         self._ensure_configured()
         payload = {
             "contents": [{"parts": [{"text": prompt_instructions}]}],
@@ -272,6 +255,13 @@ OUTPUT RULES
         models = self._model_candidates()
         last_was_overload = False
         last_exc: Exception | None = None
+        logger.info(
+            "AI generation started trace_id=%s purpose=%s provider=gemini models=%s instruction_chars=%d",
+            trace_id or "none",
+            purpose,
+            ",".join(models),
+            len(prompt_instructions),
+        )
 
         try:
             with httpx.Client(timeout=90.0) as client:
@@ -283,7 +273,9 @@ OUTPUT RULES
                             last_exc = exc
                             last_was_overload = False
                             logger.warning(
-                                "Gemini timeout model=%s attempt=%s/%s",
+                                "Gemini timeout trace_id=%s purpose=%s model=%s attempt=%s/%s",
+                                trace_id or "none",
+                                purpose,
                                 model,
                                 attempt + 1,
                                 _MAX_ATTEMPTS_PER_MODEL,
@@ -297,7 +289,22 @@ OUTPUT RULES
                             body = response.json()
                             try:
                                 text = body["candidates"][0]["content"]["parts"][0]["text"]
-                                return json.loads(text)
+                                parsed = json.loads(text)
+                                usage = body.get("usageMetadata") or {}
+                                logger.info(
+                                    "Gemini response accepted trace_id=%s purpose=%s model=%s attempt=%d/%d "
+                                    "variations=%d prompt_tokens=%s output_tokens=%s total_tokens=%s",
+                                    trace_id or "none",
+                                    purpose,
+                                    model,
+                                    attempt + 1,
+                                    _MAX_ATTEMPTS_PER_MODEL,
+                                    len(parsed.get("variations") or []),
+                                    usage.get("promptTokenCount", "unknown"),
+                                    usage.get("candidatesTokenCount", "unknown"),
+                                    usage.get("totalTokenCount", "unknown"),
+                                )
+                                return parsed
                             except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
                                 logger.error(
                                     "Failed to parse Gemini response: %s | body=%s",
@@ -311,7 +318,9 @@ OUTPUT RULES
                         retryable = status_code in _RETRYABLE_STATUS_CODES
                         last_was_overload = status_code in {429, 503}
                         logger.error(
-                            "Gemini API call failed: %s %s model=%s attempt=%s/%s detail=%s",
+                            "Gemini API call failed trace_id=%s purpose=%s: %s %s model=%s attempt=%s/%s detail=%s",
+                            trace_id or "none",
+                            purpose,
                             status_code,
                             response.reason_phrase,
                             model,
@@ -340,7 +349,9 @@ OUTPUT RULES
             raise
         except Exception as exc:
             logger.error(
-                "Gemini API call failed: %s",
+                "Gemini API call failed trace_id=%s purpose=%s error_type=%s",
+                trace_id or "none",
+                purpose,
                 type(exc).__name__,
             )
             raise ValueError(ContentErrorCodes.GENERATION_FAILED) from exc
@@ -349,26 +360,282 @@ OUTPUT RULES
             raise ValueError(ContentErrorCodes.GENERATION_OVERLOADED) from last_exc
         raise ValueError(ContentErrorCodes.GENERATION_FAILED) from last_exc
 
-    def build_pollinations_url(self, prompt: str, aspect_ratio: str = "1:1") -> str:
+    def build_pollinations_url(
+        self,
+        prompt: str,
+        aspect_ratio: str = "1:1",
+        *,
+        seed: int | None = None,
+    ) -> str:
+        """Build a Pollinations Flux URL for the prompt and aspect ratio."""
         sizes = {
             "1:1": (1024, 1024),
             "16:9": (1280, 720),
             "9:16": (720, 1280),
         }
         width, height = sizes.get(aspect_ratio, sizes["1:1"])
-        encoded = urllib.parse.quote(prompt[:800])
+        # The image brief has a deliberate word limit in the Gemini instructions.
+        # Do not silently truncate it here: the composition and exclusion details
+        # are commonly placed at the end of a prompt.
+        encoded = urllib.parse.quote(prompt.strip())
+        seed = seed if seed is not None else random.randint(0, 999_999)
         params = urllib.parse.urlencode(
             {
                 "width": width,
                 "height": height,
                 "nologo": "true",
                 "model": "flux",
-                "seed": random.randint(0, 999_999),
+                "seed": seed,
             }
         )
         return f"https://image.pollinations.ai/prompt/{encoded}?{params}"
 
-    def _rehost_image(self, pollinations_url: str, *, max_retries: int = 3) -> str | None:
+    @staticmethod
+    def _evaluate_image_brief(
+        brief: str,
+        content_request: str | None,
+        brand_name: str | None,
+        tone: str | None,
+        keywords: list[str] | None,
+        brand_voice: str | None,
+        description: str | None,
+    ) -> dict[str, Any]:
+        """Score a generated image brief before it is presented to the user.
+
+        This is intentionally deterministic: it makes the quality gate transparent,
+        has no additional model cost, and gives the UI actionable reasons for a low score.
+        """
+        normalized = " ".join(brief.lower().split())
+        words = normalized.split()
+        request_terms = {
+            term
+            for term in re.findall(r"[a-z0-9]+", (content_request or "").lower())
+            if len(term) > 2 and term not in _PROMPT_STOP_WORDS
+        }
+        brief_terms = set(re.findall(r"[a-z0-9]+", normalized))
+        specific_request_terms = request_terms - _GENERIC_TOPIC_TERMS
+        contextual_terms = {
+            term
+            for term in re.findall(
+                r"[a-z0-9]+",
+                " ".join([brand_name or "", brand_voice or "", description or "", *(keywords or [])]).lower(),
+            )
+            if len(term) > 2 and term not in _PROMPT_STOP_WORDS and term not in _GENERIC_TOPIC_TERMS
+        }
+        overlap = request_terms & brief_terms
+        contextual_overlap = contextual_terms & brief_terms
+        generic_hero = any(
+            term in normalized
+            for term in ("laptop", "keyboard", "smartphone", "phone on a desk", "abstract cube", "future technology")
+        )
+
+        suggestions: list[str] = []
+        if len(specific_request_terms) < 2:
+            if not generic_hero and (contextual_overlap or len(words) >= 60):
+                topic_score = 25
+            else:
+                topic_score = 8
+                suggestions.append(
+                    "Make the content brief concrete: name the product, use case, audience, setting, or event to show."
+                )
+        elif len(overlap) >= min(3, len(specific_request_terms)):
+            topic_score = 30
+        elif overlap:
+            topic_score = 18
+            suggestions.append("Name the requested topic or product directly in the image brief's hero subject.")
+        else:
+            topic_score = 5
+            suggestions.append("Align the hero subject with the requested content topic instead of using a generic visual.")
+
+        visual_markers = (
+            "scene", "studio", "desk", "office", "home", "city", "background", "surface",
+            "fabric", "product", "device", "person", "editorial", "close-up", "overhead",
+            "hero", "subject", "setting", "environment", "foreground", "texture", "material",
+            "shadow", "props", "warehouse", "store", "kitchen", "garden", "workshop",
+        )
+        visual_score = min(25, sum(marker in normalized for marker in visual_markers) * 4)
+        if visual_score < 17:
+            suggestions.append("Add a concrete hero subject, setting, materials, and supporting objects.")
+
+        composition_markers = (
+            "lighting", "softbox", "golden hour", "composition", "rule-of-thirds", "centered",
+            "flat-lay", "split-grid", "palette", "color", "negative space", "sharp focus",
+            "framing", "depth of field", "bokeh", "contrast", "symmetrical", "angle",
+        )
+        composition_score = min(20, sum(marker in normalized for marker in composition_markers) * 3)
+        if composition_score < 14:
+            suggestions.append("Specify lighting, composition, and a restrained colour palette.")
+
+        requests_text = "readable text" in normalized and "no readable text" not in normalized
+        requests_logo_or_ui = any(
+            marker in normalized
+            for marker in ("headline", "brand mark", "app icon", "ui screenshot")
+        ) or (" logo" in normalized and "no logo" not in normalized)
+        has_forbidden_request = requests_text or requests_logo_or_ui
+        compatibility_score = 3 if has_forbidden_request else 15
+        if has_forbidden_request:
+            suggestions.append("Remove requests for readable text, logos, app icons, and UI screenshots; add them after generation.")
+
+        length_score = 10 if 60 <= len(words) <= 110 else 4
+        if length_score < 10:
+            suggestions.append("Keep the image brief focused between 60 and 110 words.")
+
+        brand_terms = [brand_name or "", tone or "", *(keywords or [])]
+        if brand_terms and not any(term and term.lower() in normalized for term in brand_terms):
+            suggestions.append("Reflect a relevant brand colour, tone, or keyword in the visual direction.")
+
+        criteria = [
+            {"name": "Topic specificity", "score": topic_score, "maxScore": 30},
+            {"name": "Visual detail", "score": visual_score, "maxScore": 25},
+            {"name": "Composition & lighting", "score": composition_score, "maxScore": 20},
+            {"name": "Generator compatibility", "score": compatibility_score, "maxScore": 15},
+            {"name": "Prompt length", "score": length_score, "maxScore": 10},
+        ]
+        overall_score = sum(item["score"] for item in criteria)
+        return {
+            "overallScore": overall_score,
+            "status": "ready" if overall_score >= 80 else "needs_review",
+            "criteria": criteria,
+            "suggestions": suggestions[:3],
+        }
+
+    def _repair_low_quality_image_briefs(
+        self,
+        *,
+        items: list[dict[str, Any]],
+        evaluations: list[dict[str, Any]],
+        content_request: str,
+        brand_name: str | None,
+        tone: str | None,
+        keywords: list[str] | None,
+        brand_voice: str | None,
+        description: str | None,
+        visual_style: str | None,
+        trace_id: str | None = None,
+    ) -> list[str]:
+        """Rewrite weak briefs in one Gemini call, preserving their variation order."""
+        briefs = "\n\n".join(
+            "\n".join(
+                [
+                    f"BRIEF {index + 1}: {item.get('imageBrief') or item.get('liImageBrief') or '(missing)'}",
+                    f"CURRENT RUBRIC SCORE: {evaluations[index]['overallScore']}/100",
+                    "MISSING POINTS: " + ", ".join(
+                        criterion["name"]
+                        for criterion in evaluations[index]["criteria"]
+                        if criterion["score"] < criterion["maxScore"]
+                    ),
+                    "REPAIR NOTES: " + " | ".join(evaluations[index]["suggestions"] or ["Increase concrete visual specificity."]),
+                ]
+            )
+            for index, item in enumerate(items)
+        )
+        prompt_instructions = f"""
+You are a strict social-image prompt editor. Rewrite the image briefs below so each reaches at least
+80/100 on the supplied quality gate before it is sent to Flux/Pollinations. Address every listed missing
+criterion and repair note; do not return a lightly edited version of the same weak brief.
+
+CONTENT REQUEST: {content_request or '(broad brand topic)'}
+BRAND: {brand_name or 'Our Brand'}
+BRAND VOICE: {brand_voice or '(none)'}
+DESCRIPTION: {description or '(none)'}
+TONE: {tone or 'professional'}
+KEYWORDS: {', '.join(keywords or []) or '(none)'}
+VISUAL STYLE: {visual_style or '(none)'}
+
+For every brief, write 70-100 words with: one precise hero subject, concrete setting and supporting
+objects, lighting, 3-5 colours, composition, mood, and the most appropriate visual medium. Use text-free
+editorial illustration only when an illustrated concept best communicates the topic; otherwise choose
+commercial, editorial, product, lifestyle, still-life, or location photography as appropriate. Never use a
+generic laptop, keyboard, desk, phone, abstract cube, or vague trend visual as the hero subject unless explicitly
+requested. If the content request is broad, select one concrete theme supported by the brand voice or keywords.
+Do not invent a product claim.
+
+Return exactly {len(items)} variations in the same order. Only imageBrief matters, but populate all required
+fields with valid placeholders. Do not include commentary outside the JSON response.
+
+{briefs}
+""".strip()
+        repaired = self._call_gemini(
+            prompt_instructions,
+            trace_id=trace_id,
+            purpose="image_brief_repair",
+        ).get("variations") or []
+        return [str(item.get("imageBrief") or "").strip() for item in repaired[: len(items)]]
+
+    @staticmethod
+    def _complete_image_brief_for_rubric(
+        brief: str,
+        evaluation: dict[str, Any],
+        content_request: str | None,
+    ) -> str:
+        """Add missing render-critical direction without another Gemini request.
+
+        Gemini is asked to meet the rubric in its first response. This deterministic
+        safety net covers any omitted production terms so a short user topic does
+        not turn into another model call, extra latency, or an unnecessary image
+        rejection.
+        """
+        result = " ".join(brief.split())
+        if not result:
+            return result
+
+        scores = {criterion["name"]: criterion["score"] for criterion in evaluation["criteria"]}
+        additions: list[str] = []
+        if scores.get("Topic specificity", 0) < 25:
+            topic_terms = [
+                term
+                for term in re.findall(r"[a-zA-Z0-9]+", content_request or "")
+                if len(term) > 2
+                and term.lower() not in _PROMPT_STOP_WORDS
+                and term.lower() not in {"text", "logo", "logos", "watermark", "watermarks", "ui"}
+            ][:6]
+            if topic_terms:
+                additions.append(
+                    "Visual story anchored to the requested concept: " + " ".join(topic_terms) + "."
+                )
+        if scores.get("Visual detail", 0) < 20 or scores.get("Composition & lighting", 0) < 17:
+            additions.append(
+                "Textured studio surface with foreground props and gentle shadows; deliberate centered composition, soft lighting, restrained color palette, balanced framing, sharp focus, and clean negative space."
+            )
+        if "no readable text" not in result.lower():
+            additions.append("No readable text, no logos, no watermarks, no UI.")
+
+        # Preserve room for the safety details and mandatory exclusions. The model's
+        # initial brief carries the subject and brand story, so only trim excessive
+        # wording from its tail when it violates the stated 110-word maximum.
+        addition_words = sum(len(addition.split()) for addition in additions)
+        max_base_words = max(60, 110 - addition_words)
+        base_words = result.split()
+        if len(base_words) > max_base_words:
+            result = " ".join(base_words[:max_base_words]).rstrip(" ,;:") + "."
+        if additions:
+            result = f"{result} {' '.join(additions)}"
+        if len(result.split()) < 60:
+            result = (
+                f"{result} Detailed editorial styling creates a cohesive tactile premium intentional calm "
+                "inviting refined visual treatment."
+            )
+        return result
+
+    @staticmethod
+    def _quality_log_fields(evaluation: dict[str, Any]) -> tuple[str, str]:
+        """Return concise, safe review details for application logs."""
+        missing = ", ".join(
+            f"{criterion['name']}={criterion['score']}/{criterion['maxScore']}"
+            for criterion in evaluation["criteria"]
+            if criterion["score"] < criterion["maxScore"]
+        ) or "none"
+        suggestions = " | ".join(evaluation.get("suggestions") or []) or "none"
+        return missing, suggestions
+
+    def _rehost_image(
+        self,
+        pollinations_url: str,
+        *,
+        max_retries: int = 3,
+        trace_id: str | None = None,
+        variation: int | None = None,
+    ) -> str | None:
         """Download from Pollinations and upload to Cloudinary.
         Retries on 429 Too Many Requests with exponential backoff.
         """
@@ -389,6 +656,15 @@ OUTPUT RULES
                     if "image" not in content_type:
                         content_type = "image/png"
                     file_bytes = image_response.content
+                    logger.info(
+                        "Image render downloaded trace_id=%s variation=%s provider=pollinations model=flux "
+                        "status=%d bytes=%d content_type=%s",
+                        trace_id or "none",
+                        variation if variation is not None else "none",
+                        image_response.status_code,
+                        len(file_bytes),
+                        content_type,
+                    )
                     break  # success — exit retry loop
             except httpx.HTTPStatusError:
                 raise  # non-429 HTTP errors are not retried
@@ -407,7 +683,14 @@ OUTPUT RULES
                 filename="generated.png",
                 content_type=content_type.split(";")[0].strip(),
             )
-            return uploaded.get("secureUrl")
+            secure_url = uploaded.get("secureUrl")
+            logger.info(
+                "Image rehost completed trace_id=%s variation=%s provider=cloudinary success=%s",
+                trace_id or "none",
+                variation if variation is not None else "none",
+                bool(secure_url),
+            )
+            return secure_url
         except Exception as exc:
             logger.warning("Failed to rehost generated image to Cloudinary: %s", exc)
             return None
@@ -431,6 +714,15 @@ OUTPUT RULES
         rules: list[str] | None = None,
         aspect_ratio: str = "1:1",
     ) -> dict[str, Any]:
+        """Generate, evaluate, render, and normalize one content variation."""
+        trace_id = generate_ulid()
+        logger.info(
+            "Content generation request trace_id=%s prompt_chars=%d platforms=%s aspect_ratio=%s",
+            trace_id,
+            len(prompt or ""),
+            ",".join(platforms or ["instagram"]),
+            aspect_ratio,
+        )
         instructions = self._build_prompt(
             prompt=prompt,
             goal=goal,
@@ -447,31 +739,153 @@ OUTPUT RULES
             description=description,
             rules=rules,
         )
-        raw = self._call_gemini(instructions)
+        raw = self._call_gemini(instructions, trace_id=trace_id)
         raw_variations = raw.get("variations") or []
         if not isinstance(raw_variations, list) or len(raw_variations) == 0:
             raise ValueError(ContentErrorCodes.GENERATION_FAILED)
 
-        # Pad / trim to exactly 3 for the UI variation picker
-        while len(raw_variations) < 3:
-            raw_variations.append(raw_variations[-1])
-        raw_variations = raw_variations[:3]
+        # One definitive generation avoids multiplying provider calls and image
+        # charges. The UI accepts a one-item list and no longer needs padding.
+        raw_variations = raw_variations[:1]
 
-        image_url: str | None = None
         image_warning: str | None = None
+        variation_image_urls: list[str | None] = []
+        evaluations = [
+            self._evaluate_image_brief(
+                brief=(item.get("imageBrief") or item.get("liImageBrief") or "").strip(),
+                content_request=prompt,
+                brand_name=brand_name,
+                tone=tone,
+                keywords=keywords,
+                brand_voice=brand_voice,
+                description=description,
+            )
+            for item in raw_variations
+        ]
+        for index, evaluation in enumerate(evaluations):
+            missing, suggestions = self._quality_log_fields(evaluation)
+            logger.info(
+                "Image quality review trace_id=%s variation=%d phase=initial score=%d/100 status=%s missing=[%s] suggestions=[%s]",
+                trace_id,
+                index + 1,
+                evaluation["overallScore"],
+                evaluation["status"],
+                missing,
+                suggestions,
+            )
 
-        first_brief = (raw_variations[0].get("imageBrief") or raw_variations[0].get("liImageBrief") or "").strip()
+        # Complete omitted visual-production details locally rather than issuing
+        # repair prompts. This keeps generation to one Gemini call, even for a
+        # short user topic, while retaining the 80-point quality gate.
+        for index, evaluation in enumerate(evaluations):
+            if evaluation["overallScore"] >= 80:
+                continue
+            completed_brief = self._complete_image_brief_for_rubric(
+                (raw_variations[index].get("imageBrief") or raw_variations[index].get("liImageBrief") or "").strip(),
+                evaluation,
+                prompt,
+            )
+            raw_variations[index]["imageBrief"] = completed_brief
+            evaluations[index] = self._evaluate_image_brief(
+                brief=completed_brief,
+                content_request=prompt,
+                brand_name=brand_name,
+                tone=tone,
+                keywords=keywords,
+                brand_voice=brand_voice,
+                description=description,
+            )
+            missing, suggestions = self._quality_log_fields(evaluations[index])
+            logger.info(
+                "Image quality review trace_id=%s variation=%d phase=local_completion score=%d/100 status=%s missing=[%s] suggestions=[%s]",
+                trace_id,
+                index + 1,
+                evaluations[index]["overallScore"],
+                evaluations[index]["status"],
+                missing,
+                suggestions,
+            )
 
-        # Generate ONE image
-        if first_brief:
+        # Give every variation its own image URL. Previously all variation cards
+        # displayed the first prompt's image, even after a user selected B or C.
+        # Only the initially visible image is rehosted; the other URLs are fetched
+        # when selected and already carry their own prompt and seed.
+        for index, item in enumerate(raw_variations):
+            brief = (item.get("imageBrief") or item.get("liImageBrief") or "").strip()
+            if evaluations[index]["overallScore"] < 80:
+                variation_image_urls.append(None)
+                image_warning = image_warning or (
+                    "Image generation was skipped because the prompt did not meet the 80/100 quality gate."
+                )
+                logger.warning(
+                    "Image generation skipped trace_id=%s variation=%d score=%d/100 reason=quality_gate",
+                    trace_id,
+                    index + 1,
+                    evaluations[index]["overallScore"],
+                )
+                continue
+            if not brief:
+                variation_image_urls.append(None)
+                image_warning = image_warning or "No imageBrief returned from model."
+                continue
             try:
-                pollinations_url = self.build_pollinations_url(first_brief, aspect_ratio)
-                image_url = self._rehost_image(pollinations_url) or pollinations_url
+                seed = random.randint(0, 999_999)
+                logger.info(
+                    "Image render requested trace_id=%s variation=%d provider=qwen-primary pollinations-flux-fallback "
+                    "aspect_ratio=%s prompt_words=%d prompt=%r",
+                    trace_id,
+                    index + 1,
+                    aspect_ratio,
+                    len(brief.split()),
+                    brief,
+                )
+                image_url = qwen_image_provider.generate_image(
+                    prompt=brief,
+                    aspect_ratio=aspect_ratio,
+                    seed=seed,
+                    trace_id=trace_id,
+                    variation=index + 1,
+                )
+                if image_url:
+                    variation_image_urls.append(image_url)
+                    logger.info(
+                        "Image generation prepared trace_id=%s variation=%d score=%d/100 source=qwen",
+                        trace_id,
+                        index + 1,
+                        evaluations[index]["overallScore"],
+                    )
+                    continue
+
+                pollinations_url = self.build_pollinations_url(brief, aspect_ratio, seed=seed)
+                logger.info(
+                    "Image render dispatch trace_id=%s variation=%d provider=pollinations model=flux seed=%s",
+                    trace_id,
+                    index + 1,
+                    seed,
+                )
+                image_url = (
+                    self._rehost_image(pollinations_url, trace_id=trace_id, variation=index + 1)
+                    if index == 0
+                    else None
+                )
+                variation_image_urls.append(image_url or pollinations_url)
+                logger.info(
+                    "Image generation prepared trace_id=%s variation=%d score=%d/100 source=%s",
+                    trace_id,
+                    index + 1,
+                    evaluations[index]["overallScore"],
+                    "cloudinary" if image_url else "pollinations",
+                )
             except Exception as exc:
-                logger.warning("Image generation failed: %s", exc)
-                image_warning = str(exc)
-        else:
-            image_warning = "No imageBrief returned from model."
+                logger.warning(
+                    "Image generation failed trace_id=%s variation=%d error_type=%s error=%s",
+                    trace_id,
+                    index + 1,
+                    type(exc).__name__,
+                    exc,
+                )
+                variation_image_urls.append(None)
+                image_warning = image_warning or str(exc)
 
         variations = []
         for index, item in enumerate(raw_variations):
@@ -491,7 +905,8 @@ OUTPUT RULES
                     "liCaption": item.get("liCaption") or "",
                     "liHashtags": [str(tag).lstrip("#") for tag in li_hashtags],
                     "liImageBrief": item.get("liImageBrief") or "",
-                    "imageUrl": image_url,
+                    "imageUrl": variation_image_urls[index],
+                    "imagePromptEvaluation": evaluations[index],
                 }
             )
 
@@ -531,7 +946,14 @@ OUTPUT RULES
         The previous caption and feedback are used as context so the AI improves,
         rather than starting from scratch.
         """
+        trace_id = generate_ulid()
         platforms_label = ", ".join(platforms or ["instagram", "linkedin"])
+        logger.info(
+            "Feedback generation request trace_id=%s feedback_chars=%d aspect_ratio=%s",
+            trace_id,
+            len(feedback or ""),
+            aspect_ratio,
+        )
         keyword_list = ", ".join(keywords or []) or "(none)"
         brand_rules = "\n".join(f"- {rule}" for rule in (rules or []) if rule) or "(none)"
         hashtags_str = ", ".join(f"#{h}" for h in previous_hashtags) or "(none)"
@@ -543,7 +965,7 @@ A client has reviewed the following post and provided revision feedback.
 Produce exactly 1 improved variation that addresses the feedback.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-WORKSPACE BRAND IDENTITY  ← PRIMARY SOURCE OF TRUTH (99% weight)
+WORKSPACE BRAND IDENTITY  ← VISUAL GUARDRAILS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Brand name: "{brand_name or 'Our Brand'}"
 Brand tone: "{tone or 'Professional'}"
@@ -573,41 +995,25 @@ CLIENT FEEDBACK ← address every point
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 AI IMAGE GENERATOR HARD CONSTRAINTS  ← NON-NEGOTIABLE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-The imageBrief is sent to Pollinations.ai (Flux model). CRITICAL limitations:
-  ✗ CANNOT generate photorealistic humans — children, adults, body parts — always distorted/rejected.
-  ✗ "child model", "person wearing clothing", "kid in outfit" ALWAYS produce unusable output.
-  ✓ CAN generate: product flat-lays, styled clothing on surfaces, fabric close-ups, still-life, fireworks, food, décor.
-THEREFORE: NEVER include human subjects in imageBrief regardless of brand rules. Use product techniques below.
+The imageBrief is sent to Pollinations.ai (Flux model). Follow these constraints:
+  ✗ Do not ask for readable headlines, exact logos, brand marks, app interfaces, or watermarks.
+    Add those in the design editor after generation.
+  ✓ A single, clearly described person is allowed when essential to the post. Avoid crowds, tiny faces,
+    and complex hand poses. Use product-only imagery when a person is not needed.
+  ✓ It works especially well for product flat-lays, styled clothing, fabric close-ups, still-life,
+    fireworks, food, décor, and simple editorial lifestyle photography.
+The revised image must communicate both the feedback/topic and the brand identity.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 IMAGE BRIEF RULES  ← CRITICAL
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Read the brand voice above carefully — then choose the correct template:
-
-TEMPLATE A — PHOTOREALISTIC / LIFESTYLE / PRODUCT / EVENT / FESTIVE BRANDS
-(Use when brand mentions: festive, celebration, fireworks, food, fashion, travel, organic, cultural, luxury, events)
-Write a cinematic photorealistic AI image prompt — NO humans. Include:
-  • Scene + primary product/subject with exact visual details
-  • Lighting style (golden hour, dramatic night sky, studio softbox, cinematic)
-  • Color palette (3-5 colors from brand voice)
-  • Composition (overhead / flat-lay / rule-of-thirds + negative space for text)
-  • Style keywords: photorealistic, 8K, commercial photography, sharp focus, no text, no people
-  • Mood aligned to brand voice
-
-  CLOTHING / FASHION / KIDS BRANDS — use one of these product photography approaches:
-    Option 1 — FLAT LAY: Clothing styled on linen/wood/marble surface with small props (shoes, accessories).
-    Option 2 — DETAIL SHOT: Extreme close-up macro of fabric texture, stitching, print pattern.
-    Option 3 — STILL LIFE: Folded/arranged clothing on premium surface with tasteful props.
-
-TEMPLATE B — TECH / SAAS / DIGITAL / INFOGRAPHIC BRANDS
-(Use when brand mentions: apps, software, productivity, SaaS, AI tools, startup, B2B)
-  "[BACKGROUND: flat clean color], [HEADLINE: bold text reading actual headline],
-   [ICONS: 3-6 named real app icons floating with drop shadows],
-   [DOODLES: hand-drawn ink sketch arrows], [LAYOUT: knolling flat-lay],
-   [STYLE: minimal, infographic, 1:1 square, sharp]"
-
-RULES: DO NOT mix templates. NEVER include humans/children/people/body parts. DO NOT write briefs shorter than 80 words.
-For Template B: always name specific real-world app icons.
+Use the same universal visual-brief framework as initial generation. Infer the best visual medium from the
+feedback, post topic, audience, brand context, and requested change; do not use fixed category templates.
+Write 60-110 words with one precise hero subject, a specific setting/use case, two supporting details,
+lighting, a 3-5-colour palette, composition, mood, and style. Use a person only when meaningful. Never
+request readable text, logos, watermarks, app icons, or UI screenshots. For broad topics, choose one
+specific brand-supported angle; never use a generic laptop, keyboard, phone, desk, abstract cube, or vague
+"future technology" visual as the hero subject.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 OUTPUT RULES
@@ -618,12 +1024,12 @@ OUTPUT RULES
 - Instagram captions: hook → bullets → CTA. Platform-native.
 - LinkedIn captions: professional paragraph format.
 - hashtags and liHashtags must be plain strings WITHOUT the # prefix.
-- imageBrief: 80-150 words, follow template above.
-- liImageBrief: same template, professional LinkedIn tone.
+- imageBrief: 60-110 words, follow the universal visual-brief framework above.
+- liImageBrief: same visual concept, professional LinkedIn tone.
 - Do not mention that you are an AI.
 """.strip()
 
-        raw = self._call_gemini(prompt_instructions)
+        raw = self._call_gemini(prompt_instructions, trace_id=trace_id, purpose="feedback_generation")
         raw_variations = raw.get("variations") or []
         if not isinstance(raw_variations, list) or len(raw_variations) == 0:
             raise ValueError(ContentErrorCodes.GENERATION_FAILED)
@@ -643,12 +1049,128 @@ OUTPUT RULES
         image_warning: str | None = None
 
         brief_to_use = new_image_brief or new_li_image_brief
-        if brief_to_use:
+        evaluation = self._evaluate_image_brief(
+            brief=brief_to_use,
+            content_request=feedback,
+            brand_name=brand_name,
+            tone=tone,
+            keywords=keywords,
+            brand_voice=brand_voice,
+            description=description,
+        )
+        missing, suggestions = self._quality_log_fields(evaluation)
+        logger.info(
+            "Image quality review trace_id=%s variation=1 phase=feedback-initial score=%d/100 status=%s missing=[%s] suggestions=[%s]",
+            trace_id,
+            evaluation["overallScore"],
+            evaluation["status"],
+            missing,
+            suggestions,
+        )
+        for repair_attempt in range(2):
+            if evaluation["overallScore"] >= 80:
+                break
             try:
-                pollinations_url = self.build_pollinations_url(brief_to_use, aspect_ratio)
-                image_url = self._rehost_image(pollinations_url) or pollinations_url
+                repaired = self._repair_low_quality_image_briefs(
+                    items=[item],
+                    evaluations=[evaluation],
+                    content_request=feedback,
+                    brand_name=brand_name,
+                    tone=tone,
+                    keywords=keywords,
+                    brand_voice=brand_voice,
+                    description=description,
+                    visual_style=None,
+                    trace_id=trace_id,
+                )
+                if repaired and repaired[0]:
+                    new_image_brief = repaired[0]
+                    brief_to_use = new_image_brief
+                    evaluation = self._evaluate_image_brief(
+                        brief=brief_to_use,
+                        content_request=feedback,
+                        brand_name=brand_name,
+                        tone=tone,
+                        keywords=keywords,
+                        brand_voice=brand_voice,
+                        description=description,
+                    )
+                    missing, suggestions = self._quality_log_fields(evaluation)
+                    logger.info(
+                        "Image quality review trace_id=%s variation=1 phase=feedback-repair-%d score=%d/100 status=%s missing=[%s] suggestions=[%s]",
+                        trace_id,
+                        repair_attempt + 1,
+                        evaluation["overallScore"],
+                        evaluation["status"],
+                        missing,
+                        suggestions,
+                    )
             except Exception as exc:
-                logger.warning("Image generation failed during feedback: %s", exc)
+                logger.warning(
+                    "Image brief quality repair failed trace_id=%s pass=%d phase=feedback error_type=%s error=%s",
+                    trace_id,
+                    repair_attempt + 1,
+                    type(exc).__name__,
+                    exc,
+                )
+                break
+
+        if evaluation["overallScore"] < 80:
+            image_warning = "Image generation was skipped because the prompt did not meet the 80/100 quality gate."
+        elif brief_to_use:
+            try:
+                seed = random.randint(0, 999_999)
+                logger.info(
+                    "Image render requested trace_id=%s variation=1 provider=qwen-primary pollinations-flux-fallback "
+                    "aspect_ratio=%s prompt_words=%d prompt=%r",
+                    trace_id,
+                    aspect_ratio,
+                    len(brief_to_use.split()),
+                    brief_to_use,
+                )
+                image_url = qwen_image_provider.generate_image(
+                    prompt=brief_to_use,
+                    aspect_ratio=aspect_ratio,
+                    seed=seed,
+                    trace_id=trace_id,
+                    variation=1,
+                )
+                if image_url:
+                    logger.info(
+                        "Image generation prepared trace_id=%s variation=1 score=%d/100 source=qwen",
+                        trace_id,
+                        evaluation["overallScore"],
+                    )
+                    return {
+                        "caption": item.get("caption") or "",
+                        "hashtags": [str(tag).lstrip("#") for tag in hashtags],
+                        "imageBrief": new_image_brief,
+                        "liCaption": item.get("liCaption") or "",
+                        "liHashtags": [str(tag).lstrip("#") for tag in li_hashtags],
+                        "liImageBrief": new_li_image_brief,
+                        "imageUrl": image_url,
+                        "imageWarning": image_warning,
+                        "imagePromptEvaluation": evaluation,
+                    }
+
+                pollinations_url = self.build_pollinations_url(brief_to_use, aspect_ratio, seed=seed)
+                logger.info(
+                    "Image render dispatch trace_id=%s variation=1 provider=pollinations model=flux seed=%s",
+                    trace_id,
+                    seed,
+                )
+                image_url = self._rehost_image(
+                    pollinations_url,
+                    trace_id=trace_id,
+                    variation=1,
+                ) or pollinations_url
+            except Exception as exc:
+                logger.warning(
+                    "Image generation failed trace_id=%s variation=1 phase=feedback error_type=%s error=%s",
+                    trace_id,
+                    type(exc).__name__,
+                    exc,
+                )
                 image_warning = str(exc)
                 image_url = previous_image_url
 
@@ -661,6 +1183,7 @@ OUTPUT RULES
             "liImageBrief": new_li_image_brief,
             "imageUrl": image_url,
             "imageWarning": image_warning,
+            "imagePromptEvaluation": evaluation,
         }
 
 

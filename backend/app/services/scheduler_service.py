@@ -1,4 +1,5 @@
 import logging
+import random
 from datetime import datetime, timezone, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -112,6 +113,7 @@ def _process_workspace_schedules() -> None:
     from app.models.workspace import Workspace
     from app.models.draft import Draft
     from app.providers.gemini_content_provider import gemini_content_provider
+    from app.providers.qwen_image_provider import qwen_image_provider
     from app.services.notification_service import notification_service
 
     db = SessionLocal()
@@ -234,9 +236,20 @@ def _process_workspace_schedules() -> None:
                     # ── Fallback image: still try to generate one from the brief ──
                     try:
                         logger.info("Schedule %s: Attempting fallback image generation...", schedule.id)
-                        pollinations_url = gemini_content_provider.build_pollinations_url(image_brief)
-                        rehosted = gemini_content_provider._rehost_image(pollinations_url)
-                        image_url = rehosted or pollinations_url
+                        seed = random.randint(0, 999_999)
+                        image_url = qwen_image_provider.generate_image(
+                            prompt=image_brief,
+                            aspect_ratio="1:1",
+                            seed=seed,
+                            trace_id=f"schedule-{schedule.id}",
+                            variation=1,
+                        )
+                        if not image_url:
+                            pollinations_url = gemini_content_provider.build_pollinations_url(
+                                image_brief,
+                                seed=seed,
+                            )
+                            image_url = gemini_content_provider._rehost_image(pollinations_url) or pollinations_url
                     except Exception as img_exc:
                         logger.warning("Schedule %s: Fallback image generation also failed: %s", schedule.id, img_exc)
                         image_url = workspace.logoUrl or ""

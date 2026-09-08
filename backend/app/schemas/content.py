@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -29,6 +31,7 @@ class ContentVariation(BaseModel):
     liHashtags: list[str] = Field(default_factory=list)
     liImageBrief: str = ""
     imageUrl: str | None = None
+    imagePromptEvaluation: dict[str, Any] = Field(default_factory=dict)
 
 
 class GenerateContentResponse(BaseModel):

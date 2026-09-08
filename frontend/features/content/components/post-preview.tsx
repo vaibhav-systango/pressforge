@@ -4,6 +4,13 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { Heart, MessageCircle, Send as ShareIcon, Bookmark, MoreHorizontal, ThumbsUp, Share2, Send, RefreshCw, Copy, Check } from 'lucide-react';
 
+interface ImagePromptEvaluation {
+  overallScore: number;
+  status: 'ready' | 'needs_review';
+  criteria: Array<{ name: string; score: number; maxScore: number }>;
+  suggestions: string[];
+}
+
 interface PostPreviewProps {
   activePlatformTab: 'instagram' | 'linkedin';
   localBrandName: string;
@@ -18,8 +25,10 @@ interface PostPreviewProps {
   imageBrief?: string;
   liImageBrief?: string;
   geminiPrompt?: string;
+  imagePromptEvaluation?: ImagePromptEvaluation;
 }
 
+/** Render the generated post preview for the selected social platform. */
 export function PostPreview({
   activePlatformTab,
   localBrandName,
@@ -34,11 +43,13 @@ export function PostPreview({
   imageBrief = '',
   liImageBrief = '',
   geminiPrompt = '',
+  imagePromptEvaluation,
 }: PostPreviewProps) {
   const [copiedInsta, setCopiedInsta] = useState(false);
   const [copiedLi, setCopiedLi] = useState(false);
   const [copiedGemini, setCopiedGemini] = useState(false);
 
+  /** Copy preview text and briefly expose confirmation through the given setter. */
   const handleCopy = (text: string, setter: (v: boolean) => void) => {
     if (!text) return;
     navigator.clipboard.writeText(text).then(() => {
@@ -100,6 +111,22 @@ export function PostPreview({
         </div>
 
         {/* Image Prompt Tag */}
+        {!generating && imagePromptEvaluation && (
+          <div className="px-3 pb-2">
+            <div className={`rounded-md border px-2 py-1.5 text-[9px] ${
+              imagePromptEvaluation.status === 'ready'
+                ? 'border-green-500/40 bg-green-500/10 text-green-600'
+                : 'border-amber-500/40 bg-amber-500/10 text-amber-700'
+            }`}>
+              <p className="font-bold">
+                Image prompt rubric: {imagePromptEvaluation.overallScore}/100 · {imagePromptEvaluation.status === 'ready' ? 'Ready' : 'Needs review'}
+              </p>
+              {imagePromptEvaluation.suggestions[0] && (
+                <p className="mt-0.5 text-text-secondary">{imagePromptEvaluation.suggestions[0]}</p>
+              )}
+            </div>
+          </div>
+        )}
         {!generating && imageBrief && (
           <div className="px-3 pb-2">
             <button
