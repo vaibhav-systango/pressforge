@@ -1,0 +1,205 @@
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useAppState } from '@/lib/queries/use-app-state';
+import React, { useState } from 'react';
+import { OnboardingStepper } from '@/components/onboarding/onboarding-stepper';
+import { ArrowRight } from 'lucide-react';
+import { FileUpload } from '@/components/common/file-upload';
+import { notifications } from '@mantine/notifications';
+import { validateWorkspaceName, validateWebsiteUrl } from '@/lib/utils/validation';
+
+export function WorkspaceView() {
+  const router = useRouter();
+  const { state, addWorkspace, updateWorkspace, updateState, setActiveWorkspace } = useAppState();
+  
+  const activeWs = state.workspaces.find((w) => w.id === state.activeWorkspaceId) || state.workspaces[0];
+
+  const [brandName, setBrandName] = useState(
+    activeWs?.name || (state.accountType === 'individual' ? state.organizationName : '') || '',
+  );
+  const [website, setWebsite] = useState(
+    activeWs?.website || state.individualWebsite || '',
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [submitted, setSubmitted] = useState(false);
+
+  const getErrors = () => {
+    const errs: Record<string, string> = {};
+    const nameErr = validateWorkspaceName(brandName);
+    if (nameErr) errs.brandName = nameErr;
+
+    const webErr = validateWebsiteUrl(website);
+    if (webErr) errs.website = webErr;
+
+    return errs;
+  };
+
+  const errors = getErrors();
+
+  const [uploadedFile, setUploadedFile] = useState<string | null>(() => activeWs?.brandAsset || null);
+  const [filePreview, setFilePreview] = useState<string | null>(() => {
+    if (activeWs?.brandAsset) {
+      try {
+        const parsed = JSON.parse(activeWs.brandAsset);
+        return parsed.secureUrl || null;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return null;
+  });
+  const [fileType, setFileType] = useState<string | null>(() => {
+    if (activeWs?.brandAsset) {
+      try {
+        const parsed = JSON.parse(activeWs.brandAsset);
+        return parsed.resourceType === 'raw' ? 'application/pdf' : 'image/png';
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return null;
+  });
+
+  const handleFileChange = (name: string | null, preview: string | null, type: string | null) => {
+    setUploadedFile(name);
+    setFilePreview(preview);
+    setFileType(type);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitted(true);
+
+    const validationErrors = getErrors();
+    if (Object.keys(validationErrors).length > 0) {
+      notifications.show({
+        title: 'Validation error',
+        message: 'Please fix the errors below before continuing.',
+        color: 'red',
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      if (state.accountType === 'individual' && activeWs) {
+        const result = await updateWorkspace({
+          ...activeWs,
+          name: brandName,
+          website: website || undefined,
+          brandAsset: uploadedFile || undefined,
+        });
+        await setActiveWorkspace(result.workspace.id);
+        await updateState({ currentStep: 3 });
+      } else {
+        const newId = brandName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const result = await addWorkspace({
+          id: newId,
+          name: brandName,
+          website: website || undefined,
+          tone: 'casual',
+          keywords: [],
+          rules: [],
+          schedules: [],
+          brandAsset: uploadedFile || undefined,
+        });
+        await setActiveWorkspace(result.workspace.id);
+        await updateState({ currentStep: 3 });
+      }
+
+      router.push('/onboarding/brand-voice');
+    } catch (err) {
+      console.error(err);
+      notifications.show({
+        title: 'Error saving workspace',
+        message: err instanceof Error ? err.message : 'Please try again.',
+        color: 'red',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#FAFAFA] flex flex-col justify-center py-12 px-6 lg:px-8">
+      {/* Header */}
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-extrabold tracking-tight text-[#262626]">
+          Create a Brand Workspace
+        </h1>
+        <p className="text-slate-500 mt-2">
+          Workspaces house individual clients, custom brand assets, and platform connections.
+        </p>
+      </div>
+
+      <OnboardingStepper currentStep={2} />
+
+      <div className="max-w-md w-full mx-auto bg-white border border-[#EFEFEF] rounded-2xl p-8 shadow-sm">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-[#737373]" htmlFor="brand-name">
+              Brand / Client Name
+              <span className="text-red-500 ml-0.5">*</span>
+            </label>
+            <input
+              id="brand-name"
+              type="text"
+              required
+              placeholder="e.g. Acme Clothing Co"
+              value={brandName}
+              onChange={(e) => setBrandName(e.target.value)}
+              onBlur={() => setTouched((prev) => ({ ...prev, brandName: true }))}
+              className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-[#E1306C] outline-none transition duration-150"
+            />
+            {(touched.brandName || submitted) && errors.brandName && (
+              <p className="text-[11px] text-red-500 font-medium">{errors.brandName}</p>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-[#737373]" htmlFor="website">
+              Website URL
+            </label>
+            <input
+              id="website"
+              type="url"
+              placeholder="https://acmeclothing.com"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              onBlur={() => setTouched((prev) => ({ ...prev, website: true }))}
+              className="border border-[#EFEFEF] rounded-xl px-3.5 py-2.5 text-sm focus:border-[#E1306C] outline-none transition duration-150"
+            />
+            {(touched.website || submitted) && errors.website && (
+              <p className="text-[11px] text-red-500 font-medium">{errors.website}</p>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <FileUpload
+              label="Brand Assets"
+              value={uploadedFile}
+              previewUrl={filePreview}
+              fileType={fileType}
+              onChange={handleFileChange}
+              uploadUrl="/api/uploads/brand-assets"
+              maxSize={20 * 1024 * 1024} // 20MB
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSubmitting || !brandName.trim() || Object.keys(errors).length > 0}
+            className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-tr from-[#F58529] to-[#DD2A7B] text-white py-3 rounded-full text-sm font-semibold hover:opacity-95 transition shadow-sm mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <span>{isSubmitting ? 'Saving...' : 'Configure Brand Voice'}</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </form>
+
+
+      </div>
+    </div>
+  );
+}

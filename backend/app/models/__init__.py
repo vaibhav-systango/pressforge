@@ -1,0 +1,33 @@
+# Register all models here for SQLAlchemy metadata discovery
+from app.database.database import Base
+from app.models.user import User
+from app.models.organization import Organization
+from app.models.organization_kyc import OrganizationKyc
+from app.models.organization_member import OrganizationMember, MemberWorkspace
+from app.models.role import Role
+from app.models.permission import Permission
+from app.models.role_permission import RolePermission
+from app.models.route_permission import RoutePermission
+from app.models.user_profile import UserProfile
+from app.models.invitation import Invitation
+from app.models.workspace import Workspace
+from app.models.workspace_schedule import WorkspaceSchedule
+from app.models.draft import Draft
+
+__all__ = [
+    "Base",
+    "User",
+    "Organization",
+    "OrganizationKyc",
+    "OrganizationMember",
+    "MemberWorkspace",
+    "Role",
+    "Permission",
+    "RolePermission",
+    "RoutePermission",
+    "UserProfile",
+    "Invitation",
+    "Workspace",
+    "WorkspaceSchedule",
+    "Draft",
+]

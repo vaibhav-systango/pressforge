@@ -1,0 +1,71 @@
+import logging
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+from python_http_client.exceptions import HTTPError
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+class EmailProvider:
+
+    def send(self, *, to: str, subject: str, html: str) -> bool:
+        if not settings.SENDGRID_API_KEY or not settings.SENDGRID_FROM:
+            logger.warning(
+                "SendGrid is not configured. Email logged to console:\n"
+                "To: %s\n"
+                "Subject: %s\n"
+                "Body:\n%s",
+                to,
+                subject,
+                html
+            )
+            return False
+
+        message = Mail(
+            from_email=settings.SENDGRID_FROM,
+            to_emails=to,
+            subject=subject,
+            html_content=html,
+        )
+        try:
+            response = SendGridAPIClient(settings.SENDGRID_API_KEY).send(message)
+        except HTTPError as exc:
+            body = exc.body.decode("utf-8", errors="replace") if isinstance(exc.body, bytes) else exc.body
+            logger.error(
+                "SendGrid error while sending email: status=%s reason=%s body=%s",
+                exc.status_code,
+                exc.reason,
+                body,
+            )
+            logger.warning(
+                "SendGrid failed to deliver. Email logged to console (fallback):\n"
+                "To: %s\n"
+                "Subject: %s\n"
+                "Body:\n%s",
+                to,
+                subject,
+                html
+            )
+            return False
+        except Exception as exc:
+            logger.error("Unexpected error while sending email: %s", exc)
+            logger.warning(
+                "SendGrid failed to deliver. Email logged to console (fallback):\n"
+                "To: %s\n"
+                "Subject: %s\n"
+                "Body:\n%s",
+                to,
+                subject,
+                html
+            )
+            return False
+        logger.info(
+            "SendGrid accepted email: status=%s subject=%s",
+            response.status_code,
+            subject,
+        )
+        return True
+
+
+email_provider = EmailProvider()

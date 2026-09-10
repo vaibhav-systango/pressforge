@@ -1,0 +1,3 @@
+cd frontend
+echo "=== Running Pre-Commit Validation Checks ==="
+npm run typecheck && npm run lint

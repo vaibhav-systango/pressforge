@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+python-multipart
+pydantic-settings
+sqlalchemy
+psycopg2-binary
+python-dotenv
+alembic
+python-ulid
+pyjwt
+bcrypt
+email-validator
+sendgrid
+cloudinary
+httpx
+apscheduler               

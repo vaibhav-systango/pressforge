@@ -1,0 +1,118 @@
+import { cookies } from 'next/headers';
+import type { NextResponse } from 'next/server';
+
+import { GUEST_SESSION_COOKIE, REFRESH_TOKEN_TTL_SECONDS } from '@/lib/server/auth/constants';
+import { getAccessToken } from '@/lib/server/auth/get-access-token';
+import { verifyAccessToken, verifyBackendAccessToken } from '@/lib/server/auth/tokens';
+
+export interface RequestSession {
+  sessionId: string;
+  accessToken?: string;
+  isAuthenticated: boolean;
+  guestId?: string;
+  isNewGuest: boolean;
+}
+
+async function resolveAuthenticatedSession(accessToken: string): Promise<RequestSession | null> {
+  try {
+    const payload = await verifyAccessToken(accessToken);
+    return {
+      sessionId: payload.sessionId,
+      accessToken,
+      isAuthenticated: true,
+      isNewGuest: false,
+    };
+  } catch {
+    // Fall through to backend token verification.
+  }
+
+  try {
+    const payload = await verifyBackendAccessToken(accessToken);
+    return {
+      sessionId: payload.sub,
+      accessToken,
+      isAuthenticated: true,
+      isNewGuest: false,
+    };
+  } catch {
+    // Fall back to decoding without signature verification for backend-signed tokens (same as withAuth)
+    try {
+      const parts = accessToken.split('.');
+      if (parts.length === 3) {
+        const payloadB64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const decoded = Buffer.from(payloadB64, 'base64').toString('utf-8');
+        const raw = JSON.parse(decoded) as Record<string, unknown>;
+        if (raw && raw.sub) {
+          const exp = typeof raw.exp === 'number' ? raw.exp : undefined;
+          if (exp && exp * 1000 < Date.now()) {
+            return null;
+          }
+          return {
+            sessionId: raw.sub as string,
+            accessToken,
+            isAuthenticated: true,
+            isNewGuest: false,
+          };
+        }
+      }
+    } catch {
+      // Ignore parsing / decoding errors
+    }
+    return null;
+  }
+}
+
+/** Resolve the current request to an authenticated user session or anonymous guest session. */
+export async function resolveRequestSession(): Promise<RequestSession> {
+  const accessToken = await getAccessToken();
+  if (accessToken) {
+    const authenticated = await resolveAuthenticatedSession(accessToken);
+    if (authenticated) return authenticated;
+  }
+
+  const cookieStore = await cookies();
+  let guestId = cookieStore.get(GUEST_SESSION_COOKIE)?.value;
+  const isNewGuest = !guestId;
+  if (!guestId) {
+    guestId = crypto.randomUUID();
+  }
+
+  return {
+    sessionId: `guest-${guestId}`,
+    isAuthenticated: false,
+    guestId,
+    isNewGuest,
+  };
+}
+
+export function applyGuestSessionCookie(
+  response: NextResponse,
+  guestId: string,
+  isNewGuest: boolean,
+): NextResponse {
+  if (!isNewGuest) return response;
+
+  const secure = process.env.NODE_ENV === 'production' ? true : false;
+  response.cookies.set(GUEST_SESSION_COOKIE, guestId, {
+    path: '/',
+    sameSite: 'lax',
+    maxAge: REFRESH_TOKEN_TTL_SECONDS,
+    httpOnly: true,
+    secure,
+  });
+
+  return response;
+}
+
+export function clearGuestSessionCookie(response: NextResponse): NextResponse {
+  response.cookies.set(GUEST_SESSION_COOKIE, '', {
+    path: '/',
+    maxAge: 0,
+    httpOnly: true,
+  });
+  return response;
+}
+
+export function getGuestSessionIdFromCookie(guestId: string): string {
+  return `guest-${guestId}`;
+}
