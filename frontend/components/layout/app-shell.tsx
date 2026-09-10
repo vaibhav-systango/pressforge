@@ -41,7 +41,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [showClientMenu, setShowClientMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Smooth loading state for workspace / client switching
+  // Smooth loading state for workspace / client 
   const [isSwitching, setIsSwitching] = useState(false);
   const [, setSwitchingTargetName] = useState<string>('');
   const [switchingType, setSwitchingType] = useState<'workspace' | 'client' | null>(null);
@@ -181,7 +181,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         console.error("Failed to fetch workspaces for client:", err);
         try {
           await setActiveWorkspace(c.workspaceId || null);
-        } catch {}
+        } catch { }
       } finally {
         const elapsed = Date.now() - startTime;
         if (elapsed < 350) {
@@ -302,9 +302,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Sidebar Nav */}
       <aside
-        className={`w-64 border-r border-border-primary bg-bg-card flex flex-col justify-between fixed top-0 bottom-0 left-0 h-screen z-50 lg:z-10 transition-transform duration-300 ease-in-out ${
-          mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }`}
+        className={`w-64 border-r border-border-primary bg-bg-card flex flex-col justify-between fixed top-0 bottom-0 left-0 h-screen z-50 lg:z-10 transition-transform duration-300 ease-in-out ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          }`}
       >
         <div className="p-6 flex flex-col gap-6 overflow-y-auto">
           {/* Logo & Mobile Close */}
@@ -362,11 +361,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         key={ws.id}
                         disabled={isSwitching}
                         onClick={() => handleWorkspaceChange(ws.id, ws.name)}
-                        className={`w-full flex items-center justify-between px-3 py-2 text-left hover:bg-bg-hover transition duration-150 cursor-pointer ${
-                          ws.id === (activeWorkspace?.id || state.activeWorkspaceId)
+                        className={`w-full flex items-center justify-between px-3 py-2 text-left hover:bg-bg-hover transition duration-150 cursor-pointer ${ws.id === (activeWorkspace?.id || state.activeWorkspaceId)
                             ? "bg-bg-app font-semibold text-instagram-pink"
                             : ""
-                        } ${isTarget ? "opacity-75" : ""}`}
+                          } ${isTarget ? "opacity-75" : ""}`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-text-secondary text-xs font-bold shrink-0">
@@ -442,10 +440,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   href="/app/approvals"
                   onClick={() => handleNavClick("/app/approvals", isClient ? "My Approvals" : "Client Approvals")}
                   className={({ isActive }) =>
-                    `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
-                      isActive
-                        ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
-                        : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                    `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${isActive
+                      ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
+                      : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                     }`
                   }
                 >
@@ -471,10 +468,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   href="/app/settings"
                   onClick={() => handleNavClick("/app/settings", "Account Settings")}
                   className={({ isActive }) =>
-                    `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
-                      isActive
-                        ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
-                        : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                    `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${isActive
+                      ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
+                      : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                     }`
                   }
                 >
@@ -491,10 +487,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   href="/app/workspaces"
                   onClick={() => handleNavClick("/app/workspaces", "Workspace Profile")}
                   className={({ isActive }) =>
-                    `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
-                      isActive
-                        ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
-                        : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                    `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${isActive
+                      ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
+                      : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                     }`
                   }
                 >
@@ -514,10 +509,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   href="/app/content"
                   onClick={() => handleNavClick("/app/content", "Content Planner")}
                   className={({ isActive }) =>
-                    `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
-                      isActive
-                        ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
-                        : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                    `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${isActive
+                      ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
+                      : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                     }`
                   }
                 >
@@ -534,10 +528,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   href="/app/approvals"
                   onClick={() => handleNavClick("/app/approvals", "Approvals")}
                   className={({ isActive }) =>
-                    `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
-                      isActive
-                        ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
-                        : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                    `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${isActive
+                      ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
+                      : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                     }`
                   }
                 >
@@ -563,10 +556,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   href="/app/publishing"
                   onClick={() => handleNavClick("/app/publishing", "Publishing Queue")}
                   className={({ isActive }) =>
-                    `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
-                      isActive
-                        ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
-                        : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                    `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${isActive
+                      ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
+                      : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                     }`
                   }
                 >
@@ -585,10 +577,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       href="/app/clients"
                       onClick={() => handleNavClick("/app/clients", "Client Portals")}
                       className={({ isActive }) =>
-                        `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
-                          isActive
-                            ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
-                            : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                        `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${isActive
+                          ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
+                          : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                         }`
                       }
                     >
@@ -606,10 +597,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     href="/app/workspaces"
                     onClick={() => handleNavClick("/app/workspaces", "Workspaces")}
                     className={({ isActive }) =>
-                      `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
-                        isActive
-                          ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
-                          : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                      `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${isActive
+                        ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
+                        : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                       }`
                     }
                   >
@@ -626,10 +616,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     href="/app/settings"
                     onClick={() => handleNavClick("/app/settings", "Settings")}
                     className={({ isActive }) =>
-                      `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${
-                        isActive
-                          ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
-                          : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                      `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition duration-200 ${isActive
+                        ? "bg-bg-hover text-instagram-pink font-semibold border-l-2 border-instagram-pink"
+                        : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                       }`
                     }
                   >
@@ -727,7 +716,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         <div className="px-3 py-1 text-[10px] text-text-secondary font-semibold tracking-wider uppercase">
                           Brand Org
                         </div>
-                        <button 
+                        <button
                           onClick={() => setShowOrgMenu(false)}
                           className="w-full text-left px-3 py-2 text-xs font-semibold text-text-primary hover:bg-bg-hover bg-bg-app"
                         >
@@ -788,11 +777,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                   key={c.id}
                                   disabled={isSwitching}
                                   onClick={() => handleClientSelect(c)}
-                                  className={`w-full flex items-center justify-between text-left px-3 py-2 text-xs font-semibold text-text-primary hover:bg-bg-hover transition duration-150 cursor-pointer ${
-                                    state.activeClientId === c.id || (c.workspaceId && activeWorkspace?.id === c.workspaceId)
+                                  className={`w-full flex items-center justify-between text-left px-3 py-2 text-xs font-semibold text-text-primary hover:bg-bg-hover transition duration-150 cursor-pointer ${state.activeClientId === c.id || (c.workspaceId && activeWorkspace?.id === c.workspaceId)
                                       ? "bg-bg-app font-bold text-instagram-pink"
                                       : ""
-                                  } ${isTarget ? "opacity-75" : ""}`}
+                                    } ${isTarget ? "opacity-75" : ""}`}
                                 >
                                   <span className="truncate">{c.name}</span>
                                   {isTarget && (
@@ -857,11 +845,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           key={ws.id}
                           disabled={isSwitching}
                           onClick={() => handleWorkspaceChange(ws.id, ws.name)}
-                          className={`w-full flex items-center justify-between px-3 py-2 text-left hover:bg-bg-hover transition duration-150 cursor-pointer ${
-                            ws.id === (activeWorkspace?.id || state.activeWorkspaceId)
+                          className={`w-full flex items-center justify-between px-3 py-2 text-left hover:bg-bg-hover transition duration-150 cursor-pointer ${ws.id === (activeWorkspace?.id || state.activeWorkspaceId)
                               ? "bg-bg-app font-semibold text-instagram-pink"
                               : "text-text-primary"
-                          } ${isTarget ? "opacity-75" : ""}`}
+                            } ${isTarget ? "opacity-75" : ""}`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-text-secondary text-[10px] font-bold shrink-0">

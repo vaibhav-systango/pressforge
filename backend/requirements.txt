@@ -13,4 +13,4 @@ email-validator
 sendgrid
 cloudinary
 httpx
-apscheduler
+apscheduler               
